@@ -9,7 +9,7 @@ from enumerations import (
 )
 from schemas import ChargePointUpdateBody
 
-station_name = "OFICINASLIM"
+station_name = "TEST"
 connector_id = 1
 request_suffix = f"{test_pool_code}/{station_name}/{connector_id}"
 request_url = f"http://localhost:{port}/{version}/charge-point-update/{request_suffix}"

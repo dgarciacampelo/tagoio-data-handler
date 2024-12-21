@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+from charge_points import register_charge_point
 from tagoio.data_parsing import update_charge_point_status
 from schemas import ChargePointUpdate, ChargePointData
 
@@ -24,6 +25,7 @@ async def manage_charge_point_update(update: ChargePointUpdate) -> ChargePointDa
 
     search_params = [update.pool_code, update.station_name, update.connector_id]
     search_key = get_seach_key(*search_params)
+    register_charge_point(*search_params)
 
     omitted_updates = 0  # When new_quarantine, the error status is sent
     if search_key in charge_points:
