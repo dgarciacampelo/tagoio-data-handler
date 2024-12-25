@@ -63,7 +63,7 @@ async def charge_point_update(
             charge_point_status=data["charge_point_status"],
             availability_type=data["availability_type"],
             charge_point_error_code=data["charge_point_error_code"],
-            has_pulic_dashboard=data["has_pulic_dashboard"],
+            has_public_dashboard=data["has_public_dashboard"],
         )
         update_data = ChargePointUpdate(
             pool_code=pool_code, station_name=station_name, **update_body.model_dump()

@@ -85,3 +85,16 @@ class ConnectionStatus(StrEnum):
     ONLINE = "Online"
     BOOTING = "Booting"
     OFFLINE = "Offline"
+
+
+class ChargingSessionStep(StrEnum):
+    """
+    Enum class with steps for defining a charging session progression.
+    STARTED:  The charging session has been created/started.
+    INPROGRESS: The charging session is in progress/charging.
+    COMPLETED: The charging session (and related transactions) has been finished.
+    """
+
+    STARTED = "STARTED"
+    INPROGRESS = "INPROGRESS"
+    COMPLETED = "COMPLETED"

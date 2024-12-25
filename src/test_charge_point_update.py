@@ -23,7 +23,7 @@ update = ChargePointUpdateBody(
     charge_point_status=ChargePointStatus.AVAILABLE,
     availability_type=AvailabilityType.OPERATIVE,
     charge_point_error_code=ChargePointErrorCode.NOERROR,
-    has_pulic_dashboard=True,
+    has_public_dashboard=True,
 )
 
 

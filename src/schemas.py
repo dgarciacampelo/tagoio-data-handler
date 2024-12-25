@@ -11,7 +11,7 @@ class ChargePointUpdateBody(BaseModel):
     charge_point_status: str  # ? str(ChargePointStatus)
     availability_type: str  # ? str(AvailabilityType)
     charge_point_error_code: str  # ? str(ChargePointErrorCode)
-    has_pulic_dashboard: bool  # If false, management dashboard only.
+    has_public_dashboard: bool  # If false, management dashboard only.
 
 
 class ChargePointUpdate(ChargePointUpdateBody):
@@ -54,3 +54,38 @@ def device_data_dump(pool_code: int, device_id: str, device_token: str):
     return DeviceData(
         pool_code=pool_code, device_id=device_id, device_token=hidden_token
     ).model_dump()
+
+
+class ChargingSessionUpdate(BaseModel):
+    """
+    Update on a charging session (in progress or completed). If the station
+    related to the charging session has a public dashboard and the charging
+    session is completed, the dashboard information must be reset.
+    """
+
+    pool_code: int  # Code of the charging pool where the station is located
+    station_name: str  # Name of the station related to the charging session
+    connector_id: int  # Id of the connector where the charge is taking place
+    transaction_id: int  # Id of the charging session in the CSMS
+
+    card_alias: str  # Alias of the RFID card used to authorize the charge
+    card_code: str  # Code of the RFID card used to authorize the charge
+    display_id: str  # Alias of the station with the connector
+
+    start_date: str  # Date with the DD/MM/YYYY format
+    start_time: str  # Time with the HH:MM format
+    step: str  # StrEnum, usually "INPROGRESS" or "COMPLETED"
+    star_meter_value: int  # Meter value when the charging session started (Wh)
+    last_meter_value: int  # Meter value received in the last update (Wh)
+
+    energy: float  # (last_meter_value - star_meter_value) / 1000
+    energy_unit: str = "KWh"
+    cost: float
+    cost_unit: str = "€"
+    power: int
+    power_unit: str = "W"
+    time: str  # Translated in minutes
+
+    has_public_dashboard: bool = False  # The station has a public dashboard
+    stop_motive: Optional[str] = None  # StrEnum with the stop motive
+    time_band: Optional[str] = None  # Time band in the HH:MM - HH:MM format

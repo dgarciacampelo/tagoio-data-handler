@@ -1,8 +1,12 @@
 from datetime import datetime, timedelta
 
 from charge_points import register_charge_point
-from tagoio.data_parsing import update_charge_point_status
-from schemas import ChargePointUpdate, ChargePointData
+from tagoio.data_parsing import (
+    update_charge_point_status,
+    update_management_dashboard_charging_session,
+    update_public_dashboard_values,
+)
+from schemas import ChargePointUpdate, ChargePointData, ChargingSessionUpdate
 
 
 # Data of the known charge points
@@ -21,6 +25,7 @@ def get_charge_point(pool_code: int, station_name: str, connector_id: int = 1):
 
 
 async def manage_charge_point_update(update: ChargePointUpdate) -> ChargePointData:
+    "Updates the dashboards with the charge point data, if conditions are met"
     new_quarantine, is_quarantined, quarantine_end = check_quarantine(update)
 
     search_params = [update.pool_code, update.station_name, update.connector_id]
@@ -93,3 +98,9 @@ def check_quarantine(update: ChargePointUpdate, quarantine_minutes: int = 30):
         quarantine_end = datetime.now() + timedelta(minutes=quarantine_minutes)
 
     return new_quarantine, is_quarantined, quarantine_end
+
+
+async def manage_charging_session_update(update: ChargingSessionUpdate) -> None:
+    "Updates the management, and the public dashboard if any, with the session data"
+    await update_management_dashboard_charging_session(update)
+    await update_public_dashboard_values(update)
