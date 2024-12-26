@@ -1,9 +1,12 @@
 from config import test_pool_code
+from test_charging_session_update import update  # noqa: F401
 from database import (
     get_database_tagoio_devices_count,
+    get_database_charging_session_history_count,
     get_all_database_tagoio_devices,
     get_database_tagoio_device,
     insert_database_tagoio_device,
+    insert_database_charging_session_history,
     update_database_tagoio_device,
     delete_database_tagoio_device,
 )
@@ -31,6 +34,14 @@ def test_insert_database_tagoio_device(
     insert_database_tagoio_device(pool_code, device_id, device_token)
     devices_count_after = get_database_tagoio_devices_count()
     assert devices_count_after == devices_count_before + 1
+
+
+def test_insert_database_charging_session_history():
+    "Tests the function to insert a charging session into the database"
+    charging_sessions_count_before = get_database_charging_session_history_count()
+    insert_database_charging_session_history(update)
+    charging_sessions_count_after = get_database_charging_session_history_count()
+    assert charging_sessions_count_after == charging_sessions_count_before + 1
 
 
 def test_update_database_tagoio_device(

@@ -2,8 +2,16 @@ import sqlite3
 from loguru import logger
 from typing import Tuple
 
+from schemas import ChargingSessionUpdate
+
 
 database_file: str = "database_files/database.sqlite3"
+
+
+def check_database_tables(db_file: str = database_file):
+    "Checks if al the used tables exist in the database or creates new ones."
+    check_tagoio_device_table(db_file)
+    check_charging_session_history_table(db_file)
 
 
 def check_tagoio_device_table(db_file: str = database_file):
@@ -24,6 +32,31 @@ def check_tagoio_device_table(db_file: str = database_file):
         logger.error(f"Exception during check_tagoio_device_table: {e}")
 
 
+def check_charging_session_history_table(db_file: str = database_file):
+    "Checks if the table exists in the database or creates a new one."
+
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS charging_session_history(
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        pool_code INTEGER NOT NULL,
+        station_name TEXT NOT NULL,
+        connector_id INTEGER NOT NULL,
+        card_alias TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        time_band TEXT NOT NULL,
+        star_meter_value INTEGER NOT NULL,
+        last_meter_value INTEGER NOT NULL,
+        cost REAL NOT NULL
+        );
+    """
+
+    try:
+        with sqlite3.connect(db_file) as conn:
+            conn.execute(create_table_query)
+    except Exception as e:
+        logger.error(f"Exception during check_charging_session_history_table: {e}")
+
+
 def get_database_tagoio_devices_count(db_file: str = database_file) -> int:
     "Returns the number of tagoio_device rows in the database table."
     query = "SELECT COUNT(pool_code) FROM tagoio_device;"
@@ -31,7 +64,18 @@ def get_database_tagoio_devices_count(db_file: str = database_file) -> int:
         with sqlite3.connect(db_file) as conn:
             return conn.execute(query).fetchone()[0]
     except Exception as e:
-        logger.error(f"Exception during get_all_database_tagoio_devices_count: {e}")
+        logger.error(f"Exception counting tagoio_device table rows: {e}")
+        return 0
+
+
+def get_database_charging_session_history_count(db_file: str = database_file) -> int:
+    "Returns the number of charging session rows in the history database table."
+    query = "SELECT COUNT(ROWID) FROM charging_session_history;"
+    try:
+        with sqlite3.connect(db_file) as conn:
+            return conn.execute(query).fetchone()[0]
+    except Exception as e:
+        logger.error(f"Exception counting charging_session_history table rows: {e}")
         return 0
 
 
@@ -70,6 +114,34 @@ def insert_database_tagoio_device(
             conn.commit()
     except Exception as e:
         logger.error(f"Exception during insert_database_tagoio_device: {e}")
+
+
+def insert_database_charging_session_history(
+    update: ChargingSessionUpdate, db_file: str = database_file
+):
+    "Inserts a new charging session into the history database table."
+    query = """
+        INSERT INTO charging_session_history
+        (pool_code, station_name, connector_id, card_alias, start_date, time_band, star_meter_value, last_meter_value, cost)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    """
+    try:
+        with sqlite3.connect(db_file) as conn:
+            values = (
+                update.pool_code,
+                update.station_name,
+                update.connector_id,
+                update.card_alias,
+                update.start_date,
+                update.time_band,
+                update.star_meter_value,
+                update.last_meter_value,
+                update.cost,
+            )
+            conn.execute(query, values)
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Exception during insert_database_charging_session_history: {e}")
 
 
 def update_database_tagoio_device(

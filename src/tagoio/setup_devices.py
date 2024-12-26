@@ -2,7 +2,7 @@ from loguru import logger
 
 from config import tago_device_prefix
 from database import (
-    check_tagoio_device_table,
+    check_database_tables,
     get_all_database_tagoio_devices,
     insert_database_tagoio_device,
 )
@@ -10,7 +10,7 @@ from tagoio.aux_functions import list_devices, get_device_last_token
 
 
 def setup_all_devices_tokens():
-    check_tagoio_device_table()
+    check_database_tables()
 
     devices: dict[int, tuple[str, str]] = dict()
     local_device_rows = list()
