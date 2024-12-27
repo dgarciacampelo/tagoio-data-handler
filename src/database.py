@@ -1,11 +1,32 @@
 import sqlite3
+from datetime import datetime
 from loguru import logger
 from typing import Tuple
+from zipfile import ZipFile
 
 from schemas import ChargingSessionUpdate
 
 
 database_file: str = "database_files/database.sqlite3"
+
+
+def zip_database_file(
+    db_file: str = database_file,
+    zip_params: dict = {"mode": "w", "compression": 8, "compresslevel": 8},
+) -> str:
+    "Zips the database file and returns the path of the compressed file."
+    datetime_now: str = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
+    backup_file_name: str = db_file.split(".")[0] + "_" + datetime_now
+    archive_file_name: str = backup_file_name.split("/")[1]
+
+    try:
+        logger.info(f"Compressing database file {backup_file_name}.zip ...")
+        with ZipFile(backup_file_name + ".zip", **zip_params) as zip_file:
+            zip_file.write(db_file, archive_file_name + ".sqlite3")
+            return backup_file_name + ".zip"
+    except Exception as e:
+        logger.error(f"Exception during zip_database_file: {e}")
+        return None
 
 
 def check_database_tables(db_file: str = database_file):

@@ -10,6 +10,7 @@ from routes.charge_point_update import router as charge_point_update_router
 from routes.charging_session_update import router as charging_session_update_router
 from routes.device_token import router as device_token_router
 from security import check_credentials
+from schedule_utils import setup_schedules
 
 
 app = FastAPI()
@@ -33,4 +34,5 @@ async def do_credentials_check(username: Annotated[str, Depends(check_credential
 
 
 if __name__ == "__main__":
+    setup_schedules()
     asyncio.run(uvicorn.run(app, host="0.0.0.0", port=api_port))

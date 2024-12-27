@@ -15,3 +15,7 @@ tago_device_prefix = os.getenv("TAGO_DEVICE_PREFIX")
 test_pool_code = int(os.getenv("TEST_POOL_CODE"))
 test_device_id = os.getenv("TEST_DEVICE_ID")
 test_device_token = os.getenv("TEST_DEVICE_TOKEN")
+
+telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+telegram_notices_chat_id = os.getenv("TELEGRAM_NOTICES_CHAT_ID")
+telegram_backups_chat_id = os.getenv("TELEGRAM_BACKUPS_CHAT_ID")
