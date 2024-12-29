@@ -55,6 +55,11 @@ def backup_database_to_telegram(max_sleep_seconds: int = 60):
 
 
 def setup_schedules():
+    """
+    Setups the scheduled jobs to be executed. The monthly backup job executes
+    before the conditional one, to clear the is_modified flag column at the end
+    of its backup, so the oconditional job has nothing to do for the day.
+    """
     logger.info("Setting up schedules, using schedule.run_pending...")
     schedule.every().day.at("20:45", "Europe/Madrid").do(monthly_database_backup)
     schedule.every().day.at("21:15", "Europe/Madrid").do(conditional_database_backup)
