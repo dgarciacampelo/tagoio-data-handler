@@ -1,6 +1,6 @@
 from config import test_pool_code
 from test_charging_session_update import update  # noqa: F401
-from database import (
+from database.query_database import (
     get_database_tagoio_devices_count,
     get_database_charging_session_history_count,
     get_all_database_tagoio_devices,

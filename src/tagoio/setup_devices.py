@@ -1,8 +1,8 @@
 from loguru import logger
 
 from config import tago_device_prefix
-from database import (
-    check_database_tables,
+from database.database_check import check_database_tables
+from database.query_database import (
     get_all_database_tagoio_devices,
     insert_database_tagoio_device,
 )

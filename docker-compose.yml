@@ -1,7 +1,7 @@
 services:
-   tagoio-data-handler:
-    container_name:  tagoio-data-handler
-    image:  tagoio-data-handler
+  tagoio-data-handler:
+    container_name: tagoio-data-handler
+    image: tagoio-data-handler
     build:
       context: .
       dockerfile: Dockerfile

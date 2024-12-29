@@ -1,10 +1,42 @@
 import schedule
+from datetime import datetime
 from loguru import logger
 from random import randint
 from time import sleep
 
-from database import zip_database_file
+from config import service_name
+from database import table_names_to_modified_check
+from database.database_backup import zip_database_file, get_all_modified_rows_count
+from database.database_check import clear_modified_column
 from telegram_utils import run_upload_document
+
+
+def monthly_database_backup():
+    "Performs a database backup, only on the first day of the month."
+    if datetime.now().day != 1:
+        return
+
+    conditional_database_backup(True)
+
+
+def conditional_database_backup(
+    force_backup: bool = False, table_names: list = table_names_to_modified_check
+):
+    "Performs a database backup if there are modified rows in the specified tables."
+    if not force_backup:
+        modified_rows_count: int = get_all_modified_rows_count(table_names)
+        if modified_rows_count == 0:
+            logger.info(f"No modified rows in the tracked tables for {service_name}.")
+            return
+
+    try:
+        backup_database_to_telegram()
+        for table_name in table_names:
+            clear_modified_column(table_name)
+
+        logger.info(f"Database backup completed for service: {service_name}.")
+    except Exception as e:
+        logger.error(f"Error during {service_name} database backup: {e}")
 
 
 def backup_database_to_telegram(max_sleep_seconds: int = 60):
@@ -24,7 +56,8 @@ def backup_database_to_telegram(max_sleep_seconds: int = 60):
 
 def setup_schedules():
     logger.info("Setting up schedules, using schedule.run_pending...")
-    schedule.every().friday.at("21:15", "Europe/Madrid").do(backup_database_to_telegram)
+    schedule.every().day.at("20:45", "Europe/Madrid").do(monthly_database_backup)
+    schedule.every().day.at("21:15", "Europe/Madrid").do(conditional_database_backup)
 
     while True:
         schedule.run_pending()

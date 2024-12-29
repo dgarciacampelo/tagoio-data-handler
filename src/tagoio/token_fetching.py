@@ -1,7 +1,7 @@
 from loguru import logger
 
 from config import tago_account_token, tago_device_prefix
-from database import (
+from database.query_database import (
     insert_database_tagoio_device,
     update_database_tagoio_device,
     delete_database_tagoio_device,

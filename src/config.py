@@ -1,6 +1,8 @@
 import os
 from dotenv import load_dotenv
 
+service_name: str = "TagoIO data handler"
+
 # Load environment variables from .env file and assign to variables
 load_dotenv()
 
