@@ -1,3 +1,4 @@
+import asyncio
 import schedule
 from datetime import datetime
 from loguru import logger
@@ -39,10 +40,10 @@ def conditional_database_backup(
         logger.error(f"Error during {service_name} database backup: {e}")
 
 
-def backup_database_to_telegram(max_sleep_seconds: int = 60):
+async def backup_database_to_telegram(max_sleep_seconds: int = 60):
     "Zips the local database file and sends it to Telegram, using a bot."
     # Wait up to 60s, in case of multiple services running on the same host...
-    sleep(randint(0, max_sleep_seconds))
+    asyncio.run(sleep(randint(0, max_sleep_seconds)))
 
     zip_file = zip_database_file()
     if zip_file is None:
@@ -54,16 +55,18 @@ def backup_database_to_telegram(max_sleep_seconds: int = 60):
         pass  # TODO: Error handling (apart from sending a telegram message)
 
 
-def setup_schedules():
+async def setup_schedules():
     """
     Setups the scheduled jobs to be executed. The monthly backup job executes
     before the conditional one, to clear the is_modified flag column at the end
     of its backup, so the oconditional job has nothing to do for the day.
+    Uses its own asyncio event loop, to avoid blocking the FastAPI server.
     """
+    await asyncio.sleep(5)  # Give time for the REST server to start...
     logger.info("Setting up schedules, using schedule.run_pending...")
     schedule.every().day.at("20:45", "Europe/Madrid").do(monthly_database_backup)
     schedule.every().day.at("21:15", "Europe/Madrid").do(conditional_database_backup)
 
     while True:
         schedule.run_pending()
-        sleep(15)
+        await asyncio.sleep(15)

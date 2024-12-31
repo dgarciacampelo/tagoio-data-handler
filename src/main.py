@@ -12,7 +12,6 @@ from routes.device_token import router as device_token_router
 from security import check_credentials
 from schedule_utils import setup_schedules
 
-
 app = FastAPI()
 security = HTTPBasic()
 
@@ -23,16 +22,30 @@ app.include_router(charging_session_update_router)
 app.include_router(device_token_router)
 
 
-@app.get("/")
-async def get_root():
-    return {"message": "Server is running"}
-
-
 @app.get("/{version}/credentials-check")
 async def do_credentials_check(username: Annotated[str, Depends(check_credentials)]):
+    "Simple endpoint to check if the credentials validation is working..."
     return {"message": f"Welcome, {username}!"}
 
 
+async def setup_rest_api_server():
+    "Starts the FastAPI REST server."
+    config_params = {"app": app, "host": "0.0.0.0", "port": api_port}
+    rest_server = uvicorn.Server(config=uvicorn.Config(**config_params))
+    await rest_server.serve()
+
+
+async def main():
+    "Uses asyncio tasks to avoid the schedule library blocking uvicorn."
+    rest_server_task = asyncio.create_task(setup_rest_api_server())
+    schedules_task = asyncio.create_task(setup_schedules())
+    await asyncio.gather(rest_server_task, schedules_task)
+
+
 if __name__ == "__main__":
-    setup_schedules()
-    asyncio.run(uvicorn.run(app, host="0.0.0.0", port=api_port))
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        print("Error in main:", e)
