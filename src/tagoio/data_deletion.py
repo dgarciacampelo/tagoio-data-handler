@@ -11,7 +11,6 @@ from tagoio.token_fetching import get_headers_by_pool_code
 limit is reached, following requests will error and no new data will be stored.
 """
 
-client = httpx.AsyncClient()
 base_url: str = f"{tago_api_endpoint}/data?variable="
 
 
@@ -31,7 +30,8 @@ async def delete_variable_in_cloud(
     headers = get_headers_by_pool_code(pool_code)
 
     try:
-        async with client:
+        # ! To avoid error:  Cannot open a client instance more than once.
+        async with httpx.AsyncClient() as client:
             response = await client.delete(url, headers=headers)
             return response.json()
     except Exception as e:

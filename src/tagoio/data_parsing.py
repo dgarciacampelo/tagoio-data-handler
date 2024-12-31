@@ -23,7 +23,7 @@ translated_statuses: dict[int, dict[int, str]] = {}
 async def insert_data_in_cloud(pool_code: int, data: dict = {}):
     url: str = f"{tago_api_endpoint}/data"
     headers = get_headers_by_pool_code(pool_code)
-    # To avoid error: Cannot reopen a client instance, once it has been closed.
+    # ! To avoid error: Cannot reopen a client instance, once it has been closed.
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, json=data)
         return response.json()
