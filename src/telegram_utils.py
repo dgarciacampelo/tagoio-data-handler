@@ -10,6 +10,9 @@ from config import (
     telegram_backups_chat_id as chat_id,
 )
 
+# Paths of documents to be uploaded, with the bot_token and chat_id:
+pending_documents: list[tuple[str, str, int]] = list()
+
 
 async def upload_document(
     file_to_send: str, bot_token: str = bot_token, chat_id: int = chat_id
@@ -34,8 +37,16 @@ async def upload_document(
             return result_ok
 
 
-def run_upload_document(
+def append_doc_tuple(
     file_to_send: str, bot_token: str = bot_token, chat_id: int = chat_id
 ):
-    "Wraps the async upload_document function, to be called from a synchronous context"
-    asyncio.run(upload_document(file_to_send, bot_token, chat_id))
+    "Appends the parameters of a document to be uploaded to Telegram later."
+    pending_documents.append((file_to_send, bot_token, chat_id))
+
+
+def pending_document_generator():
+    "Yields the parameters of a document to be uploaded to Telegram."
+    for document_tuple in pending_documents:
+        file_to_send, bot_token, chat_id = document_tuple
+        pending_documents.remove(document_tuple)
+        yield file_to_send, bot_token, chat_id

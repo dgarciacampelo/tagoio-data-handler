@@ -1,10 +1,11 @@
 import httpx
+from asyncio import sleep as asyncio_sleep
 from datetime import datetime, timedelta
 from loguru import logger
 
-from config import tago_api_endpoint
+from config import tago_api_endpoint, app_default_user, app_default_token, port, version
 from charge_points import known_charge_points
-from tagoio.token_fetching import get_headers_by_pool_code
+from tagoio.token_fetching import get_headers_by_pool_code, get_all_devices_data
 
 """
 ! The TagoIO platform allows 50_000 registers per device at most. When the
@@ -39,7 +40,7 @@ async def delete_variable_in_cloud(
         return {"status": False, "result": "0 Data Removed"}
 
 
-def handle_delete_response(result: dict):
+def handle_delete_response(pool_code: int, result: dict):
     "Handles the response from delete_variable_in_cloud function, to avoid code repetition"
     removed_count: int = 0
     try:
@@ -47,9 +48,9 @@ def handle_delete_response(result: dict):
             result_msg: str = result["result"]  # X Data Removed
             removed_count = int(result_msg.split(" ")[0])
         else:
-            logger.warning(f"Result of cloud variable deletion: {result}")
+            logger.warning(f"Cloud variable deletion at {pool_code} result: {result}")
     except Exception as e:
-        logger.error(f"Exception during cloud variable deletion: {e}")
+        logger.error(f"Exception during cloud variable deletion at {pool_code}: {e}")
     finally:
         return removed_count
 
@@ -59,7 +60,7 @@ async def clean_charging_session_history(
 ) -> int:
     "Deletes old elements from the charging session history of the provided pool"
     result = await delete_variable_in_cloud(pool_code, variable, keep_weeks)
-    return handle_delete_response(result)
+    return handle_delete_response(pool_code, result)
 
 
 async def clean_active_charging_session_data(
@@ -67,7 +68,7 @@ async def clean_active_charging_session_data(
 ) -> int:
     "Deletes old data produced by charging sessions during charging"
     result = await delete_variable_in_cloud(pool_code, variable, keep_weeks)
-    return handle_delete_response(result)
+    return handle_delete_response(pool_code, result)
 
 
 async def clean_station_variables(
@@ -85,7 +86,7 @@ async def clean_station_variables(
     for prefix in prefixes:
         variable = f"{prefix}_{station_name.lower()}_{connector_id}"
         result = await delete_variable_in_cloud(pool_code, variable, keep_weeks)
-        removed_count += handle_delete_response(result)
+        removed_count += handle_delete_response(pool_code, result)
     return removed_count
 
 
@@ -94,7 +95,7 @@ async def clean_pool_private_variables(
 ) -> int:
     "Deletes variables shown in the private dashboard of each pool"
     result = await delete_variable_in_cloud(pool_code, variable, keep_weeks)
-    return handle_delete_response(result)
+    return handle_delete_response(pool_code, result)
 
 
 async def clean_pool_public_variables(
@@ -120,3 +121,25 @@ async def pool_variable_cleanup(pool_code: int):
         removed_count += await clean_pool_public_variables(pool_code, known_stations)
 
     logger.info(f"Removed {removed_count} variables from pool {pool_code}")
+
+
+async def all_pools_variable_cleanup():
+    "Deletes old variables from TagoIO, for all the registered pools"
+    logger.warning("Performing variable cleanup for all registered pools...")
+    devices_data_by_pool_code: dict[int, tuple[str, str]] = get_all_devices_data()
+    for pool_code in devices_data_by_pool_code:
+        await pool_variable_cleanup(pool_code)
+        # Wait 30 seconds between pool variable cleanups, to avoid rate limits
+        # ? https://help.tago.io/portal/en/kb/articles/rate-limits
+        await asyncio_sleep(30)
+
+
+def all_pools_variable_cleanup_trigger():
+    "Calls a GET endpoint to trigger the async function, without awaiting it"
+    request_url = f"http://localhost:{port}/{version}/all-pools-variable-cleanup"
+    auth = httpx.BasicAuth(username=app_default_user, password=app_default_token)
+    try:
+        with httpx.Client() as client:
+            client.get(request_url, auth=auth)
+    except Exception as e:
+        logger.error(f"Exception during all pools cleanup trigger: {e}")

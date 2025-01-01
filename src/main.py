@@ -11,6 +11,7 @@ from routes.charging_session_update import router as charging_session_update_rou
 from routes.device_token import router as device_token_router
 from security import check_credentials
 from schedule_utils import setup_schedules
+from tagoio.data_deletion import all_pools_variable_cleanup
 
 app = FastAPI()
 security = HTTPBasic()
@@ -26,6 +27,13 @@ app.include_router(device_token_router)
 async def do_credentials_check(username: Annotated[str, Depends(check_credentials)]):
     "Simple endpoint to check if the credentials validation is working..."
     return {"message": f"Welcome, {username}!"}
+
+
+@app.get("/{version}/all-pools-variable-cleanup")
+async def do_all_pools_cleanup(username: Annotated[str, Depends(check_credentials)]):
+    "Deletes old variables from TagoIO, for all the registered pools"
+    await all_pools_variable_cleanup()
+    return {"message": "All pools variable cleanup completed"}
 
 
 async def setup_rest_api_server():

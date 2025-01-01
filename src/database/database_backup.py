@@ -2,6 +2,7 @@ from datetime import datetime
 from loguru import logger
 from zipfile import ZipFile
 
+from config import service_name
 from database import database_file
 from database.database_check import insert_modified_column
 from database.query_database import get_modified_rows_count
@@ -9,14 +10,18 @@ from database.query_database import get_modified_rows_count
 # TODO: Use SQLite online backup API, to step the database backup process:
 # ? https://www.sqlite.org/c3ref/backup_finish.html
 
+service_prefix: str = service_name.lower().replace(" ", "_") + "_"
+
 
 def zip_database_file(
     db_file: str = database_file,
     zip_params: dict = {"mode": "w", "compression": 8, "compresslevel": 8},
 ) -> str:
     "Zips the database file and returns the path of the compressed file."
-    datetime_now: str = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
-    backup_file_name: str = db_file.split(".")[0] + "_" + datetime_now
+    dt_now: str = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
+    db_folder, db_file_name = db_file.split("/")
+    backup_file_name: str = db_folder + "/" + service_prefix + db_file_name
+    backup_file_name = backup_file_name.split(".")[0] + "_" + dt_now
     archive_file_name: str = backup_file_name.split("/")[1]
 
     try:
