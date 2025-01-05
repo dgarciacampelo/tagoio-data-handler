@@ -178,7 +178,7 @@ async def add_charging_session_to_history(update: ChargingSessionUpdate):
     data = {
         "variable": "charging_session_data",
         "value": update.transaction_id,
-        "group": f"{update.station_name}_[{update.connector_id}]",
+        "group": update.transaction_id,
         "metadata": metadata,
         "unit": None,
         "time": None,

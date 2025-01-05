@@ -22,8 +22,7 @@ async def upload_document(
     with Path.open(file_to_send, "rb") as file:
         try:
             telegram_bot = Bot(bot_token)
-            prefix: str = f"Uploading file: {file_to_send.split('/')[-1]}..."
-            message: str = f"{service_name}, telegram module. {prefix}"
+            message: str = f"{service_name}, uploading: {file_to_send.split('/')[-1]}"
             logger.info(message)
             await telegram_bot.send_message(chat_id, message)
             await telegram_bot.send_document(chat_id, file)
