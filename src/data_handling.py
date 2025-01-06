@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from charge_points import register_charge_point
+from database.query_database import insert_database_charging_session_history
 from tagoio.data_parsing import (
     update_charge_point_status,
     update_management_dashboard_charging_session,
@@ -102,5 +103,6 @@ def check_quarantine(update: ChargePointUpdate, quarantine_minutes: int = 30):
 
 async def manage_charging_session_update(update: ChargingSessionUpdate) -> None:
     "Updates the management, and the public dashboard if any, with the session data"
+    insert_database_charging_session_history(update)
     await update_management_dashboard_charging_session(update)
     await update_public_dashboard_values(update)

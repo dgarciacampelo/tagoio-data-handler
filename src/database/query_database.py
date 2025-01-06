@@ -88,8 +88,8 @@ def insert_database_charging_session_history(
     "Inserts a new charging session into the history database table."
     query = """
         INSERT INTO charging_session_history
-        (pool_code, station_name, connector_id, card_alias, start_date, time_band, star_meter_value, last_meter_value, cost)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+        (pool_code, station_name, connector_id, card_alias, start_date, time_band, star_meter_value, last_meter_value, cost, is_modified)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1);
     """
     try:
         with sqlite3.connect(db_file) as conn:

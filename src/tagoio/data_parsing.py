@@ -129,7 +129,9 @@ async def update_public_dashboard_values(update: ChargingSessionUpdate):
 
 async def update_management_dashboard_charging_session(update: ChargingSessionUpdate):
     "Updates the charging session values in the management dashboard"
-    await add_charging_session_to_history(update)
+    history_result = await add_charging_session_to_history(update)
+    if history_result:
+        logger.info(f"cs history log {update.transaction_id} result: {history_result}")
 
     value = f"{update.station_name}_[{update.connector_id}]"
     metadata = {
@@ -178,9 +180,10 @@ async def add_charging_session_to_history(update: ChargingSessionUpdate):
     data = {
         "variable": "charging_session_data",
         "value": update.transaction_id,
-        "group": update.transaction_id,
+        "group": f"{update.station_name}_[{update.connector_id}]",
         "metadata": metadata,
         "unit": None,
         "time": None,
     }
+    # logger.info(f"Adding charging session to history: {data}")
     return await handle_variable_insert(update.pool_code, data)
