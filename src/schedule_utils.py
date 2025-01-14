@@ -57,12 +57,12 @@ async def setup_schedules():
     before the conditional one, to clear the is_modified flag column at the end
     of its backup, so the oconditional job has nothing to do for the day.
     Uses its own asyncio event loop, to avoid blocking the FastAPI server.
-    # TODO: Create an analysis to trigger status notif. for all stations from CSMS.
     """
     await asyncio.sleep(5)  # Give time for the REST server to start...
     logger.info("Setting up schedules, using schedule.run_pending...")
     schedule.every().day.at("20:45", "Europe/Madrid").do(monthly_database_backup)
     schedule.every().day.at("21:15", "Europe/Madrid").do(conditional_database_backup)
+    schedule.every().wednesday.at("04:30", "Europe/Madrid").do(all_pools_cleanup)
     schedule.every().sunday.at("04:30", "Europe/Madrid").do(all_pools_cleanup)
 
     while True:

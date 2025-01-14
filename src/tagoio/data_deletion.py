@@ -129,8 +129,6 @@ async def all_pools_variable_cleanup():
     devices_data_by_pool_code: dict[int, tuple[str, str]] = get_all_devices_data()
     for pool_code in devices_data_by_pool_code:
         await pool_variable_cleanup(pool_code)
-        # Wait 30 seconds between pool variable cleanups, to avoid rate limits
-        # ? https://help.tago.io/portal/en/kb/articles/rate-limits
         await asyncio_sleep(30)
 
 

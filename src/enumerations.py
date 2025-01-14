@@ -98,3 +98,14 @@ class ChargingSessionStep(StrEnum):
     STARTED = "STARTED"
     INPROGRESS = "INPROGRESS"
     COMPLETED = "COMPLETED"
+
+
+class ValidationAlert(StrEnum):
+    """
+    Alert feedback messages using validation fields on TagoIO dashboards forms.
+    ? https://help.tago.io/portal/en/community/topic/adding-feedback-message-to-users-using-validation-field-on-input-forms-21-1-2022
+    """
+
+    ACCEPT = "accept"
+    REJECT = "danger"
+    WARNING = "warning"

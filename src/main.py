@@ -1,7 +1,9 @@
 import asyncio
+import sys
 import uvicorn
 from fastapi import FastAPI, Depends
 from fastapi.security import HTTPBasic
+from loguru import logger
 from typing import Annotated
 
 from config import port as api_port
@@ -9,9 +11,15 @@ from routes.charge_point_alias import router as charge_point_alias_router
 from routes.charge_point_update import router as charge_point_update_router
 from routes.charging_session_update import router as charging_session_update_router
 from routes.device_token import router as device_token_router
+from routes.feedback_message import router as feedback_message_router
+from routes.trigger_task import router as trigger_task_router
 from security import check_credentials
 from schedule_utils import setup_schedules
-from tagoio.data_deletion import all_pools_variable_cleanup
+
+# ? https://loguru.readthedocs.io/en/stable/api/logger.html#sink
+logger.remove()
+logger.add(sys.stderr, colorize=True)
+
 
 app = FastAPI()
 security = HTTPBasic()
@@ -21,19 +29,14 @@ app.include_router(charge_point_alias_router)
 app.include_router(charge_point_update_router)
 app.include_router(charging_session_update_router)
 app.include_router(device_token_router)
+app.include_router(feedback_message_router)
+app.include_router(trigger_task_router)
 
 
 @app.get("/{version}/credentials-check")
 async def do_credentials_check(username: Annotated[str, Depends(check_credentials)]):
     "Simple endpoint to check if the credentials validation is working..."
     return {"message": f"Welcome, {username}!"}
-
-
-@app.get("/{version}/all-pools-variable-cleanup")
-async def do_all_pools_cleanup(username: Annotated[str, Depends(check_credentials)]):
-    "Deletes old variables from TagoIO, for all the registered pools"
-    await all_pools_variable_cleanup()
-    return {"message": "All pools variable cleanup completed"}
 
 
 async def setup_rest_api_server():

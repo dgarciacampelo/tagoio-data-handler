@@ -2,6 +2,8 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 
+from enumerations import ValidationAlert
+
 
 class ChargePointUpdateBody(BaseModel):
     "Contains the HTTP request body data for a charge point status update"
@@ -89,3 +91,13 @@ class ChargingSessionUpdate(BaseModel):
     has_public_dashboard: bool = False  # The station has a public dashboard
     stop_motive: Optional[str] = None  # StrEnum with the stop motive
     time_band: Optional[str] = None  # Time band in the HH:MM - HH:MM format
+
+
+class FeedbackMessage(BaseModel):
+    "Data of a feedback message. The variable links the validation field."
+
+    pool_code: int
+    variable: str
+    message: str
+    group: str = "validation_feedback"
+    type: ValidationAlert = ValidationAlert.ACCEPT

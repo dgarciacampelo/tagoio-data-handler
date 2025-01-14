@@ -4,7 +4,7 @@ from typing import Any
 
 from config import tago_api_endpoint
 from enumerations import ChargingSessionStep
-from schemas import ChargePointUpdate, ChargingSessionUpdate
+from schemas import ChargePointUpdate, ChargingSessionUpdate, FeedbackMessage
 from tagoio.data_deletion import pool_variable_cleanup
 from tagoio.token_fetching import get_headers_by_pool_code
 from user_interface import translate_status
@@ -44,6 +44,19 @@ async def handle_variable_insert(pool_code: int, data: dict = {}):
             return await insert_data_in_cloud(pool_code, data)
     except Exception as e:
         logger.error(f"Exception during cloud variable insert: {e}")
+
+
+async def send_feedback_message(feedback: FeedbackMessage):
+    "Inserts a feedback message to be shown in a dashboard linkend to the pool"
+    data = {
+        "variable": feedback.variable,
+        "value": feedback.message,
+        "group": feedback.group,
+        "metadata": {"type": feedback.type},
+        "unit": None,
+        "time": None,
+    }
+    await handle_variable_insert(feedback.pool_code, data)
 
 
 async def update_charge_point_status(update: ChargePointUpdate):
