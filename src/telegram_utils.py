@@ -1,4 +1,5 @@
 import asyncio
+import httpx
 from pathlib import Path
 from loguru import logger
 from telegram import Bot
@@ -8,7 +9,10 @@ from config import (
     service_name,
     telegram_bot_token as bot_token,
     telegram_backups_chat_id as chat_id,
+    telegram_notices_chat_id as notification_chat_id,
 )
+
+TELEGRAM_BASE_URL: str = "https://api.telegram.org/bot"
 
 # Paths of documents to be uploaded, with the bot_token and chat_id:
 pending_documents: list[tuple[str, str, int]] = list()
@@ -49,3 +53,21 @@ def pending_document_generator():
         file_to_send, bot_token, chat_id = document_tuple
         pending_documents.remove(document_tuple)
         yield file_to_send, bot_token, chat_id
+
+
+async def send_telegram_notification(
+    message: str,
+    bot_id: str = bot_token,
+    chat_id: int = notification_chat_id,
+    base_url: str = TELEGRAM_BASE_URL,
+):
+    "sends a Telegram message without using the telegram Bot module"
+    headers = {"content-type": "application/json"}
+    data = {"chat_id": chat_id, "text": message}
+    url: str = base_url + bot_id + "/sendMessage"
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=data)
+            return response.json()
+    except Exception as e:
+        logger.error(f"Exception sending telegram notification: {e}")

@@ -1,4 +1,4 @@
-FROM python:3.11-bullseye
+FROM python:3.11-slim
 
 # Creation of src directory
 WORKDIR /src

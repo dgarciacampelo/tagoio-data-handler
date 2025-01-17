@@ -18,7 +18,7 @@ services:
         max-size: 10m
     volumes:
       - ./database_files:/src/database_files:rw
-    restart: on-failure:3
+    restart: on-failure:1
 
 networks:
   tagoio-data-network:

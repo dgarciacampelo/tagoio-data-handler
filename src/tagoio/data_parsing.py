@@ -190,10 +190,11 @@ async def add_charging_session_to_history(update: ChargingSessionUpdate):
         "stop_motive": update.stop_motive,
         "time_band": update.time_band,
     }
+    # ! "group": update.transaction_id is necessary for session not to be grouped in the dashboard
     data = {
         "variable": "charging_session_data",
         "value": update.transaction_id,
-        "group": f"{update.station_name}_[{update.connector_id}]",
+        "group": update.transaction_id,
         "metadata": metadata,
         "unit": None,
         "time": None,

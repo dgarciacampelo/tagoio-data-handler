@@ -21,14 +21,18 @@ async def delete_variable_in_cloud(
     """
     Uses TagoIO API for variable deletion, keeping the remain weeks of data
     Returns: {'status': True, 'result': 'X Data Removed'} with X: integer
+
+    Maximum quantity of data to be deleted: 5000 registers at once.
     """
     end_datetime = datetime.now() - timedelta(weeks=keep_weeks)
     end_date = end_datetime.strftime("%Y-%m-%d")
     start_date = "2020-01-01"
     qty = 1000  # ? Otherwise the default is 15
 
-    url = f"{base_url}{variable}&start_date={start_date}&end_date={end_date}&qty={qty}"
     headers = get_headers_by_pool_code(pool_code)
+    url = f"{base_url}{variable}&start_date={start_date}&end_date={end_date}&qty={qty}"
+    if keep_weeks == 0:
+        url = f"{base_url}{variable}&qty=5000"
 
     try:
         # ! To avoid error:  Cannot open a client instance more than once.

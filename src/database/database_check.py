@@ -76,6 +76,7 @@ def check_charging_session_history_table(db_file: str = database_file):
         is_modified INTEGER NOT NULL DEFAULT 1
         );
     """
+    # TODO: Add transaction_id to the table
 
     try:
         with sqlite3.connect(db_file) as conn:

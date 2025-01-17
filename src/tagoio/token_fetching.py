@@ -1,4 +1,5 @@
 from loguru import logger
+from typing import Generator
 
 from config import tago_account_token, tago_device_prefix
 from database.query_database import (
@@ -12,6 +13,12 @@ from tagoio.setup_devices import setup_all_devices_tokens
 
 # device_id, device_token for each TagoIO device (one device for each pool)
 devices_data_by_pool_code: dict[int, tuple[str, str]] = setup_all_devices_tokens()
+
+
+def pool_code_and_device_id_generator() -> Generator[tuple[int, str], None, None]:
+    "Generator that provides the pool_code and device_id for each TagoIO device"
+    for pool_code, (device_id, device_token) in devices_data_by_pool_code.items():
+        yield pool_code, device_id
 
 
 def get_all_devices_data() -> dict[int, tuple[str, str]]:

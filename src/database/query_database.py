@@ -136,3 +136,21 @@ def delete_database_tagoio_device(pool_code: int, db_file: str = database_file):
             conn.commit()
     except Exception as e:
         logger.error(f"Exception during delete_database_tagoio_device: {e}")
+
+
+def get_charging_sessions_from_pool_code(pool_code: int, db_file: str = database_file):
+    "Returns all charging sessions for a given pool code."
+    select_query = """
+        SELECT
+            created_at, pool_code, station_name, connector_id, card_alias,
+            start_date, time_band, star_meter_value, last_meter_value, cost
+        FROM charging_session_history
+        WHERE pool_code = ?
+        ORDER BY created_at ASC;
+    """
+    try:
+        with sqlite3.connect(db_file) as conn:
+            return conn.execute(select_query, (pool_code,)).fetchall()
+    except Exception as e:
+        logger.error(f"Exception during get_charging_sessions_from_pool_code: {e}")
+        return []
