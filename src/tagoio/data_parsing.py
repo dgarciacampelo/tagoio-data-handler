@@ -171,10 +171,8 @@ async def update_management_dashboard_charging_session(update: ChargingSessionUp
 
 async def add_charging_session_to_history(update: ChargingSessionUpdate):
     "Adds the charging session to the private dashboard history, once completed"
-    if update.step != ChargingSessionStep.COMPLETED:
-        return
-
-    if update.cost == 0.0:  # Dont add sessions without cost to the history
+    if update.step != ChargingSessionStep.COMPLETED or update.cost == 0.0:
+        logger.info(f"Session {update.transaction_id} history skipped due cost/step")
         return
 
     metadata = {
