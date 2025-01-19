@@ -85,7 +85,7 @@ def handle_response(
     """
     Handles responses from the TagoIO platform. Response examples:
     {"status": false, "message": "Authorization denied"}
-    {'status': False, "message": "Bucket can't be found"}
+    {"status": False, "message": "Bucket can't be found"}
     {"status": true, "result": 20700}
     "status": true,
     "result": [

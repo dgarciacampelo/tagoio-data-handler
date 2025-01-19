@@ -30,18 +30,25 @@ async def insert_data_in_cloud(pool_code: int, data: dict = {}):
 
 
 async def handle_variable_insert(pool_code: int, data: dict = {}):
-    "Handles the data insertion using the insert_data_in_cloud function"
+    """
+    Handles the data insertion using the insert_data_in_cloud function
+    # * Positive result: {"status": true, "result": 20700}
+    # ! Negative result: {"status": false, "message": "Authorization denied"}
+    """
     try:
         result = await insert_data_in_cloud(pool_code, data)
         if "status" in result and result["status"]:
             return result
 
         # ? Clean device variables and retry, when the capacity limit is reached:
-        if "message" in result and result["message"] == device_full_message:
+        if "message" in result:
             logger.warning(f"Result of cloud variable insertion: {result}")
-            await pool_variable_cleanup(pool_code)
+            if result["message"] == device_full_message:
+                await pool_variable_cleanup(pool_code)
+                return await insert_data_in_cloud(pool_code, data)
 
-            return await insert_data_in_cloud(pool_code, data)
+        else:
+            logger.error(f"Result of cloud variable insertion: {result}")
     except Exception as e:
         logger.error(f"Exception during cloud variable insert: {e}")
 
