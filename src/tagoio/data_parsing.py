@@ -5,7 +5,7 @@ from typing import Any
 from config import tago_api_endpoint
 from enumerations import ChargingSessionStep
 from schemas import ChargePointUpdate, ChargingSessionUpdate, FeedbackMessage
-from tagoio.data_deletion import pool_variable_cleanup
+from tagoio.check_data_amount import device_data_amount_check
 from tagoio.token_fetching import get_headers_by_pool_code
 from user_interface import translate_status
 
@@ -44,7 +44,7 @@ async def handle_variable_insert(pool_code: int, data: dict = {}):
         if "message" in result:
             logger.warning(f"Result of cloud variable insertion: {result}")
             if result["message"] == device_full_message:
-                await pool_variable_cleanup(pool_code)
+                await device_data_amount_check()
                 return await insert_data_in_cloud(pool_code, data)
 
         else:
@@ -179,8 +179,10 @@ async def update_management_dashboard_charging_session(update: ChargingSessionUp
 async def add_charging_session_to_history(update: ChargingSessionUpdate):
     "Adds the charging session to the private dashboard history, once completed"
     if update.step != ChargingSessionStep.COMPLETED or update.cost == 0.0:
+        """
         message_prefix = f"Session {update.transaction_id} history log skipped"
         logger.info(f"{message_prefix} due step {update.step} or cost {update.cost}")
+        """
         return
 
     metadata = {

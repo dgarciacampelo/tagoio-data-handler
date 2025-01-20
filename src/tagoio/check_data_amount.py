@@ -17,7 +17,8 @@ warning_amount_threshold = 45_000
 # ? https://help.tago.io/portal/en/kb/articles/rate-limits
 
 # Prefix of variable names that can be removed during data cleanup:
-removable_prefixes: set[str] = {"active_cs_data", "state_", "cost_", "energy_", "time_"}
+# ? state_ changed to state, to remove both state_[connector_id] and state variables
+removable_prefixes: set[str] = {"active_cs_data", "state", "cost_", "energy_", "time_"}
 
 
 def run_tuple_generator():
