@@ -62,6 +62,9 @@ async def send_telegram_notification(
     base_url: str = TELEGRAM_BASE_URL,
 ):
     "sends a Telegram message without using the telegram Bot module"
+    if service_name is not None:
+        message = f"{service_name}: {message}"
+
     headers = {"content-type": "application/json"}
     data = {"chat_id": chat_id, "text": message}
     url: str = base_url + bot_id + "/sendMessage"

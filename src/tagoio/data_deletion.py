@@ -6,6 +6,7 @@ from loguru import logger
 from config import tago_api_endpoint, app_default_user, app_default_token, port, version
 from charge_points import known_charge_points
 from tagoio.token_fetching import get_headers_by_pool_code, get_all_devices_data
+from telegram_utils import send_telegram_notification
 
 """
 ! The TagoIO platform allows 50_000 registers per device at most. When the
@@ -38,7 +39,10 @@ async def delete_variable_in_cloud(
         # ! To avoid error:  Cannot open a client instance more than once.
         async with httpx.AsyncClient() as client:
             response = await client.delete(url, headers=headers)
-            return response.json()
+            delete_count = handle_delete_response(pool_code, response.json())
+            if delete_count > 0:
+                telegram_prefix = f"{delete_count} {variable} registros borrados"
+        await send_telegram_notification(f"{telegram_prefix} de {pool_code}")
     except Exception as e:
         logger.error(f"Exception deleting variable {variable} in cloud: {e}")
         return {"status": False, "result": "0 Data Removed"}
@@ -46,17 +50,17 @@ async def delete_variable_in_cloud(
 
 def handle_delete_response(pool_code: int, result: dict):
     "Handles the response from delete_variable_in_cloud function, to avoid code repetition"
-    removed_count: int = 0
+    delete_count: int = 0
     try:
         if "status" in result and result["status"]:
             result_msg: str = result["result"]  # X Data Removed
-            removed_count = int(result_msg.split(" ")[0])
+            delete_count = int(result_msg.split(" ")[0])
         else:
             logger.warning(f"Cloud variable deletion at {pool_code} result: {result}")
     except Exception as e:
         logger.error(f"Exception during cloud variable deletion at {pool_code}: {e}")
     finally:
-        return removed_count
+        return delete_count
 
 
 async def clean_charging_session_history(

@@ -11,7 +11,7 @@ from telegram_utils import send_telegram_notification
 # Thresholds to setup different actions for each pool/TagoIO device:
 individual_variable_threshold = 500  # per variable
 no_action_threshold = 25_000
-warning_amount_threshold = 45_000
+warning_amount_threshold = 40_000
 
 # TagoIO Rate Limits (Hard limits):
 # ? https://help.tago.io/portal/en/kb/articles/rate-limits
@@ -31,7 +31,9 @@ async def check_all_devices_data_amount(
     token: str = tago_data_amount_token, check_only: set[int] = None
 ):
     "Checks the data amount for each TagoIO device, to review its below limits (50_000)"
+    send_notification_flag: bool = False
     amounts_by_pool_code: dict[int, tuple[str, int]] = dict()
+    amounts_to_notify: dict[int, int] = dict()
 
     headers = {"device-token": token}
     async with httpx.AsyncClient() as client:
@@ -47,13 +49,18 @@ async def check_all_devices_data_amount(
             message_prefix = f"Data amount in TagoIO device for pool {pool_code}:"
             if amount > warning_amount_threshold:
                 logger.warning(f"{message_prefix} {amount}")
-                telegram_message = f"Aviso: {pool_code} tiene {amount} datos en TagoIO"
-                await send_telegram_notification(telegram_message)
+                send_notification_flag = True
             else:
                 logger.info(f"{message_prefix} {amount}")
 
             if amount > no_action_threshold:
                 amounts_by_pool_code[pool_code] = device_id, amount
+                amounts_to_notify[pool_code] = amount
+
+    logger.info(f"Data amount check completed: {amounts_to_notify}")
+    if send_notification_flag or check_only is not None:
+        amounts: str = ", ".join(f"{k}: {v}" for k, v in amounts_to_notify.items())
+        await send_telegram_notification(f"Uso de registros en TagoIO\n{amounts}")
 
     return amounts_by_pool_code
 
@@ -123,6 +130,7 @@ async def device_data_amount_check(token: str = tago_data_amount_token):
                     logger.info(f"Cleaning variable {pool_code}: {variable_name} ...")
                     await delete_variable_in_cloud(pool_code, variable_name, 0)
 
+    await asyncio.sleep(60)
     # Do a new check, only with the keys from amounts_by_pool_code:
     include_only: set[int] = amounts_by_pool_code.keys()
     await check_all_devices_data_amount(token, include_only)
