@@ -40,6 +40,7 @@ async def delete_variable_in_cloud(
         async with httpx.AsyncClient() as client:
             response = await client.delete(url, headers=headers)
             delete_count = handle_delete_response(pool_code, response.json())
+            telegram_prefix: str = "No se han borrado registros"
             if delete_count > 0:
                 telegram_prefix = f"{delete_count} {variable} registros borrados"
         await send_telegram_notification(f"{telegram_prefix} de {pool_code}")
