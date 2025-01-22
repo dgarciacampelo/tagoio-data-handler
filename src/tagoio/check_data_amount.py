@@ -58,7 +58,7 @@ async def check_all_devices_data_amount(
                 amounts_to_notify[pool_code] = amount
 
     logger.info(f"Data amount check completed: {amounts_to_notify}")
-    if send_notification_flag or check_only is not None:
+    if amounts_to_notify and (send_notification_flag or check_only is not None):
         amounts: str = ", ".join(f"{k}: {v}" for k, v in amounts_to_notify.items())
         await send_telegram_notification(f"Uso de registros en TagoIO\n{amounts}")
 
