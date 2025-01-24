@@ -28,7 +28,6 @@ security = HTTPBasic()
 app.include_router(charge_point_alias_router)
 app.include_router(charge_point_update_router)
 app.include_router(charging_session_update_router)
-# app.include_router(database_migration_router)  # TODO: Add endpoints as needed
 app.include_router(device_token_router)
 app.include_router(feedback_message_router)
 app.include_router(trigger_task_router)

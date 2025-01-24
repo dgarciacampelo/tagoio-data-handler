@@ -1,30 +1,35 @@
+import sqlite3
 from datetime import datetime
 from loguru import logger
 from zipfile import ZipFile
 
 from config import service_name
-from database import database_file
+from database import database_file, backup_file
 from database.database_check import insert_modified_column
 from database.query_database import get_modified_rows_count
-
-# TODO: Use SQLite online backup API, to step the database backup process:
-# ? https://www.sqlite.org/c3ref/backup_finish.html
 
 service_prefix: str = service_name.lower().replace(" ", "_") + "_"
 
 
 def zip_database_file(
     db_file: str = database_file,
+    dest_file: str = backup_file,
     zip_params: dict = {"mode": "w", "compression": 8, "compresslevel": 8},
 ) -> str:
     "Zips the database file and returns the path of the compressed file."
     dt_now: str = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
-    db_folder, db_file_name = db_file.split("/")
+    db_folder, db_file_name = dest_file.split("/")
     backup_file_name: str = db_folder + "/" + service_prefix + db_file_name
     backup_file_name = backup_file_name.split(".")[0] + "_" + dt_now
     archive_file_name: str = backup_file_name.split("/")[1]
 
     try:
+        # Using SQLite online backup API to backup the database
+        # ? Reference: https://docs.python.org/3/library/sqlite3.html
+        with sqlite3.connect(db_file) as original:
+            with sqlite3.connect(dest_file) as backup:
+                original.backup(backup)
+
         logger.info(f"Compressing database file {backup_file_name}.zip ...")
         with ZipFile(backup_file_name + ".zip", **zip_params) as zip_file:
             zip_file.write(db_file, archive_file_name + ".sqlite3")
