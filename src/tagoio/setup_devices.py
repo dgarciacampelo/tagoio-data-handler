@@ -1,7 +1,7 @@
 from loguru import logger
 
 from config import tago_device_prefix
-from database.database_check import check_database_tables
+from database.database_check import check_local_database
 from database.query_database import (
     get_all_database_tagoio_devices,
     insert_database_tagoio_device,
@@ -24,7 +24,7 @@ def feed_and_return_all_devices_tokens():
 
 def setup_all_devices_tokens():
     "Checks the database tables exists and returns the devices data"
-    check_database_tables()
+    check_local_database()
 
     devices: dict[int, tuple[str, str]] = dict()
     local_device_rows = list()
