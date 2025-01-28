@@ -81,7 +81,8 @@ def check_local_database(db_file: str = database_file):
     check_pragma_statements(db_file)
     check_tagoio_device_table(db_file)
     check_charging_session_history_table(db_file)
-    check_table_has_column("charging_session_history", "transaction_id", db_file)
+    # check_table_has_column("charging_session_history", "transaction_id", db_file)
+    check_session_history_table_index(db_file)
 
 
 def check_tagoio_device_table(db_file: str = database_file):
@@ -135,3 +136,37 @@ def check_pragma_statements(db_file: str = database_file):
             logger.debug(f"SQLite pragma statements executed on: {db_file}")
     except Exception as e:
         logger.error(f"Exception during SQLite pragma statements: {e}")
+
+
+def empty_session_history_table_add_index(
+    db_file: str = database_file, index_name: str = "idx_charging_session_history"
+):
+    "Empties the charging_session_history table and adds a new index."
+    delete_query = "DELETE FROM charging_session_history;"
+    create_index_query = f"""
+        CREATE UNIQUE INDEX IF NOT EXISTS {index_name} ON charging_session_history
+        (pool_code, station_name, connector_id, star_meter_value, last_meter_value);
+    """
+    try:
+        with sqlite3.connect(db_file) as conn:
+            conn.execute(delete_query)
+            conn.execute(create_index_query)
+    except Exception as e:
+        logger.error(f"Exception during empty_session_history_table_add_index: {e}")
+
+
+def check_session_history_table_index(
+    db_file: str = database_file, index_name: str = "idx_charging_session_history"
+):
+    "Checks if the index exists in the database table or creates a new one."
+    check_index_query = f"""
+        SELECT * FROM sqlite_master WHERE type= 'index'
+        and tbl_name = 'charging_session_history' and name = '{index_name}';
+    """
+    try:
+        with sqlite3.connect(db_file) as conn:
+            index_exists: bool = conn.execute(check_index_query).fetchone() is not None
+            if not index_exists:
+                empty_session_history_table_add_index(db_file, index_name)
+    except Exception as e:
+        logger.error(f"Exception during check_session_history_index: {e}")

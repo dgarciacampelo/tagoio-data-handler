@@ -84,12 +84,13 @@ def insert_database_tagoio_device(
 
 def insert_database_charging_session_history(
     update: ChargingSessionUpdate, db_file: str = database_file
-):
+) -> int | None:
     "Inserts a new charging session into the history database table."
     query = """
         INSERT INTO charging_session_history
         (pool_code, station_name, connector_id, card_alias, start_date, time_band, star_meter_value, last_meter_value, cost, is_modified, transaction_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?);
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        RETURNING transaction_id;
     """
     try:
         with sqlite3.connect(db_file) as conn:
@@ -105,10 +106,16 @@ def insert_database_charging_session_history(
                 update.cost,
                 update.transaction_id,
             )
-            conn.execute(query, values)
+            transaction_id = conn.execute(query, values).fetchone()[0]
             conn.commit()
+            return transaction_id
+    except sqlite3.IntegrityError:
+        prefix = "Duplicate session history index attempt with"
+        logger.warning(f"{prefix} transaction_id: {update.transaction_id}")
+        return None
     except Exception as e:
         logger.error(f"Exception during insert_database_charging_session_history: {e}")
+        return None
 
 
 def update_database_tagoio_device(

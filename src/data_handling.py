@@ -103,9 +103,12 @@ def check_quarantine(update: ChargePointUpdate, quarantine_minutes: int = 30):
 
 async def manage_charging_session_update(update: ChargingSessionUpdate) -> None:
     "Updates the management, and the public dashboard if any, with the session data"
-    # store the charging session in the local db, when completed (has a time band)
+    # Store the charging session in the local db, when completed (has a time band)
     if update.time_band:
-        insert_database_charging_session_history(update)
+        transaction_id = insert_database_charging_session_history(update)
+        if transaction_id is None:
+            # Likely a duplicate transaction_id insert attempt, skip setting the dashboards...
+            return
 
     # Update the TagoIO dashboard/s
     await update_management_dashboard_charging_session(update)
