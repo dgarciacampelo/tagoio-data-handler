@@ -24,7 +24,7 @@ removable_prefixes: set[str] = {"active_cs_data", "state", "cost_", "energy_", "
 def run_tuple_generator():
     "Use the generator to get the pool_code and device_id for each TagoIO device"
     for pool_code, device_id in pool_code_and_device_id_generator():
-        print(f"pool_code: {pool_code}, device_id: {device_id}")
+        logger.info(f"pool_code: {pool_code}, device_id: {device_id}")
 
 
 async def check_all_devices_data_amount(

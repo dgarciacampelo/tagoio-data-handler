@@ -13,7 +13,7 @@ device_full_message: str = "The device has reached the limit of 50000 data regis
 
 
 def get_status_key(pool_code: int, station_name: str) -> int:
-    """Provides the logic that allows to find a charge point translated status"""
+    "Provides the logic that allows to find a charge point translated status"
     return hash((pool_code, station_name))
 
 

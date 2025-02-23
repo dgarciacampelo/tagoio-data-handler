@@ -15,7 +15,7 @@ charge_points: dict[int, ChargePointData] = dict()
 
 
 def get_seach_key(pool_code: int, station_name: str, connector_id: int = 1) -> int:
-    """Provides the logic that allows to find a charge point data"""
+    "Provides the logic that allows to find a charge point data"
     return hash((pool_code, station_name, connector_id))
 
 
@@ -62,7 +62,7 @@ async def manage_charge_point_update(update: ChargePointUpdate) -> ChargePointDa
 
 
 def check_quarantine(update: ChargePointUpdate, quarantine_minutes: int = 30):
-    """Checks if the charge point should be quarantined or not"""
+    "Checks if the charge point should be quarantined or not"
     new_quarantine, is_quarantined, quarantine_end = False, False, None
 
     search_params = [update.pool_code, update.station_name, update.connector_id]

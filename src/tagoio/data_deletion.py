@@ -35,6 +35,7 @@ async def delete_variable_in_cloud(
     if keep_weeks == 0:
         url = f"{base_url}{variable}&qty=5000"
 
+    delete_count: int = 0
     try:
         # ! To avoid error:  Cannot open a client instance more than once.
         async with httpx.AsyncClient() as client:
@@ -44,6 +45,7 @@ async def delete_variable_in_cloud(
             if delete_count > 0:
                 telegram_prefix = f"{delete_count} {variable} registros borrados"
         await send_telegram_notification(f"{telegram_prefix} de {pool_code}")
+        return {"status": True, "result": f"{delete_count} Data Removed"}
     except Exception as e:
         logger.error(f"Exception deleting variable {variable} in cloud: {e}")
         return {"status": False, "result": "0 Data Removed"}
@@ -53,7 +55,7 @@ def handle_delete_response(pool_code: int, result: dict):
     "Handles the response from delete_variable_in_cloud function, to avoid code repetition"
     delete_count: int = 0
     try:
-        if "status" in result and result["status"]:
+        if result and "status" in result and result["status"]:
             result_msg: str = result["result"]  # X Data Removed
             delete_count = int(result_msg.split(" ")[0])
         else:

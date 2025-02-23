@@ -14,7 +14,7 @@ logger.info(f"Using HTTPBasic credentials: {app_default_user}, {app_default_toke
 
 
 def compare_values(provided_value: str, correct_value: str):
-    """Compares a pair of values using compare_digest to avoid timing attacks"""
+    "Compares a pair of values using compare_digest to avoid timing attacks"
     provided_value_bytes = provided_value.encode("utf8")
     correct_value_bytes = correct_value.encode("utf8")
     return secrets.compare_digest(provided_value_bytes, correct_value_bytes)
@@ -44,5 +44,5 @@ def get_username(
 
 
 def check_credentials(credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
-    """Passing default values to parameters show its value in the docs"""
+    "Passing default values to parameters show its value in the docs"
     return get_username(credentials, app_default_user, app_default_token)

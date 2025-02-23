@@ -59,4 +59,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        print("Error in main:", e)
+        logger.error(f"Error in main function: {e}")
