@@ -151,7 +151,8 @@ async def update_management_dashboard_charging_session(update: ChargingSessionUp
     "Updates the charging session values in the management dashboard"
     history_result = await add_charging_session_to_history(update)
     if history_result:
-        logger.info(f"cs history log {update.transaction_id} result: {history_result}")
+        trans_id: int = update.transaction_id
+        logger.warning(f"cs history log {trans_id} result: {history_result}")
 
     value = f"{update.station_name}_[{update.connector_id}]"
     metadata = {

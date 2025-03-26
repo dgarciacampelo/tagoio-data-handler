@@ -3,6 +3,7 @@ import sys
 import uvicorn
 from fastapi import FastAPI, Depends
 from fastapi.security import HTTPBasic
+from logging import DEBUG, INFO, WARNING  # noqa: F401
 from loguru import logger
 from typing import Annotated
 
@@ -18,7 +19,7 @@ from schedule_utils import setup_schedules
 
 # ? https://loguru.readthedocs.io/en/stable/api/logger.html#sink
 logger.remove()
-logger.add(sys.stderr, colorize=True)
+logger.add(sys.stderr, level=WARNING, colorize=True)
 
 
 app = FastAPI()
