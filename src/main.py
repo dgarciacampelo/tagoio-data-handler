@@ -19,7 +19,7 @@ from schedule_utils import setup_schedules
 
 # ? https://loguru.readthedocs.io/en/stable/api/logger.html#sink
 logger.remove()
-logger.add(sys.stderr, level=WARNING, colorize=True)
+logger.add(sys.stderr, level=INFO, colorize=True)
 
 
 app = FastAPI()
@@ -42,8 +42,8 @@ async def do_credentials_check(username: Annotated[str, Depends(check_credential
 
 async def setup_rest_api_server():
     "Starts the FastAPI REST server."
-    config_params = {"app": app, "host": "0.0.0.0", "port": api_port}
-    rest_server = uvicorn.Server(config=uvicorn.Config(**config_params))
+    config = {"app": app, "host": "0.0.0.0", "port": api_port, "log_level": "warning"}
+    rest_server = uvicorn.Server(config=uvicorn.Config(**config))
     await rest_server.serve()
 
 
