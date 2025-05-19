@@ -1,6 +1,7 @@
 import asyncio
 import httpx
 from loguru import logger
+from typing import Union
 
 from config import tago_data_amount_token, tago_api_endpoint
 from tagoio.aux_functions import handle_response
@@ -115,8 +116,11 @@ async def fetch_pool_variables_info(
     return amounts_by_variable
 
 
-async def device_data_amount_check(token: str = tago_data_amount_token):
+async def device_data_amount_check(token: Union[str, None] = tago_data_amount_token):
     "Takes measures deleting data from each TagoIOdevice, when a threshold is reached"
+    if not token:
+        return
+
     amounts_by_pool_code = await check_all_devices_data_amount(token)
     for pool_code, (device_id, amount) in amounts_by_pool_code.items():
         result = await fetch_pool_variables_info(pool_code, device_id, amount, token)
@@ -132,5 +136,5 @@ async def device_data_amount_check(token: str = tago_data_amount_token):
 
     await asyncio.sleep(60)
     # Do a new check, only with the keys from amounts_by_pool_code:
-    include_only: set[int] = amounts_by_pool_code.keys()
+    include_only: set[int] = set(amounts_by_pool_code.keys())
     await check_all_devices_data_amount(token, include_only)

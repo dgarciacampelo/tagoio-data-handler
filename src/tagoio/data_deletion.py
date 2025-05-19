@@ -114,8 +114,8 @@ async def clean_pool_public_variables(
 ):
     "Wraps the clean_station_variables to delete the pool public variables"
     removed_count: int = 0
-    for charge_point_tuples in pool_known_charge_points[pool_code]:
-        station, cid = charge_point_tuples
+
+    for station, cid in pool_known_charge_points:
         removed_count += await clean_station_variables(pool_code, station, cid)
     return removed_count
 

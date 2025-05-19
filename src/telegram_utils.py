@@ -23,7 +23,11 @@ async def upload_document(
 ):
     "Sends a file to a Telegram chat, providing the bot_token and chat_id"
     result_ok: bool = False
-    with Path.open(file_to_send, "rb") as file:
+    if not bot_token or not chat_id:
+        return result_ok
+
+    file_path = Path(file_to_send)  # ? Path instance is needed to be able to open
+    with file_path.open("rb") as file:
         try:
             telegram_bot = Bot(bot_token)
             message: str = f"{service_name}, uploading: {file_to_send.split('/')[-1]}"
@@ -42,9 +46,14 @@ async def upload_document(
 
 def append_doc_tuple(
     file_to_send: str, bot_token: str = bot_token, chat_id: int = chat_id
-):
+) -> bool:
     "Appends the parameters of a document to be uploaded to Telegram later."
-    pending_documents.append((file_to_send, bot_token, chat_id))
+    try:
+        pending_documents.append((file_to_send, bot_token, chat_id))
+        return True
+    except Exception as e:
+        logger.warning("Append document tuple, error:", str(e))
+        return False
 
 
 def pending_document_generator():

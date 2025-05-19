@@ -84,6 +84,7 @@ def check_quarantine(update: ChargePointUpdate, quarantine_minutes: int = 30):
     elif (
         is_quarantined
         and update.charge_point_status != "Faulted"
+        and quarantine_end is not None
         and datetime.now() > quarantine_end
     ):
         is_quarantined = False
