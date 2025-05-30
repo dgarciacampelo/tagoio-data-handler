@@ -14,14 +14,14 @@ from schemas import ChargePointUpdate, ChargePointData, ChargingSessionUpdate
 charge_points: dict[int, ChargePointData] = dict()
 
 
-def get_seach_key(pool_code: int, station_name: str, connector_id: int = 1) -> int:
+def get_search_key(pool_code: int, station_name: str, connector_id: int = 1) -> int:
     "Provides the logic that allows to find a charge point data"
     return hash((pool_code, station_name, connector_id))
 
 
 def get_charge_point(pool_code: int, station_name: str, connector_id: int = 1):
     "Returns the charge point data, if it exists"
-    search_key = get_seach_key(pool_code, station_name, connector_id)
+    search_key = get_search_key(pool_code, station_name, connector_id)
     return charge_points.get(search_key, None)
 
 
@@ -30,7 +30,7 @@ async def manage_charge_point_update(update: ChargePointUpdate) -> ChargePointDa
     new_quarantine, is_quarantined, quarantine_end = check_quarantine(update)
 
     search_params = [update.pool_code, update.station_name, update.connector_id]
-    search_key = get_seach_key(*search_params)
+    search_key = get_search_key(*search_params)
     register_charge_point(*search_params)
 
     omitted_updates = 0  # When new_quarantine, the error status is sent
@@ -66,7 +66,7 @@ def check_quarantine(update: ChargePointUpdate, quarantine_minutes: int = 30):
     new_quarantine, is_quarantined, quarantine_end = False, False, None
 
     search_params = [update.pool_code, update.station_name, update.connector_id]
-    search_key = get_seach_key(*search_params)
+    search_key = get_search_key(*search_params)
     if search_key in charge_points:
         charge_point_data = charge_points[search_key]
         is_quarantined = charge_point_data.is_quarantined
