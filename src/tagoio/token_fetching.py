@@ -1,5 +1,5 @@
 from loguru import logger
-from typing import Generator
+from typing import Generator, Optional
 
 from config import tago_account_token, tago_device_prefix
 from database.query_database import (
@@ -26,7 +26,7 @@ def get_all_devices_data() -> dict[int, tuple[str, str]]:
     return devices_data_by_pool_code
 
 
-def get_device_data_by_pool_code(pool_code: int) -> tuple[str, str]:
+def get_device_data_by_pool_code(pool_code: int) -> tuple[Optional[str], Optional[str]]:
     "Provides the device_id, device_token for a single device, by pool code"
     if pool_code not in devices_data_by_pool_code:
         device_id, device_token = fetch_device_token_by_pool_code(pool_code)
@@ -39,9 +39,7 @@ def get_device_data_by_pool_code(pool_code: int) -> tuple[str, str]:
     return device_id, device_token
 
 
-def insert_device_data_by_pool_code(
-    pool_code: int, device_id: str, device_token: str
-) -> bool:
+def insert_device_data_by_pool_code(pool_code: int, device_id: str, device_token: str) -> bool:
     "Defines a new device data by pool code, if it does not already exists"
     if pool_code in devices_data_by_pool_code:
         return False
@@ -51,9 +49,7 @@ def insert_device_data_by_pool_code(
     return True
 
 
-def update_device_data_by_pool_code(
-    pool_code: int, device_id: str, device_token: str
-) -> bool:
+def update_device_data_by_pool_code(pool_code: int, device_id: str, device_token: str) -> bool:
     "Updates an existing device data by pool code"
     if pool_code not in devices_data_by_pool_code:
         return False
@@ -63,7 +59,7 @@ def update_device_data_by_pool_code(
     return True
 
 
-def delete_device_data_by_pool_code(pool_code: int) -> tuple[str, str]:
+def delete_device_data_by_pool_code(pool_code: int) -> tuple[Optional[str], Optional[str]]:
     "Deletes an existing device data by pool code"
     if pool_code not in devices_data_by_pool_code:
         return None, None
@@ -74,7 +70,7 @@ def delete_device_data_by_pool_code(pool_code: int) -> tuple[str, str]:
     return device_id, device_token
 
 
-def get_headers(token: str = None) -> dict[str, str]:
+def get_headers(token: Optional[str] = None) -> dict[str, str]:
     "Provides the headers for the TagoIO API, using account or device token"
     if token is None:
         return {
@@ -94,7 +90,7 @@ def get_headers_by_pool_code(pool_code: int) -> dict[str, str]:
     return get_headers(device_token)
 
 
-def fetch_device_token_by_pool_code(pool_code: int) -> tuple[str, str]:
+def fetch_device_token_by_pool_code(pool_code: int) -> tuple[Optional[str], Optional[str]]:
     "Setups the device_id, device_token for a single TagoIO device, by pool code"
     logger.info(f"Fetching device id and token for pool code: {pool_code}...")
     device_list = list_devices()["result"]
@@ -113,7 +109,7 @@ def fetch_device_token_by_pool_code(pool_code: int) -> tuple[str, str]:
     return None, None
 
 
-def search_device(search_for, account_token=tago_account_token) -> tuple[str, str]:
+def search_device(search_for, account_token=tago_account_token) -> tuple[Optional[str], Optional[str]]:
     "Searchs for a device by name, and returns the device_id, device_token"
     device_list = list_devices()["result"]
     for device in device_list:

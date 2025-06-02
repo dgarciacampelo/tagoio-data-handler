@@ -45,4 +45,11 @@ def get_username(
 
 def check_credentials(credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
     "Passing default values to parameters show its value in the docs"
+    if not app_default_user or not app_default_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
     return get_username(credentials, app_default_user, app_default_token)

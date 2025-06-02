@@ -1,6 +1,7 @@
 import httpx
 from loguru import logger
 from json import JSONDecodeError
+from typing import Optional
 
 from config import tago_account_token, tago_api_endpoint
 
@@ -59,7 +60,7 @@ def get_device_last_token(
     filter={},
     fields=["name", "token", "permission"],
     orderBy="created_at,desc",
-) -> str:
+) -> Optional[str]:
     params = {
         "page": page,
         "amount": amount,
@@ -79,7 +80,7 @@ def get_device_last_token(
 
 def handle_response(
     response: httpx.Response,
-    expected_error_message: str = None,
+    expected_error_message: Optional[str] = None,
     log_data_on_error: bool = True,
 ):
     """

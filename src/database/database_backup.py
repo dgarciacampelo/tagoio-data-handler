@@ -1,6 +1,7 @@
 import sqlite3
 from datetime import datetime
 from loguru import logger
+from typing import Optional
 from zipfile import ZipFile
 
 from config import service_name
@@ -15,7 +16,7 @@ def zip_database_file(
     db_file: str = database_file,
     dest_file: str = backup_file,
     zip_params: dict = {"mode": "w", "compression": 8, "compresslevel": 8},
-) -> str:
+) -> Optional[str]:
     "Zips the database file and returns the path of the compressed file."
     dt_now: str = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
     db_folder, db_file_name = dest_file.split("/")

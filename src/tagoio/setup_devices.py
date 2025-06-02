@@ -1,4 +1,5 @@
 from loguru import logger
+from typing import Optional
 
 from config import tago_device_prefix
 from database.database_check import check_local_database
@@ -58,8 +59,12 @@ def fetch_all_devices_tokens() -> dict[int, tuple[str, str]]:
             if tago_device_prefix not in device["name"]:
                 continue
             pool_code = int(device["name"].split("-")[2])
-            device_id = device["id"]
-            device_token = get_device_last_token(device_id)
+            device_id: str = device["id"]
+            if device_id is None:
+                continue
+            device_token: Optional[str] = get_device_last_token(device_id)
+            if device_token is None:
+                continue
             devices[pool_code] = device_id, device_token
     except Exception as e:
         logger.error(f"Exception during fetch_all_devices_tokens: {e}")

@@ -16,6 +16,9 @@ request_suffix = f"{test_pool_code}/{station_name}/{connector_id}"
 route = "charging-session-update"
 request_url = f"http://localhost:{port}/{version}/{route}/{request_suffix}"
 
+if not app_default_user or not app_default_token:
+    raise ValueError("Missing app_default_user or app_default_token")
+
 auth = httpx.BasicAuth(username=app_default_user, password=app_default_token)
 client = httpx.Client()  # Using sync client due to pytest lack of async support
 

@@ -1,7 +1,7 @@
 import asyncio
 import httpx
 from loguru import logger
-from typing import Union
+from typing import Union, Optional
 
 from config import tago_data_amount_token, tago_api_endpoint
 from tagoio.aux_functions import handle_response
@@ -29,12 +29,15 @@ def run_tuple_generator():
 
 
 async def check_all_devices_data_amount(
-    token: str = tago_data_amount_token, check_only: set[int] = None
-):
+    token: Optional[str] = tago_data_amount_token, check_only: Optional[set[int]] = None
+) -> dict[int, tuple[str, int]]:
     "Checks the data amount for each TagoIO device, to review its below limits (50_000)"
+    if not token:
+        return {}
+
     send_notification_flag: bool = False
-    amounts_by_pool_code: dict[int, tuple[str, int]] = dict()
-    amounts_to_notify: dict[int, int] = dict()
+    amounts_by_pool_code: dict[int, tuple[str, int]] = {}
+    amounts_to_notify: dict[int, int] = {}
 
     headers = {"device-token": token}
     async with httpx.AsyncClient() as client:
@@ -70,7 +73,7 @@ async def fetch_pool_variables_info(
     pool_code: int,
     device_id: str,
     data_amount: int,
-    token: str = tago_data_amount_token,
+    token: Optional[str] = tago_data_amount_token,
     step_size: int = 4000,
 ):
     """
@@ -83,12 +86,15 @@ async def fetch_pool_variables_info(
     data_amount: total data to retrieve from the pool in question,
     step_size: data amount to retrieve each minute.
     """
+    if not token:
+        return {}
+
     amounts_by_variable: dict[str, int] = dict()
     total_data_amount: int = 0
-    fetched_data_amount: int = None
+    fetched_data_amount: Optional[int] = None
     actual_step: int = 0
 
-    headers = {"device-token": token}
+    headers: dict[str, str] = {"device-token": token}
     async with httpx.AsyncClient() as client:
         while fetched_data_amount is None or fetched_data_amount < data_amount:
             if fetched_data_amount == 0:

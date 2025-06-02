@@ -16,9 +16,7 @@ limit is reached, following requests will error and no new data will be stored.
 base_url: str = f"{tago_api_endpoint}/data?variable="
 
 
-async def delete_variable_in_cloud(
-    pool_code: int, variable: str, keep_weeks: int = 26
-) -> dict:
+async def delete_variable_in_cloud(pool_code: int, variable: str, keep_weeks: int = 26) -> dict:
     """
     Uses TagoIO API for variable deletion, keeping the remain weeks of data
     Returns: {'status': True, 'result': 'X Data Removed'} with X: integer
@@ -101,17 +99,13 @@ async def clean_station_variables(
     return removed_count
 
 
-async def clean_pool_private_variables(
-    pool_code: int, variable: str = "state", keep_weeks: int = 2
-) -> int:
+async def clean_pool_private_variables(pool_code: int, variable: str = "state", keep_weeks: int = 2) -> int:
     "Deletes variables shown in the private dashboard of each pool"
     result = await delete_variable_in_cloud(pool_code, variable, keep_weeks)
     return handle_delete_response(pool_code, result)
 
 
-async def clean_pool_public_variables(
-    pool_code: int, pool_known_charge_points: set[tuple[str, int]]
-):
+async def clean_pool_public_variables(pool_code: int, pool_known_charge_points: set[tuple[str, int]]):
     "Wraps the clean_station_variables to delete the pool public variables"
     removed_count: int = 0
 
@@ -124,8 +118,8 @@ async def pool_variable_cleanup(pool_code: int):
     "Deletes old variables from TagoIO (considering the 50.000 registers limit)"
     removed_count: int = 0
     removed_count += await clean_active_charging_session_data(pool_code)
-    removed_count += await clean_charging_session_history(pool_code)
     removed_count += await clean_pool_private_variables(pool_code)
+    # removed_count += await clean_charging_session_history(pool_code)
 
     if pool_code in known_charge_points:
         known_stations = known_charge_points[pool_code]
@@ -146,6 +140,9 @@ async def all_pools_variable_cleanup():
 def all_pools_variable_cleanup_trigger():
     "Calls a GET endpoint to trigger the async function, without awaiting it"
     request_url = f"http://localhost:{port}/{version}/all-pools-variable-cleanup"
+    if not app_default_user or not app_default_token:
+        return
+
     auth = httpx.BasicAuth(username=app_default_user, password=app_default_token)
     try:
         with httpx.Client() as client:

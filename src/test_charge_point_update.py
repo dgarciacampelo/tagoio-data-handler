@@ -14,6 +14,9 @@ connector_id = 1
 request_suffix = f"{test_pool_code}/{station_name}/{connector_id}"
 request_url = f"http://localhost:{port}/{version}/charge-point-update/{request_suffix}"
 
+if not app_default_user or not app_default_token:
+    raise ValueError("Missing app_default_user or app_default_token")
+
 auth = httpx.BasicAuth(username=app_default_user, password=app_default_token)
 client = httpx.Client()  # Using sync client due to pytest lack of async support
 
