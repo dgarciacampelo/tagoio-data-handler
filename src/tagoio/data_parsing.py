@@ -42,15 +42,15 @@ async def handle_variable_insert(pool_code: int, data: dict = {}):
 
         # ? Clean device variables and retry, when the capacity limit is reached:
         if "message" in result:
-            logger.warning(f"Result of cloud variable insertion: {result}")
+            logger.warning(f"Result of cloud variable insertion ({pool_code}): {result}")
             if result["message"] == device_full_message:
                 await device_data_amount_check()
                 return await insert_data_in_cloud(pool_code, data)
 
         else:
-            logger.error(f"Result of cloud variable insertion: {result}")
+            logger.error(f"Result of cloud variable insertion ({pool_code}): {result}")
     except Exception as e:
-        logger.error(f"Exception during cloud variable insert: {e}")
+        logger.error(f"Exception during cloud variable insertion ({pool_code}): {e}")
 
 
 async def send_feedback_message(feedback: FeedbackMessage):
