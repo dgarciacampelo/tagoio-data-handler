@@ -35,9 +35,7 @@ def monthly_database_backup():
     conditional_database_backup(True)
 
 
-def conditional_database_backup(
-    force_backup: bool = False, table_names: list = table_names_to_modified_check
-):
+def conditional_database_backup(force_backup: bool = False, table_names: list = table_names_to_modified_check):
     "Performs a database backup if there are modified rows in the specified tables."
     if not force_backup:
         modified_rows_count: int = get_all_modified_rows_count(table_names)

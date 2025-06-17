@@ -149,10 +149,11 @@ async def update_public_dashboard_values(update: ChargingSessionUpdate):
 
 async def update_management_dashboard_charging_session(update: ChargingSessionUpdate):
     "Updates the charging session values in the management dashboard"
+    pool_code: int = update.pool_code
     history_result = await add_charging_session_to_history(update)
     if history_result:
         trans_id: int = update.transaction_id
-        logger.warning(f"cs history log {trans_id} result: {history_result}")
+        logger.warning(f"cs history log {trans_id} result {(pool_code)}: {history_result}")
 
     value = f"{update.station_name}_[{update.connector_id}]"
     metadata = {
