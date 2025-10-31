@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import Optional
 
 from charge_points import register_charge_point
 from database.query_database import insert_database_charging_session_history
@@ -19,7 +20,7 @@ def get_search_key(pool_code: int, station_name: str, connector_id: int = 1) -> 
     return hash((pool_code, station_name, connector_id))
 
 
-def get_charge_point(pool_code: int, station_name: str, connector_id: int = 1):
+def get_charge_point(pool_code: int, station_name: str, connector_id: int = 1) -> Optional[ChargePointData]:
     "Returns the charge point data, if it exists"
     search_key = get_search_key(pool_code, station_name, connector_id)
     return charge_points.get(search_key, None)
