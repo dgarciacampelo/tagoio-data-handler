@@ -39,7 +39,7 @@ async def check_all_devices_data_amount(
     amounts_by_pool_code: dict[int, tuple[str, int]] = {}
     amounts_to_notify: dict[int, int] = {}
 
-    headers = {"device-token": token}
+    headers = {"Account-Token": token}
     async with httpx.AsyncClient() as client:
         for pool_code, device_id in pool_code_and_device_id_generator():
             if check_only is not None and pool_code not in check_only:
@@ -94,7 +94,7 @@ async def fetch_pool_variables_info(
     fetched_data_amount: Optional[int] = None
     actual_step: int = 0
 
-    headers: dict[str, str] = {"device-token": token}
+    headers: dict[str, str] = {"Account-Token": token}
     async with httpx.AsyncClient() as client:
         while fetched_data_amount is None or fetched_data_amount < data_amount:
             if fetched_data_amount == 0:
