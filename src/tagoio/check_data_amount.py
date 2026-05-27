@@ -1,16 +1,17 @@
 import asyncio
+from typing import Optional
+
 import httpx
 from loguru import logger
-from typing import Union, Optional
 
-from config import tago_data_amount_token, tago_api_endpoint
-from tagoio.aux_functions import handle_response
+from config import tago_account_token, tago_api_endpoint, tago_data_amount_token  # noqa: F401
+from tagoio.aux_functions import AMOUNT, handle_response
 from tagoio.data_deletion import delete_variable_in_cloud
-from tagoio.token_fetching import pool_code_and_device_id_generator
+from tagoio.token_fetching import get_headers_by_pool_code, pool_code_and_device_id_generator
 from telegram_utils import send_telegram_notification
 
 # Thresholds to setup different actions for each pool/TagoIO device:
-individual_variable_threshold = 500  # per variable
+individual_variable_threshold = 250  # Value to capture variables across pagination chunks
 no_action_threshold = 25_000
 warning_amount_threshold = 40_000
 
@@ -18,129 +19,114 @@ warning_amount_threshold = 40_000
 # ? https://help.tago.io/portal/en/kb/articles/rate-limits
 
 # Prefix of variable names that can be removed during data cleanup:
-# ? state_ changed to state, to remove both state_[connector_id] and state variables
 removable_prefixes: set[str] = {"active_cs_data", "state", "cost_", "energy_", "time_"}
 
 
 def run_tuple_generator():
-    "Use the generator to get the pool_code and device_id for each TagoIO device"
+    """Use the generator to get the pool_code and device_id for each TagoIO device."""
     for pool_code, device_id in pool_code_and_device_id_generator():
         logger.info(f"pool_code: {pool_code}, device_id: {device_id}")
 
 
-async def check_all_devices_data_amount(
-    token: Optional[str] = tago_data_amount_token, check_only: Optional[set[int]] = None
-) -> dict[int, tuple[str, int]]:
-    "Checks the data amount for each TagoIO device, to review its below limits (50_000)"
-    if not token:
-        return {}
-
+async def check_all_devices_data_amount(check_only: Optional[set[int]] = None) -> dict[int, tuple[str, int]]:
+    """Checks the data amount for each TagoIO device using the global Account-Token."""
     send_notification_flag: bool = False
     amounts_by_pool_code: dict[int, tuple[str, int]] = {}
-    amounts_to_notify: dict[int, int] = {}
 
-    headers = {"Account-Token": token}
+    account_headers = {"content-type": "application/json", "Account-Token": tago_account_token}
+
     async with httpx.AsyncClient() as client:
         for pool_code, device_id in pool_code_and_device_id_generator():
             if check_only is not None and pool_code not in check_only:
                 continue
 
             await asyncio.sleep(1)
+
             url = f"{tago_api_endpoint}/device/{device_id}/data_amount"
-            response = await client.get(url, headers=headers)
+            response = await client.get(url, headers=account_headers)
+
             result = handle_response(response, "Bucket can't be found")
             amount = int(result) if result is not None else -1
+
             message_prefix = f"Data amount in TagoIO device for pool {pool_code}:"
+            logger.info(f"{message_prefix} {amount}")
+
             if amount > warning_amount_threshold:
-                logger.warning(f"{message_prefix} {amount}")
                 send_notification_flag = True
-            else:
-                logger.info(f"{message_prefix} {amount}")
 
-            if amount > no_action_threshold:
-                amounts_by_pool_code[pool_code] = device_id, amount
-                amounts_to_notify[pool_code] = amount
+            amounts_by_pool_code[pool_code] = (device_id, amount)
 
-    logger.info(f"Data amount check completed: {amounts_to_notify}")
-    if amounts_to_notify and (send_notification_flag or check_only is not None):
-        amounts: str = ", ".join(f"{k}: {v}" for k, v in amounts_to_notify.items())
-        await send_telegram_notification(f"Uso de registros en TagoIO\n{amounts}")
+    if send_notification_flag:
+        await send_telegram_notification("Some TagoIO devices are reaching the data limit.")
 
     return amounts_by_pool_code
 
 
-async def fetch_pool_variables_info(
-    pool_code: int,
-    device_id: str,
-    data_amount: int,
-    token: Optional[str] = tago_data_amount_token,
-    step_size: int = 4000,
-):
-    """
-    Due to the TagoIO platform imposes a hard limit of 5000 data fetches per
-    minute, this function retrieves all the data for a pool in batches of the
-    provided step size, with a sleep of 1 minute between each batch, and then
-    counts the total number of data and returns the result by variable name.
-    Each sucessive request, the skip parameter is used to retreive fresh data
+async def fetch_pool_variables_info(pool_code: int, device_id: str, data_amount: int) -> dict[str, int]:
+    """Fetches info regarding variables inside a pool's device bucket using Device-Token."""
+    amounts_by_variable: dict[str, int] = {}
+    if data_amount <= no_action_threshold:
+        return amounts_by_variable
 
-    data_amount: total data to retrieve from the pool in question,
-    step_size: data amount to retrieve each minute.
-    """
-    if not token:
-        return {}
+    url = f"{tago_api_endpoint}/data"
+    headers = get_headers_by_pool_code(pool_code)
 
-    amounts_by_variable: dict[str, int] = dict()
-    total_data_amount: int = 0
-    fetched_data_amount: Optional[int] = None
-    actual_step: int = 0
-
-    headers: dict[str, str] = {"Account-Token": token}
+    # Increase chunk request performance up to the data amount limit
     async with httpx.AsyncClient() as client:
-        while fetched_data_amount is None or fetched_data_amount < data_amount:
-            if fetched_data_amount == 0:
-                break
+        # Step through the historical logs by 10k steps
+        for page_step in range(0, data_amount, AMOUNT):
+            params = {
+                "amount": AMOUNT,
+                "skip": page_step,
+                "fields": ["variable"],  # Performance fix: tells TagoIO only to return string variables
+            }
+            try:
+                response = await client.get(url, headers=headers, params=params)
+                result = handle_response(response, "Bucket can't be found")
+                if not result or not isinstance(result, list):
+                    continue
 
-            # logger.info(f"Fetching data for pool {pool_code}, step: {actual_step}")
-            skip: int = actual_step * step_size
-            url = f"{tago_api_endpoint}/device/{device_id}/data?details=false&qty={step_size}&skip={skip}"
-            response = await client.get(url, headers=headers)
-            data = response.json()
-            if "result" not in data:
+                for data_dict in result:
+                    variable = data_dict.get("variable")
+                    if variable:
+                        amounts_by_variable[variable] = amounts_by_variable.get(variable, 0) + 1
+            except Exception as e:
+                logger.error(f"Error fetching data chunk at skip {page_step} for pool {pool_code}: {e}")
                 continue
 
-            actual_step += 1
-            fetched_data_amount = len(data["result"])
-            total_data_amount += fetched_data_amount
-            for data_export in data["result"]:
-                variable = data_export["variable"]
-                amounts_by_variable[variable] = amounts_by_variable.get(variable, 0) + 1
+            # Short breath to prevent API rate limiting issues, but fast enough to loop cleanly
+            await asyncio.sleep(1)
 
-            await asyncio.sleep(15)
-
-    logger.info(f"Pool {pool_code} data amount: {data_amount} vs {total_data_amount}")
-    logger.info(amounts_by_variable)
+    logger.info(f"Pool {pool_code} breakdown: {amounts_by_variable}")
     return amounts_by_variable
 
 
-async def device_data_amount_check(token: Union[str, None] = tago_data_amount_token):
-    "Takes measures deleting data from each TagoIOdevice, when a threshold is reached"
-    if not token:
-        return
+async def device_data_amount_check():
+    """Takes measures deleting data from each TagoIO device when a threshold is reached."""
+    amounts_by_pool_code = await check_all_devices_data_amount()
 
-    amounts_by_pool_code = await check_all_devices_data_amount(token)
     for pool_code, (device_id, amount) in amounts_by_pool_code.items():
-        result = await fetch_pool_variables_info(pool_code, device_id, amount, token)
+        # Only process devices that cross the cleanup threshold
+        if amount <= no_action_threshold:
+            continue
+
+        result = await fetch_pool_variables_info(pool_code, device_id, amount)
         for variable_name, individual_amount in result.items():
+            # If the variable count is lower than our threshold, evaluate prefix rules
             if individual_amount < individual_variable_threshold:
-                continue
+                # Fallback safeguard: If a device is almost full (40k+), wipe matches regardless of chunk counts
+                if amount < warning_amount_threshold:
+                    continue
 
             for removable_variable_prefix in removable_prefixes:
                 if variable_name.startswith(removable_variable_prefix):
-                    # Cleanup that variable name from the TagoIO device:
-                    logger.info(f"Cleaning variable {pool_code}: {variable_name} ...")
+                    logger.warning(
+                        f"Threshold rule matched ({individual_amount} entries). Cleaning variable {pool_code}: {variable_name} ..."
+                    )
+                    # Clear target records matching 0 retention weeks to immediately clear space
                     await delete_variable_in_cloud(pool_code, variable_name, 0)
 
+                    # Yield control temporarily to let deletions complete smoothly
+                    await asyncio.sleep(1)
+
     await asyncio.sleep(60)
-    # Do a new check, only with the keys from amounts_by_pool_code:
-    include_only: set[int] = set(amounts_by_pool_code.keys())
-    await check_all_devices_data_amount(token, include_only)

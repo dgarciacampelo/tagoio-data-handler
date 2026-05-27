@@ -1,12 +1,14 @@
-import httpx
 from asyncio import sleep as asyncio_sleep
 from datetime import datetime, timedelta
+
+import httpx
 from loguru import logger
 
-from config import tago_api_endpoint, app_default_user, app_default_token, port, version
 from charge_points import known_charge_points
-from tagoio.token_fetching import get_headers_by_pool_code, get_all_devices_data
-from telegram_utils import send_telegram_notification
+from config import app_default_token, app_default_user, port, tago_api_endpoint, version
+from tagoio.token_fetching import get_all_devices_data, get_headers_by_pool_code
+
+# from telegram_utils import send_telegram_notification
 
 """
 ! The TagoIO platform allows 50_000 registers per device at most. When the
@@ -16,7 +18,7 @@ limit is reached, following requests will error and no new data will be stored.
 base_url: str = f"{tago_api_endpoint}/data?variable="
 
 
-async def delete_variable_in_cloud(pool_code: int, variable: str, keep_weeks: int = 26) -> dict:
+async def delete_variable_in_cloud(pool_code: int, variable: str, keep_weeks: int = 14) -> dict:
     """
     Uses TagoIO API for variable deletion, keeping the remain weeks of data
     Returns: {'status': True, 'result': 'X Data Removed'} with X: integer
@@ -33,20 +35,10 @@ async def delete_variable_in_cloud(pool_code: int, variable: str, keep_weeks: in
     if keep_weeks == 0:
         url = f"{base_url}{variable}&qty=5000"
 
-    delete_count: int = 0
-    try:
-        # ! To avoid error:  Cannot open a client instance more than once.
-        async with httpx.AsyncClient() as client:
-            response = await client.delete(url, headers=headers)
-            delete_count = handle_delete_response(pool_code, response.json())
-            telegram_prefix: str = "No se han borrado registros"
-            if delete_count > 0:
-                telegram_prefix = f"{delete_count} {variable} registros borrados"
-        await send_telegram_notification(f"{telegram_prefix} de {pool_code}")
-        return {"status": True, "result": f"{delete_count} Data Removed"}
-    except Exception as e:
-        logger.error(f"Exception deleting variable {variable} in cloud: {e}")
-        return {"status": False, "result": "0 Data Removed"}
+    # ! To avoid error:  Cannot open a client instance more than once.
+    async with httpx.AsyncClient() as client:
+        response = await client.delete(url, headers=headers)
+        return response.json()
 
 
 def handle_delete_response(pool_code: int, result: dict):

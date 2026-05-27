@@ -75,6 +75,7 @@ async def setup_schedules():
     await asyncio.sleep(5)  # Give time for the REST server to start...
     logger.info("Setting up schedules, using schedule.run_pending...")
     schedule.every().day.at("08:00", "Europe/Madrid").do(set_device_data_amount_check)
+    schedule.every().day.at("20:00", "Europe/Madrid").do(set_device_data_amount_check)
     schedule.every().day.at("20:45", "Europe/Madrid").do(monthly_database_backup)
     schedule.every().day.at("21:15", "Europe/Madrid").do(conditional_database_backup)
 
