@@ -1,11 +1,13 @@
 import asyncio
 import sys
-import uvicorn
-from fastapi import FastAPI, Depends
-from fastapi.security import HTTPBasic
 from logging import DEBUG, INFO, WARNING  # noqa: F401
-from loguru import logger
 from typing import Annotated
+
+import uvicorn
+from fastapi import Depends, FastAPI
+from fastapi.security import HTTPBasic
+from fastapi.staticfiles import StaticFiles
+from loguru import logger
 
 from config import port as api_port
 from routes.charge_point_alias import router as charge_point_alias_router
@@ -13,10 +15,10 @@ from routes.charge_point_update import router as charge_point_update_router
 from routes.charging_session_update import router as charging_session_update_router
 from routes.device_token import router as device_token_router
 from routes.feedback_message import router as feedback_message_router
-from routes.trigger_task import router as trigger_task_router
 from routes.public_dashboard import router as public_dashboard_router  # For the "Smart Dashboard" for OCPP Stations
-from security import check_credentials
+from routes.trigger_task import router as trigger_task_router
 from schedule_utils import setup_schedules
+from security import check_credentials
 
 # ? https://loguru.readthedocs.io/en/stable/api/logger.html#sink
 logger.remove()
@@ -25,6 +27,9 @@ logger.add(sys.stderr, level=INFO, colorize=True)
 
 app = FastAPI()
 security = HTTPBasic()
+
+# Mount the static directory
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Add the imported routers to the FastAPI app
 app.include_router(charge_point_alias_router)

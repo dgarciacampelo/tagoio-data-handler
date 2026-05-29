@@ -10,6 +10,7 @@ RUN python3.12 -m pip install -r requirements.txt
 # Copy source code to working directory (pwd = /src).
 COPY /src .
 COPY /templates ./templates
+COPY /static ./static
 
 # Launch the Python main.py
 CMD ["python3.12", "main.py"]

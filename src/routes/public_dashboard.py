@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from loguru import logger
 
 from config import payments_gateway_device_token as payments_gateway_token
-from data_handling import charge_points, get_charge_point
+from data_handling import get_charge_point
 from database.query_database import get_noc_from_db
 from schemas import PaymentAuthRequest
 
@@ -19,7 +19,6 @@ templates = Jinja2Templates(directory="templates")
 @router.get("/dashboard/{pool_code}/{station_name}")
 async def render_public_dashboard(request: Request, pool_code: int, station_name: str, noc: int = 1, cid: int = 1):
     """Renders the public dashboard for a specific charging station, with the possibility to select the connector."""
-    logger.info(f"CURRENT IN-MEMORY KEYS: {list(charge_points.keys())}")
 
     # Fetch total number of connectors from your database cache
     actual_noc = get_noc_from_db(station_name) or noc
@@ -83,3 +82,22 @@ async def trigger_payment_authorization(request: PaymentAuthRequest):
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error.")
+
+
+@router.get("/dashboard/partial/status/{pool_code}/{station_name}")
+async def render_status_card_partial(request: Request, pool_code: int, station_name: str, cid: int = 1):
+    """Returns ONLY the status card HTML block for HTMX polling."""
+    # Fetch live status for the SPECIFIC connector requested
+    cp_data = get_charge_point(pool_code, station_name, connector_id=cid)
+    status = cp_data.charge_point_status if cp_data else "Available"
+
+    return templates.TemplateResponse(
+        "partials/status_card.html",
+        {
+            "request": request,
+            "pool_code": pool_code,
+            "station_name": station_name,
+            "current_cid": cid,
+            "station_status": status,
+        },
+    )
