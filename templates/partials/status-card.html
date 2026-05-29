@@ -1,7 +1,20 @@
-{% set status_bg = '#FAD000' if station_status in ['Preparing', 'Charging'] else ('#4edea3' if
-station_status == 'Available' else '#ffdad6') %}
-{% set status_text = 'DISPONIBLE' if station_status == 'Available' else ('PREPARANDO' if
-station_status == 'Preparing' else ('CARGANDO' if station_status == 'Charging' else 'ERROR')) %}
+{% if station_status == 'Available' %}
+{% set status_bg = '#15FF00' %}
+{% set status_text = 'DISPONIBLE' %}
+{% elif station_status == 'Preparing' %}
+{% set status_bg = '#00FFFF' %}
+{% set status_text = 'PREPARANDO' %}
+{% elif station_status == 'Charging' %}
+{% set status_bg = '#FAD000' %}
+{% set status_text = 'CARGANDO' %}
+{% elif station_status in ['Faulted', 'Error'] %}
+{% set status_bg = '#FF0000' %}
+{% set status_text = 'ERROR' %}
+{% else %}
+{# Catches Reserved, Unavailable, Offline, or any undefined state #}
+{% set status_bg = '#949494' %}
+{% set status_text = 'NO DISPONIBLE' %}
+{% endif %}
 
 <section
     class="border border-outline-variant rounded-xl shadow-sm border-t-[4px] p-xl min-h-[12rem] h-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-md transition-colors"
