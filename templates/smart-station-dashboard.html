@@ -4,6 +4,8 @@
 <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300288e'><path d='M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.16-.28L11.5 5h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z'/></svg>">
     <title>Velo Energy - Panel Público</title>
     <link
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
@@ -111,7 +113,9 @@
                     {% if noc > 1 %}
                     <div class="flex gap-sm overflow-x-auto pb-1 mb-xs scrollbar-hide">
                         {% for i in range(1, noc + 1) %}
-                        <a href="?cid={{ i }}" class="whitespace-nowrap px-md py-sm rounded-full font-label-sm transition-colors border 
+
+                        <a href="?cid={{ i }}{% if 'noc' in request.query_params %}&noc={{ request.query_params['noc'] }}{% endif %}"
+                            class="inline-flex items-center justify-center whitespace-nowrap px-lg py-sm rounded-lg font-label-sm transition-colors border 
                             {% if current_cid == i %}
                             bg-primary text-on-primary border-primary shadow-sm font-bold
                             {% else %}
@@ -119,6 +123,7 @@
                             {% endif %}">
                             Conector {{ i }}
                         </a>
+
                         {% endfor %}
                     </div>
                     {% endif %}

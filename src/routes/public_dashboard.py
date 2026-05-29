@@ -17,13 +17,13 @@ templates = Jinja2Templates(directory="templates")
 
 
 @router.get("/dashboard/{pool_code}/{station_name}")
-async def render_public_dashboard(request: Request, pool_code: int, station_name: str, cid: int = 1):
+async def render_public_dashboard(request: Request, pool_code: int, station_name: str, noc: int = 1, cid: int = 1):
     """Renders the public dashboard for a specific charging station, with the possibility to select the connector."""
     # Fetch total number of connectors from your database cache
-    noc = get_noc_from_db(station_name) or 1
+    actual_noc = get_noc_from_db(station_name) or noc
 
     # Boundary check to prevent users from requesting non-existent connectors
-    if cid > noc or cid < 1:
+    if cid > actual_noc or cid < 1:
         cid = 1
 
     # Fetch live status for the SPECIFIC connector requested
@@ -36,7 +36,7 @@ async def render_public_dashboard(request: Request, pool_code: int, station_name
             "request": request,
             "pool_code": pool_code,
             "station_name": station_name,
-            "noc": noc,
+            "noc": actual_noc,
             "current_cid": cid,  # Pass the active connector ID
             "station_status": status,  # Status of the active connector
         },
