@@ -16,25 +16,29 @@ router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
 
-@router.get("/dashboard/{pool_code}/{station_name}")  # noc: Number of Connectors
-async def render_public_dashboard(request: Request, pool_code: int, station_name: str, noc: int = 1):
-    """
-    Renders the public dashboard for an EV charging station.
-    1. If noc is provided in URL, use it and optionally update the DB.
-    2. If noc is None, query SQLite 'station_config' for the station_name.
-    3. If not in DB, default to 1.
-    """
-    actual_noc: int = noc or get_noc_from_db(station_name) or 1
-    cp_data = get_charge_point(pool_code, station_name, connector_id=1)
+@router.get("/dashboard/{pool_code}/{station_name}")
+async def render_public_dashboard(request: Request, pool_code: int, station_name: str, cid: int = 1):
+    """Renders the public dashboard for a specific charging station, with the possibility to select the connector."""
+    # Fetch total number of connectors from your database cache
+    noc = get_noc_from_db(station_name) or 1
+
+    # Boundary check to prevent users from requesting non-existent connectors
+    if cid > noc or cid < 1:
+        cid = 1
+
+    # Fetch live status for the SPECIFIC connector requested
+    cp_data = get_charge_point(pool_code, station_name, connector_id=cid)
     status = cp_data.charge_point_status if cp_data else "Available"
+
     return templates.TemplateResponse(
         "smart-station-dashboard.html",
         {
             "request": request,
             "pool_code": pool_code,
             "station_name": station_name,
-            "station_status": status,
-            "noc": actual_noc,
+            "noc": noc,
+            "current_cid": cid,  # Pass the active connector ID
+            "station_status": status,  # Status of the active connector
         },
     )
 
