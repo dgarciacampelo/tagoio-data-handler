@@ -180,8 +180,7 @@
                     {% if station_status == 'Preparing' %}
                     <div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-lg h-full"
                         id="form-card">
-                        <h3 class="font-headline-md text-headline-md text-on-surface mb-md">Autorización de Retención
-                        </h3>
+                        <h3 class="font-headline-md text-headline-md text-on-surface mb-md">Autorización de Pago</h3>
 
                         <div id="success-state" class="hidden flex-col items-center text-center gap-sm py-lg">
                             <span class="material-symbols-outlined text-[48px] text-secondary">check_circle</span>
@@ -208,7 +207,7 @@
                                     class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary focus:ring-offset-0 bg-surface-container-lowest"
                                     id="need-receipt" type="checkbox" />
                                 <label class="font-label-sm text-label-sm text-on-surface cursor-pointer select-none"
-                                    for="need-receipt">Requerir factura oficial</label>
+                                    for="need-receipt">Solicitar factura</label>
                             </div>
 
                             <div class="hidden flex-col gap-md pl-sm border-l-2 border-outline-variant/30 mt-sm"
@@ -218,7 +217,7 @@
                                             class="text-error">*</span></label>
                                     <input
                                         class="receipt-input bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                                        id="nif" placeholder="ES 123 456 789" type="text" />
+                                        id="nif" placeholder="ES12345678" type="text" />
                                 </div>
                                 <div class="flex flex-col gap-base">
                                     <label class="font-label-sm text-label-sm text-on-surface" for="billing_name">Nombre
