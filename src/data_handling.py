@@ -12,12 +12,12 @@ from schemas import ChargePointUpdate, ChargePointData, ChargingSessionUpdate
 
 
 # Data of the known charge points
-charge_points: dict[int, ChargePointData] = dict()
+charge_points: dict[tuple, ChargePointData] = dict()
 
 
-def get_search_key(pool_code: int, station_name: str, connector_id: int = 1) -> int:
-    "Provides the logic that allows to find a charge point data"
-    return hash((pool_code, station_name, connector_id))
+def get_search_key(pool_code: int, station_name: str, connector_id: int = 1) -> tuple:
+    """Provides a deterministic tuple key for the charge point data"""
+    return (pool_code, station_name, connector_id)
 
 
 def get_charge_point(pool_code: int, station_name: str, connector_id: int = 1) -> Optional[ChargePointData]:
