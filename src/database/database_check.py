@@ -21,9 +21,7 @@ def insert_modified_column(table_name: str, db_file: str = database_file) -> boo
         return False
 
 
-def check_table_has_column(
-    table_name: str, column_name: str, db_file: str = database_file
-) -> bool:
+def check_table_has_column(table_name: str, column_name: str, db_file: str = database_file) -> bool:
     "Checks if a column_name column exists in the specified table."
     check_query = f"PRAGMA table_info({table_name});"
     table_has_column: bool = False
@@ -45,9 +43,7 @@ def check_table_has_column(
         return False
 
 
-def alter_table_add_column(
-    table_name: str, column_name: str, db_file: str = database_file
-) -> bool:
+def alter_table_add_column(table_name: str, column_name: str, db_file: str = database_file) -> bool:
     "Inserts a new column_name column into the specified table."
     alter_query = f"""
         ALTER TABLE {table_name}
@@ -80,6 +76,7 @@ def check_local_database(db_file: str = database_file):
     "Checks if al the used tables exist in the database or creates new ones."
     check_pragma_statements(db_file)
     check_tagoio_device_table(db_file)
+    check_station_config_table(db_file)
     check_charging_session_history_table(db_file)
     # check_table_has_column("charging_session_history", "transaction_id", db_file)
     check_session_history_table_index(db_file)
@@ -100,6 +97,23 @@ def check_tagoio_device_table(db_file: str = database_file):
             conn.execute(create_table_query)
     except Exception as e:
         logger.error(f"Exception during check_tagoio_device_table: {e}")
+
+
+def check_station_config_table(db_file: str = database_file):
+    "Checks if the station configuration table exists or creates a new one."
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS station_config(
+        station_name TEXT NOT NULL PRIMARY KEY,
+        pool_code INTEGER NOT NULL,
+        noc INTEGER NOT NULL DEFAULT 1,
+        is_modified INTEGER NOT NULL DEFAULT 1
+    );
+    """
+    try:
+        with sqlite3.connect(db_file) as conn:
+            conn.execute(create_table_query)
+    except Exception as e:
+        logger.error(f"Exception during check_station_config_table: {e}")
 
 
 def check_charging_session_history_table(db_file: str = database_file):
@@ -155,9 +169,7 @@ def empty_session_history_table_add_index(
         logger.error(f"Exception during empty_session_history_table_add_index: {e}")
 
 
-def check_session_history_table_index(
-    db_file: str = database_file, index_name: str = "idx_charging_session_history"
-):
+def check_session_history_table_index(db_file: str = database_file, index_name: str = "idx_charging_session_history"):
     "Checks if the index exists in the database table or creates a new one."
     check_index_query = f"""
         SELECT * FROM sqlite_master WHERE type= 'index'

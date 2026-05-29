@@ -21,6 +21,12 @@ version = os.getenv("API_VERSION")
 app_default_user = os.getenv("APP_DEFAULT_USER")
 app_default_token = os.getenv("APP_DEFAULT_TOKEN")
 
+# ? PAYMENTS-GATEWAY-DEVICE is the TagoIO device with immutable bucket, used for (payment) TagoIO analyses triggering
+payments_gateway_device_token_env = os.getenv("PAYMENTS_GW_DEVICE_TOKEN")
+if payments_gateway_device_token_env is None:
+    raise EnvironmentError(f"PAYMENTS_GW_DEVICE_TOKEN {not_set_error}")
+payments_gateway_device_token: str = payments_gateway_device_token_env
+
 tago_account_token_env = os.getenv("TAGO_ACCOUNT_TOKEN")
 if tago_account_token_env is None:
     raise EnvironmentError(f"TAGO_ACCOUNT_TOKEN {not_set_error}")

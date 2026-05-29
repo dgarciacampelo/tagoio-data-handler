@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, model_validator
 from datetime import datetime
 from typing import Optional
 
@@ -53,9 +53,7 @@ class DeviceData(BaseModel):
 def device_data_dump(pool_code: int, device_id: str, device_token: str):
     "Model dump of the DeviceData class, with device token partially hidden"
     hidden_token = device_token[:8] + "-****-****-****-************"
-    return DeviceData(
-        pool_code=pool_code, device_id=device_id, device_token=hidden_token
-    ).model_dump()
+    return DeviceData(pool_code=pool_code, device_id=device_id, device_token=hidden_token).model_dump()
 
 
 class ChargingSessionUpdate(BaseModel):
@@ -101,3 +99,24 @@ class FeedbackMessage(BaseModel):
     message: str
     group: str = "validation_feedback"
     type: ValidationAlert = ValidationAlert.ACCEPT
+
+
+class PaymentAuthRequest(BaseModel):
+    pool_code: int
+    station_name: str
+    connector_id: int
+    email: EmailStr  # Payment link email
+    requires_invoice: bool
+
+    # Invoice fields
+    nif: Optional[str] = None
+    billing_name: Optional[str] = None
+    billing_address: Optional[str] = None
+    invoice_email: Optional[EmailStr] = None
+
+    @model_validator(mode="after")
+    def check_invoice_fields(self):
+        if self.requires_invoice:
+            if not all([self.nif, self.billing_name, self.billing_address, self.invoice_email]):
+                raise ValueError("All invoice fields are mandatory when requires_invoice is true")
+        return self

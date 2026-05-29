@@ -1,14 +1,12 @@
 import sqlite3
 from loguru import logger
-from typing import Tuple
+from typing import Optional, Tuple
 
 from database import database_file
 from schemas import ChargingSessionUpdate
 
 
-def get_modified_rows_count(
-    table_name: str, db_file: str = database_file
-) -> int | None:
+def get_modified_rows_count(table_name: str, db_file: str = database_file) -> Optional[int]:
     """
     Returns the count of modified rows in the specified table. Used to find out
     if there are any modified rows in the database, to determine if a backup
@@ -45,9 +43,7 @@ def get_database_charging_session_history_count(db_file: str = database_file) ->
         return 0
 
 
-def get_all_database_tagoio_devices(
-    db_file: str = database_file,
-) -> list[Tuple[int, str, str]]:
+def get_all_database_tagoio_devices(db_file: str = database_file) -> list[Tuple[int, str, str]]:
     "Returns all tagoio_device rows in the database table."
     query = "SELECT pool_code, device_id, device_token FROM tagoio_device"
     try:
@@ -69,9 +65,7 @@ def get_database_tagoio_device(pool_code: int, db_file: str = database_file):
         return None
 
 
-def insert_database_tagoio_device(
-    pool_code: int, device_id: str, device_token: str, db_file: str = database_file
-):
+def insert_database_tagoio_device(pool_code: int, device_id: str, device_token: str, db_file: str = database_file):
     "Inserts a new tagoio_device into the database table."
     query = "INSERT INTO tagoio_device (pool_code, device_id, device_token) VALUES (?, ?, ?);"
     try:
@@ -84,7 +78,7 @@ def insert_database_tagoio_device(
 
 def insert_database_charging_session_history(
     update: ChargingSessionUpdate, db_file: str = database_file
-) -> int | None:
+) -> Optional[int]:
     "Inserts a new charging session into the history database table."
     query = """
         INSERT INTO charging_session_history
@@ -118,9 +112,7 @@ def insert_database_charging_session_history(
         return None
 
 
-def update_database_tagoio_device(
-    pool_code: int, device_id: str, device_token: str, db_file: str = database_file
-):
+def update_database_tagoio_device(pool_code: int, device_id: str, device_token: str, db_file: str = database_file):
     "Updates an existing tagoio_device in the database table."
     query = """
         UPDATE tagoio_device
@@ -162,3 +154,53 @@ def get_charging_sessions_from_pool_code(pool_code: int, db_file: str = database
     except Exception as e:
         logger.error(f"Exception during get_charging_sessions_from_pool_code: {e}")
         return []
+
+
+def get_noc_from_db(station_name: str, db_file: str = database_file) -> Optional[int]:
+    """Retrieves the number of connectors (noc) for a given station."""
+    query = "SELECT noc FROM station_config WHERE station_name = ?;"
+    try:
+        with sqlite3.connect(db_file) as conn:
+            result = conn.execute(query, (station_name,)).fetchone()
+            if result:
+                return result[0]
+            return None
+    except Exception as e:
+        logger.error(f"Error retrieving noc for station {station_name}: {e}")
+        return None
+
+
+def update_station_noc_if_needed(
+    pool_code: int, station_name: str, connector_id: int, db_file: str = database_file
+) -> None:
+    """
+    Infers and updates the number of connectors (noc) for a station.
+    If the incoming connector_id is higher than the stored noc, the database is updated.
+    """
+    select_query = "SELECT noc FROM station_config WHERE station_name = ?;"
+    insert_query = """
+        INSERT INTO station_config (station_name, pool_code, noc)
+        VALUES (?, ?, ?);
+    """
+    update_query = """
+        UPDATE station_config
+        SET noc = ?, is_modified = 1
+        WHERE station_name = ?;
+    """
+
+    try:
+        with sqlite3.connect(db_file) as conn:
+            result = conn.execute(select_query, (station_name,)).fetchone()
+
+            if result is None:  # Station not in DB, insert it with the current connector_id as noc
+                conn.execute(insert_query, (station_name, pool_code, connector_id))
+                conn.commit()
+                logger.info(f"Registered new station {station_name} with noc {connector_id}.")
+
+            elif connector_id > result[0]:  # Station exists, but a higher connector_id was broadcasted
+                conn.execute(update_query, (connector_id, station_name))
+                conn.commit()
+                logger.info(f"Updated station {station_name} noc from {result[0]} to {connector_id}.")
+
+    except Exception as e:
+        logger.error(f"Error updating noc for station {station_name}: {e}")

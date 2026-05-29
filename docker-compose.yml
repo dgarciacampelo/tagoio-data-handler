@@ -18,6 +18,7 @@ services:
         max-size: 10m
     volumes:
       - ./database_files:/src/database_files:rw
+      - ./templates:/src/templates:ro # Mount templates as read-only
     restart: on-failure:1
 
 networks:

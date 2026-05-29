@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Velo Energy - Panel Público</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            font-feature-settings: 'liga';
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "background": "#f7f9fb",
+                        "on-background": "#191c1e",
+                        "primary": "#00288e",
+                        "on-primary": "#ffffff",
+                        "primary-fixed": "#dde1ff",
+                        "on-primary-fixed": "#001453",
+                        "on-primary-fixed-variant": "#173bab",
+                        "secondary": "#006c49",
+                        "secondary-fixed-dim": "#4edea3",
+                        "error": "#ba1a1a",
+                        "error-container": "#ffdad6",
+                        "surface": "#f7f9fb",
+                        "on-surface": "#191c1e",
+                        "surface-variant": "#e0e3e5",
+                        "on-surface-variant": "#444653",
+                        "outline": "#757684",
+                        "outline-variant": "#c4c5d5",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f2f4f6",
+                        "surface-container": "#eceef0",
+                        "surface-container-highest": "#e0e3e5"
+                    },
+                    "spacing": {
+                        "xs": "8px",
+                        "sm": "12px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "xl": "32px",
+                        "grid-gutter": "16px",
+                        "base": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter", "sans-serif"],
+                        "label-sm": ["Inter", "sans-serif"],
+                        "label-caps": ["Inter", "sans-serif"],
+                        "display-metrics": ["Inter", "sans-serif"],
+                        "body-md": ["Inter", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700", "textTransform": "uppercase" }],
+                        "display-metrics": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body
+    class="bg-background text-on-background min-h-screen pt-16 pb-20 font-body-md text-body-md antialiased selection:bg-primary-fixed selection:text-on-primary-fixed">
+    <header
+        class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-md h-16 bg-surface border-b border-outline-variant">
+        <div class="flex items-center gap-xs text-primary">
+            <span class="material-symbols-outlined" data-icon="bolt">bolt</span>
+        </div>
+        <div
+            class="text-headline-md font-headline-md font-bold text-primary text-center absolute left-1/2 -translate-x-1/2">
+            Velo Energy
+        </div>
+    </header>
+
+    <main class="max-w-[1440px] mx-auto p-4 md:p-8 space-y-lg w-full">
+        <div class="tab-content block" id="tab-conectores">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-grid-gutter items-stretch">
+
+                <div class="md:col-span-8 flex flex-col gap-grid-gutter">
+                    {% set status_bg = '#FAD000' if station_status in ['Preparing', 'Charging'] else ('#4edea3' if
+                    station_status == 'Available' else '#ffdad6') %}
+                    {% set status_text = 'DISPONIBLE' if station_status == 'Available' else ('PREPARANDO' if
+                    station_status == 'Preparing' else ('CARGANDO' if station_status == 'Charging' else 'ERROR')) %}
+
+                    <section
+                        class="border border-outline-variant rounded-xl shadow-sm border-t-[4px] p-xl min-h-[12rem] h-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-md"
+                        style="background-color: {{ status_bg }};">
+                        <div class="flex flex-col gap-xs">
+                            <div class="inline-flex items-center gap-xs font-label-caps text-label-caps text-black">
+                                <span
+                                    class="w-2 h-2 rounded-full {% if station_status == 'Charging' %}animate-pulse{% endif %}"
+                                    style="background-color: #000000;"></span>
+                                {{ status_text }}
+                            </div>
+                            <h2 class="font-headline-md text-headline-md text-on-surface">{{ pool_code }}/{{
+                                station_name }}</h2>
+                            <p class="font-body-md text-on-surface opacity-80">Conector {{ noc }}</p>
+                        </div>
+                    </section>
+
+                    {% if station_status == 'Charging' %}
+                    <section class="grid grid-cols-1 sm:grid-cols-3 gap-grid-gutter">
+                        <div
+                            class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-md flex flex-col gap-xs">
+                            <div class="flex justify-between items-center text-on-surface-variant">
+                                <span class="font-label-sm text-label-sm uppercase tracking-wider">Energía
+                                    Suministrada</span>
+                                <span class="material-symbols-outlined text-[20px]">bolt</span>
+                            </div>
+                            <div class="flex items-baseline gap-xs">
+                                <span class="font-display-metrics text-display-metrics text-on-surface">--</span>
+                                <span class="font-label-sm text-label-sm text-on-surface-variant">kWh</span>
+                            </div>
+                        </div>
+                        <div
+                            class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-md flex flex-col gap-xs">
+                            <div class="flex justify-between items-center text-on-surface-variant">
+                                <span class="font-label-sm text-label-sm uppercase tracking-wider">Tiempo de
+                                    Sesión</span>
+                                <span class="material-symbols-outlined text-[20px]">timer</span>
+                            </div>
+                            <div class="flex items-baseline gap-xs">
+                                <span class="font-display-metrics text-display-metrics text-on-surface">--</span>
+                                <span class="font-label-sm text-label-sm text-on-surface-variant">min</span>
+                            </div>
+                        </div>
+                        <div
+                            class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-md flex flex-col gap-xs">
+                            <div class="flex justify-between items-center text-on-surface-variant">
+                                <span class="font-label-sm text-label-sm uppercase tracking-wider">Costo Actual</span>
+                                <span class="material-symbols-outlined text-[20px]">euro_symbol</span>
+                            </div>
+                            <div class="flex items-baseline gap-xs">
+                                <span class="font-display-metrics text-display-metrics text-on-surface">--</span>
+                                <span class="font-label-sm text-label-sm text-on-surface-variant">EUR</span>
+                            </div>
+                        </div>
+                    </section>
+                    {% endif %}
+                </div>
+
+                <div class="md:col-span-4 flex flex-col gap-grid-gutter">
+                    {% if station_status == 'Preparing' %}
+                    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-lg h-full"
+                        id="form-card">
+                        <h3 class="font-headline-md text-headline-md text-on-surface mb-md">Autorización de Sesión</h3>
+
+                        <div id="success-state" class="hidden flex-col items-center text-center gap-sm py-lg">
+                            <span class="material-symbols-outlined text-[48px] text-secondary">check_circle</span>
+                            <h4 class="font-headline-md text-on-surface">Solicitud Enviada</h4>
+                            <p class="font-body-md text-on-surface-variant">Revisa tu correo electrónico para acceder al
+                                enlace de pago seguro e iniciar la recarga.</p>
+                        </div>
+
+                        <form class="space-y-md" id="charging-form">
+                            <input type="hidden" id="pool_code" value="{{ pool_code }}">
+                            <input type="hidden" id="station_name" value="{{ station_name }}">
+                            <input type="hidden" id="connector_id" value="{{ noc }}">
+
+                            <div class="flex flex-col gap-base">
+                                <label class="font-label-sm text-label-sm text-on-surface" for="email">Correo
+                                    Electrónico <span class="text-error">*</span></label>
+                                <input
+                                    class="bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                    id="email" placeholder="conductor@ejemplo.com" required type="email" />
+                            </div>
+
+                            <div class="flex items-center gap-sm mt-sm border-t border-outline-variant pt-md">
+                                <input
+                                    class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary focus:ring-offset-0 bg-surface-container-lowest"
+                                    id="need-receipt" type="checkbox" />
+                                <label class="font-label-sm text-label-sm text-on-surface cursor-pointer select-none"
+                                    for="need-receipt">Requerir factura oficial</label>
+                            </div>
+
+                            <div class="hidden flex-col gap-md pl-sm border-l-2 border-outline-variant/30 mt-sm"
+                                id="receipt-fields">
+                                <div class="flex flex-col gap-base">
+                                    <label class="font-label-sm text-label-sm text-on-surface" for="nif">NIF / CIF <span
+                                            class="text-error">*</span></label>
+                                    <input
+                                        class="receipt-input bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                        id="nif" placeholder="ES 123 456 789" type="text" />
+                                </div>
+                                <div class="flex flex-col gap-base">
+                                    <label class="font-label-sm text-label-sm text-on-surface" for="billing_name">Nombre
+                                        / Razón Social <span class="text-error">*</span></label>
+                                    <input
+                                        class="receipt-input bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                        id="billing_name" placeholder="Empresa o Particular" type="text" />
+                                </div>
+                                <div class="flex flex-col gap-base">
+                                    <label class="font-label-sm text-label-sm text-on-surface"
+                                        for="billing_address">Dirección Fiscal <span class="text-error">*</span></label>
+                                    <input
+                                        class="receipt-input bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                        id="billing_address" placeholder="Calle, Número, Ciudad, CP" type="text" />
+                                </div>
+                                <div class="flex flex-col gap-base">
+                                    <label class="font-label-sm text-label-sm text-on-surface"
+                                        for="invoice_email">Correo de Facturación <span
+                                            class="text-error">*</span></label>
+                                    <input
+                                        class="receipt-input bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                        id="invoice_email" placeholder="facturacion@ejemplo.com" type="email" />
+                                </div>
+                            </div>
+
+                            <div id="error-banner"
+                                class="hidden text-error text-label-sm bg-error-container p-sm rounded-lg mt-sm">
+                                Error al procesar la solicitud. Por favor, inténtelo de nuevo.
+                            </div>
+
+                            <div class="pt-md">
+                                <button id="submit-btn"
+                                    class="w-full bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-label-caps text-label-caps py-sm px-md rounded-lg shadow-sm transition-colors flex items-center justify-center gap-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                    type="submit">
+                                    <span id="btn-icon" class="material-symbols-outlined text-[18px]">payments</span>
+                                    <span id="btn-text">ENVIAR ENLACE DE PAGO</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    {% else %}
+                    <div
+                        class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-lg h-full flex flex-col items-center justify-center text-center gap-md py-xl">
+                        <span class="material-symbols-outlined text-[48px] text-primary animate-pulse">ev_charger</span>
+                        <h3 class="font-headline-md text-on-surface">Conecte el Vehículo</h3>
+                        <p class="font-body-md text-on-surface-variant max-w-[280px]">
+                            Para realizar el proceso de pago e iniciar la recarga, por favor conecte su VE primero.
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content hidden" id="tab-tarifas">
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
+                <h2 class="font-headline-md text-on-surface mb-md">Tarifas (Incluyen IVA)</h2>
+                <div class="space-y-sm">
+                    <div class="flex justify-between border-b border-outline-variant pb-2">
+                        <span class="text-on-surface-variant">Tarifa horas valle</span>
+                        <span class="font-bold">0.4 €/kWh</span>
+                    </div>
+                    <div class="flex justify-between border-b border-outline-variant pb-2">
+                        <span class="text-on-surface-variant">Tarifa horas llanas</span>
+                        <span class="font-bold">0.4 €/kWh</span>
+                    </div>
+                    <div class="flex justify-between border-b border-outline-variant pb-2">
+                        <span class="text-on-surface-variant">Tarifa horas punta</span>
+                        <span class="font-bold">0.6 €/kWh</span>
+                    </div>
+                    <div class="flex justify-between border-outline-variant pb-2">
+                        <span class="text-on-surface-variant">IVA</span>
+                        <span class="font-bold">10%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content hidden" id="tab-cpo">
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
+                <h2 class="font-headline-md text-on-surface mb-md">Operador del Punto de Recarga (CPO)</h2>
+                <p class="font-body-md text-on-surface-variant">Voltage Command Infrastructure</p>
+                <p class="font-body-md text-on-surface-variant mt-sm">Soporte: support@voltagecommand.com</p>
+            </div>
+        </div>
+
+        <div class="tab-content hidden" id="tab-legal">
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
+                <h2 class="font-headline-md text-on-surface mb-md">Términos Legales</h2>
+                <p class="font-body-md text-on-surface-variant">
+                    Al utilizar este servicio, aceptas nuestros términos ycondiciones generales de uso.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <nav
+        class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-16 pb-safe px-xs border-t border-outline-variant bg-surface shadow-lg">
+        <a aria-current="page"
+            class="flex flex-col items-center justify-center text-primary font-bold scale-95 transition-transform duration-150 w-full h-full"
+            href="#" onclick="switchTab('conectores', this)">
+            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">ev_station</span>
+            <span class="font-label-sm mt-1">Conectores</span>
+        </a>
+        <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors w-full h-full"
+            href="#" onclick="switchTab('tarifas', this)">
+            <span class="material-symbols-outlined">payments</span>
+            <span class="font-label-sm mt-1">Tarifas</span>
+        </a>
+        <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors w-full h-full"
+            href="#" onclick="switchTab('cpo', this)">
+            <span class="material-symbols-outlined">business</span>
+            <span class="font-label-sm mt-1">CPO</span>
+        </a>
+        <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors w-full h-full"
+            href="#" onclick="switchTab('legal', this)">
+            <span class="material-symbols-outlined">gavel</span>
+            <span class="font-label-sm mt-1">Legal</span>
+        </a>
+    </nav>
+
+    <script>
+        // Form Handling Logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('charging-form');
+            if (!form) return; // Exit if form isn't rendered (not Preparing)
+
+            const receiptToggle = document.getElementById('need-receipt');
+            const receiptFieldsContainer = document.getElementById('receipt-fields');
+            const receiptInputs = document.querySelectorAll('.receipt-input');
+            const submitBtn = document.getElementById('submit-btn');
+            const btnIcon = document.getElementById('btn-icon');
+            const btnText = document.getElementById('btn-text');
+            const successState = document.getElementById('success-state');
+            const errorBanner = document.getElementById('error-banner');
+
+            receiptToggle.addEventListener('change', (e) => {
+                const isChecked = e.target.checked;
+                if (isChecked) {
+                    receiptFieldsContainer.classList.remove('hidden');
+                    receiptFieldsContainer.classList.add('flex');
+                    receiptInputs.forEach(input => input.required = true);
+                } else {
+                    receiptFieldsContainer.classList.add('hidden');
+                    receiptFieldsContainer.classList.remove('flex');
+                    receiptInputs.forEach(input => {
+                        input.required = false;
+                        input.value = '';
+                    });
+                }
+            });
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                submitBtn.disabled = true;
+                btnIcon.textContent = 'hourglass_empty';
+                btnIcon.classList.add('animate-spin');
+                btnText.textContent = 'PROCESANDO...';
+                errorBanner.classList.add('hidden');
+
+                const payload = {
+                    pool_code: parseInt(document.getElementById('pool_code').value, 10),
+                    station_name: document.getElementById('station_name').value,
+                    connector_id: parseInt(document.getElementById('connector_id').value, 10),
+                    email: document.getElementById('email').value,
+                    requires_invoice: receiptToggle.checked,
+                    nif: document.getElementById('nif').value || null,
+                    billing_name: document.getElementById('billing_name').value || null,
+                    billing_address: document.getElementById('billing_address').value || null,
+                    invoice_email: document.getElementById('invoice_email').value || null
+                };
+
+                try {
+                    const response = await fetch('/api/charge-request', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) throw new Error('Network response was not ok');
+
+                    form.classList.add('hidden');
+                    successState.classList.remove('hidden');
+                    successState.classList.add('flex');
+
+                } catch (error) {
+                    console.error('Submission failed:', error);
+                    errorBanner.classList.remove('hidden');
+                    submitBtn.disabled = false;
+                    btnIcon.textContent = 'payments';
+                    btnIcon.classList.remove('animate-spin');
+                    btnText.textContent = 'ENVIAR ENLACE DE PAGO';
+                }
+            });
+        });
+
+        // Tab Switching Logic
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.add('hidden');
+                el.classList.remove('block');
+            });
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            document.getElementById('tab-' + tabId).classList.add('block');
+
+            document.querySelectorAll('nav a').forEach(el => {
+                el.classList.remove('text-primary', 'font-bold', 'scale-95');
+                el.classList.add('text-on-surface-variant');
+                el.querySelector('.material-symbols-outlined').style.fontVariationSettings = "'FILL' 0";
+            });
+
+            element.classList.remove('text-on-surface-variant');
+            element.classList.add('text-primary', 'font-bold', 'scale-95');
+            element.querySelector('.material-symbols-outlined').style.fontVariationSettings = "'FILL' 1";
+        }
+    </script>
+</body>
+
+</html>

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from charge_points import register_charge_point
-from database.query_database import insert_database_charging_session_history
+from database.query_database import insert_database_charging_session_history, update_station_noc_if_needed
 from tagoio.data_parsing import (
     update_charge_point_status,
     update_management_dashboard_charging_session,
@@ -27,12 +27,15 @@ def get_charge_point(pool_code: int, station_name: str, connector_id: int = 1) -
 
 
 async def manage_charge_point_update(update: ChargePointUpdate) -> ChargePointData:
-    "Updates the dashboards with the charge point data, if conditions are met"
+    """Updates the dashboards with the charge point data, if conditions are met"""
     new_quarantine, is_quarantined, quarantine_end = check_quarantine(update)
 
     search_params = [update.pool_code, update.station_name, update.connector_id]
     search_key = get_search_key(*search_params)
     register_charge_point(*search_params)
+
+    # Dynamically infer and update the noc based on the payload
+    update_station_noc_if_needed(update.pool_code, update.station_name, update.connector_id)
 
     omitted_updates = 0  # When new_quarantine, the error status is sent
     if search_key in charge_points:

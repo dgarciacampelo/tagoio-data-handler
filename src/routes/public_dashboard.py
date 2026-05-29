@@ -1,0 +1,79 @@
+from typing import Any
+
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.templating import Jinja2Templates
+import httpx
+from loguru import logger
+
+from data_handling import get_charge_point
+from database.query_database import get_noc_from_db
+from schemas import PaymentAuthRequest
+from config import payments_gateway_device_token as payments_gateway_token
+
+router = APIRouter()
+
+# Templates folder, holds the HTML files for rendering the public dashboard
+templates = Jinja2Templates(directory="templates")
+
+
+@router.get("/dashboard/{pool_code}/{station_name}")  # noc: Number of Connectors
+async def render_public_dashboard(request: Request, pool_code: int, station_name: str, noc: int = 1):
+    """
+    Renders the public dashboard for an EV charging station.
+    1. If noc is provided in URL, use it and optionally update the DB.
+    2. If noc is None, query SQLite 'station_config' for the station_name.
+    3. If not in DB, default to 1.
+    """
+    actual_noc: int = noc or get_noc_from_db(station_name) or 1
+    cp_data = get_charge_point(pool_code, station_name, connector_id=1)
+    status = cp_data.charge_point_status if cp_data else "Available"
+    return templates.TemplateResponse(
+        "smart-station-dashboard.html",
+        {
+            "request": request,
+            "pool_code": pool_code,
+            "station_name": station_name,
+            "station_status": status,
+            "noc": actual_noc,
+        },
+    )
+
+
+@router.post("/api/charge-request")
+async def trigger_payment_authorization(request: PaymentAuthRequest):
+    cp_id = f"{request.pool_code}/{request.station_name}"
+
+    # Base payload for Paycomet pre-auth (using Any as type to avoid static type checking issues with the dynamic payload construction)
+    tago_payload: list[dict[str, Any]] = [
+        {"variable": "qr_cpid", "value": cp_id},
+        {"variable": "qr_connid", "value": str(request.connector_id)},
+        {"variable": "qr_email", "value": request.email},
+    ]
+
+    # Append Receipt variables if requested
+    if request.requires_invoice:
+        tago_payload.extend(
+            [
+                {"variable": "receipt_fiscal_id", "value": request.nif},
+                {"variable": "receipt_name", "value": request.billing_name},
+                {"variable": "receipt_address", "value": request.billing_address},
+                {"variable": "receipt_email", "value": request.invoice_email},
+            ]
+        )
+
+    headers = {"Content-Type": "application/json", "Device-Token": payments_gateway_token}
+
+    try:  # POST to TagoIO immutable bucket
+        async with httpx.AsyncClient() as client:
+            response = await client.post("https://api.tago.io/data", json=tago_payload, headers=headers)
+            response.raise_for_status()
+
+            logger.info(f"Payment analysis triggered for {cp_id} [{request.connector_id}]")
+            return {"status": "success"}
+
+    except httpx.HTTPStatusError as e:
+        logger.error(f"TagoIO API Error: {e.response.text}")
+        raise HTTPException(status_code=502, detail="Gateway error communicating with payment handler.")
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error.")
