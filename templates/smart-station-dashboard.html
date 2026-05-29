@@ -256,7 +256,7 @@
                         <span class="material-symbols-outlined text-[48px] text-primary animate-pulse">ev_charger</span>
                         <h3 class="font-headline-md text-on-surface">Conecte el Vehículo</h3>
                         <p class="font-body-md text-on-surface-variant max-w-[280px]">
-                            Para realizar el proceso de pago e iniciar la recarga, por favor conecte su VE primero.
+                            Para realizar el proceso de pago e iniciar la recarga, por favor conécte su VE primero.
                         </p>
                     </div>
                     {% endif %}
@@ -297,11 +297,160 @@
         </div>
 
         <div class="tab-content hidden" id="tab-legal">
-            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg max-w-4xl mx-auto">
                 <h2 class="font-headline-md text-on-surface mb-md">Términos Legales</h2>
-                <p class="font-body-md text-on-surface-variant">
-                    Al utilizar este servicio, aceptas nuestros términos ycondiciones generales de uso.
-                </p>
+
+                <div class="space-y-lg text-on-surface-variant">
+                    <p class="font-body-md">
+                        Al utilizar este servicio de recarga pública,
+                        usted acepta los presentes Términos y Condiciones Generales de Uso.
+                    </p>
+
+                    <div class="bg-surface-container-low border-l-4 border-primary p-md rounded-r-lg space-y-xs">
+                        <span class="font-label-caps text-primary block">Información Legal del Titular</span>
+                        <ul class="space-y-base font-body-md">
+                            <li><strong class="text-on-surface">Denominación social:</strong> Velo Technologies, S.L.
+                            </li>
+                            <li><strong class="text-on-surface">Domicilio social:</strong>
+                                Pgo Ind Olloniego 2, N1, Oviedo, España.</li>
+                            <li><strong class="text-on-surface">NIF:</strong> B74454166</li>
+                            <li><strong class="text-on-surface">Sitio Web corporativo:</strong> <a
+                                    href="http://www.Velo-energy.com" target="_blank"
+                                    class="text-primary hover:underline font-medium">www.Velo-energy.com</a></li>
+                        </ul>
+                    </div>
+
+                    <div class="space-y-sm">
+                        <h3 class="font-headline-md text-on-surface text-[16px]">
+                            1. Objeto y Funcionamiento del Servicio Transaccional</h3>
+                        <p class="font-body-md">
+                            Velo Technologies opera una infraestructura SaaS OCPP orientada al procesamiento ágil de
+                            cargas esporádicas. La utilización de este panel web de acceso público no requiere la
+                            creación de un perfil de usuario permanente. El acceso al flujo transaccional se inicia
+                            exclusivamente mediante la provisión del correo electrónico y datos correspondientes de
+                            cobro. Velo Technologies se reserva el derecho de modificar unilateralmente estas
+                            condiciones para adecuarlas a cambios del marco normativo o técnico del sector.
+                        </p>
+                    </div>
+
+                    <div class="space-y-sm">
+                        <h3 class="font-headline-md text-on-surface text-[16px]">
+                            2. Requisitos de Uso y Veracidad en la Facturación</h3>
+                        <p class="font-body-md">
+                            El usuario declara bajo su responsabilidad ser mayor de 18 años. Al cumplimentar el
+                            formulario para el envío del enlace de cobro, el Cliente garantiza que los datos de
+                            facturación e identidad proporcionados (NIF/CIF, Nombre o Razón Social y Dirección Fiscal)
+                            son plenamente veraces, exactos y vigentes. La provisión de datos falsos o inexactos
+                            facultará a Velo Technologies a bloquear de forma inmediata la sesión de carga actual o
+                            solicitudes de suministro futuras vinculadas a dicho identificador.
+                        </p>
+                    </div>
+
+                    <div class="space-y-sm">
+                        <h3 class="font-headline-md text-on-surface text-[16px]">
+                            3. Gestión de Tarifas, Pasarela de Pago y Retenciones</h3>
+                        <p class="font-body-md">
+                            El costo del servicio se calcula y devenga automáticamente de forma posterior a la
+                            finalización del suministro físico de energía. Las tarifas aplicables (expresadas en la
+                            moneda vigente y con impuestos incluidos) se encuentran listadas públicamente en el panel y
+                            se computarán en función de los kWh entregados, tiempo de ocupación del conector, tasas
+                            fijas por sesión o una combinación horaria de los factores anteriores.
+                        </p>
+                        <p class="font-body-md">
+                            <strong class="text-on-surface">Seguridad en los datos bancarios:</strong> Velo Technologies
+                            <span class="font-semibold text-on-surface">nunca procesa ni almacena</span> los datos de
+                            las tarjetas de pago provistas por el usuario. La pasarela del pago, el tratamiento del
+                            monedero virtual y las preautorizaciones bancarias necesarias para habilitar el conector
+                            OCPP se ejecutan externamente mediante una Entidad de Dinero Electrónico debidamente
+                            regulada que cumple con la normativa de seguridad aplicable. El usuario autoriza el envío
+                            automatizado de recibos y facturas oficiales por canales telemáticos a la dirección provista
+                            en el formulario.
+                        </p>
+                    </div>
+
+                    <div class="space-y-sm">
+                        <h3 class="font-headline-md text-on-surface text-[16px]">
+                            4. Política de Cancelación y Devoluciones</h3>
+                        <div
+                            class="border border-error/30 bg-error-container/20 text-on-surface p-sm rounded-lg font-body-md">
+                            <strong class="text-error">Exclusión de desistimiento:</strong> Debido a la naturaleza del
+                            servicio de recarga de vehículos eléctricos —consistente en un suministro inmediato de
+                            energía bajo demanda directa del Cliente— <span class="font-semibold text-error">no se
+                                admitirán cancelaciones, modificaciones ni solicitudes de devolución económica</span>
+                            una vez que el proceso de carga haya sido iniciado de manera efectiva por el protocolo de la
+                            estación.
+                        </div>
+                    </div>
+
+                    <div class="space-y-sm">
+                        <h3 class="font-headline-md text-on-surface text-[16px]">
+                            5. Propiedad Intelectual e Industrial</h3>
+                        <p class="font-body-md">
+                            Velo Technologies retiene la titularidad exclusiva de todos los derechos de propiedad
+                            intelectual, marcas, código fuente, interfaces y diseños gráficos distribuidos a través de
+                            sus portales y paneles de recarga. Queda terminantemente prohibido alterar, eludir, copiar,
+                            realizar ingeniería inversa o explotar con propósitos comerciales cualquier elemento del
+                            software sin consentimiento explícito y por escrito del titular.
+                        </p>
+                    </div>
+
+                    <div class="space-y-sm">
+                        <h3 class="font-headline-md text-on-surface text-[16px]">
+                            6. Exención de Responsabilidad Técnica</h3>
+                        <p class="font-body-md">
+                            Velo Technologies limita su responsabilidad al correcto desempeño de su plataforma de
+                            gestión de software y pasarela operativa. En consecuencia, no responderá por daños derivados
+                            de indisponibilidad del servicio atribuibles a interrupciones en la red de internet general,
+                            virus en los dispositivos del terminal del cliente, cortes en el suministro eléctrico de la
+                            red de distribución o fallos físicos mecánicos localizados en el conector del punto de
+                            recarga ajenos a nuestro control lógico directo.
+                        </p>
+                    </div>
+
+                    <div class="space-y-sm">
+                        <h3 class="font-headline-md text-on-surface text-[16px]">
+                            7. Cláusula de Tratamiento de Datos Personales (RGPD / LOPDGDD)</h3>
+                        <p class="font-body-md">
+                            De acuerdo con las normativas europeas y nacionales vigentes sobre protección de datos, le
+                            informamos de lo siguiente:
+                        </p>
+                        <ul class="list-disc pl-md space-y-xs font-body-md">
+                            <li><strong class="text-on-surface">Responsable del Tratamiento:</strong> Velo Technologies,
+                                S.L.</li>
+                            <li><strong class="text-on-surface">Finalidad y Base Legal:</strong> El tratamiento de su
+                                dirección de correo electrónico y datos de facturación se legitima estrictamente bajo la
+                                relación contractual de ejecución de la recarga. La dirección de correo electrónico se
+                                conserva temporalmente para la remisión del enlace de cobro seguro, la gestión de la
+                                preautorización y retención del pago de la sesión, y la entrega telemática de la factura
+                                oficial. Sus datos no serán utilizados para envíos comerciales cruzados ajenos al
+                                servicio.</li>
+                            <li><strong class="text-on-surface">Plazo de Conservación:</strong> Finalizada la
+                                transacción, los datos serán retenidos exclusivamente bloqueados durante los plazos de
+                                prescripción legalmente estipulados por la legislación fiscal y civil española para la
+                                atención de reclamaciones.</li>
+                            <li><strong class="text-on-surface">Derechos:</strong> Podrá ejercer sus derechos de acceso,
+                                rectificación, supresión, oposición, limitación y portabilidad remitiendo una
+                                comunicación por escrito adjuntando copia de un documento de identidad oficial al
+                                correo: <span class="font-medium text-on-surface">info@velo-energy.com</span>. Dispone
+                                asimismo del derecho a reclamar ante la Agencia Española de Protección de Datos (AEPD).
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="space-y-sm">
+                        <h3 class="font-headline-md text-on-surface text-[16px]">
+                            8. Cláusula de Salvaguarda y Fuero Aplicable</h3>
+                        <p class="font-body-md">
+                            Si algún apartado de los presentes términos fuese declarado inválido o ineficaz por un
+                            tribunal competente, las cláusulas restantes preservarán íntegramente su obligatoriedad y
+                            vigencia. Las relaciones derivadas de este uso se rigen por las leyes del Reino de España.
+                            Cualquier litigio o controversia legal se someterá de forma exclusiva a los Juzgados y
+                            Tribunales de Oviedo, España, salvo que las leyes de consumo vigentes fuercen el
+                            establecimiento del fuero del domicilio de residencia del Cliente de manera imperativa.
+                        </p>
+                    </div>
+                </div>
+
             </div>
         </div>
     </main>
