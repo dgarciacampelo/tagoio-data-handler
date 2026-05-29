@@ -92,7 +92,7 @@ async def render_status_card_partial(request: Request, pool_code: int, station_n
     status = cp_data.charge_point_status if cp_data else "Available"
 
     return templates.TemplateResponse(
-        "partials/status_card.html",
+        "partials/status-card.html",
         {
             "request": request,
             "pool_code": pool_code,
