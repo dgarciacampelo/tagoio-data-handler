@@ -33,66 +33,13 @@
             min-height: max(884px, 100dvh);
         }
     </style>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    "colors": {
-                        "background": "#f7f9fb",
-                        "on-background": "#191c1e",
-                        "primary": "#00288e",
-                        "on-primary": "#ffffff",
-                        "primary-fixed": "#dde1ff",
-                        "on-primary-fixed": "#001453",
-                        "on-primary-fixed-variant": "#173bab",
-                        "secondary": "#006c49",
-                        "secondary-fixed-dim": "#4edea3",
-                        "error": "#ba1a1a",
-                        "error-container": "#ffdad6",
-                        "surface": "#f7f9fb",
-                        "on-surface": "#191c1e",
-                        "surface-variant": "#e0e3e5",
-                        "on-surface-variant": "#444653",
-                        "outline": "#757684",
-                        "outline-variant": "#c4c5d5",
-                        "surface-container-lowest": "#ffffff",
-                        "surface-container-low": "#f2f4f6",
-                        "surface-container": "#eceef0",
-                        "surface-container-highest": "#e0e3e5"
-                    },
-                    "spacing": {
-                        "xs": "8px",
-                        "sm": "12px",
-                        "md": "16px",
-                        "lg": "24px",
-                        "xl": "32px",
-                        "grid-gutter": "16px",
-                        "base": "4px"
-                    },
-                    "fontFamily": {
-                        "headline-md": ["Inter", "sans-serif"],
-                        "label-sm": ["Inter", "sans-serif"],
-                        "label-caps": ["Inter", "sans-serif"],
-                        "display-metrics": ["Inter", "sans-serif"],
-                        "body-md": ["Inter", "sans-serif"]
-                    },
-                    "fontSize": {
-                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
-                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
-                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700", "textTransform": "uppercase" }],
-                        "display-metrics": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
-                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
-                    }
-                }
-            }
-        }
-    </script>
+    <script src="/static/js/tailwind-cdn.js"></script>
+    <script src="/static/js/tailwind-config.js"></script>
 </head>
 
 <body
     class="bg-background text-on-background min-h-screen pt-16 pb-20 font-body-md text-body-md antialiased selection:bg-primary-fixed selection:text-on-primary-fixed">
+
     <header
         class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-md h-16 bg-surface border-b border-outline-variant">
         <div class="flex items-center gap-xs text-primary">
@@ -105,16 +52,15 @@
     </header>
 
     <main class="max-w-[1440px] mx-auto p-4 md:p-8 space-y-lg w-full">
+
         <div class="tab-content block" id="tab-conectores">
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-grid-gutter items-stretch">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-grid-gutter items-stretch" id="main-layout-grid">
 
-                <div class="md:col-span-8 flex flex-col gap-grid-gutter">
+                <div class="md:col-span-8 flex flex-col gap-grid-gutter h-full">
 
-                    <!-- Dynamic Connector Selector -->
                     {% if noc > 1 %}
                     <div class="flex gap-sm overflow-x-auto pb-1 mb-xs scrollbar-hide">
                         {% for i in range(1, noc + 1) %}
-
                         <a href="?cid={{ i }}{% if 'noc' in request.query_params %}&noc={{ request.query_params['noc'] }}{% endif %}"
                             class="inline-flex items-center justify-center whitespace-nowrap px-lg py-sm rounded-lg font-label-sm transition-colors border 
                             {% if current_cid == i %}
@@ -124,152 +70,22 @@
                             {% endif %}">
                             Conector {{ i }}
                         </a>
-
                         {% endfor %}
                     </div>
                     {% endif %}
 
-                    <div id="status-card-container"
+                    <div id="status-card-container" class="flex-1 flex flex-col"
                         hx-get="/dashboard/partial/status/{{ pool_code }}/{{ station_name }}?cid={{ current_cid }}{% if force_status_str %}&force-status={{ force_status_str }}{% endif %}"
                         hx-trigger="every 5s" hx-swap="innerHTML">
                         {% include 'partials/status-card.html' %}
                     </div>
 
-                    {% if station_status == ChargePointStatus.CHARGING %}
-                    <section class="grid grid-cols-1 sm:grid-cols-3 gap-grid-gutter">
-                        <div
-                            class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-md flex flex-col gap-xs">
-                            <div class="flex justify-between items-center text-on-surface-variant">
-                                <span class="font-label-sm text-label-sm uppercase tracking-wider">Energía
-                                    Suministrada</span>
-                                <span class="material-symbols-outlined text-[20px]">bolt</span>
-                            </div>
-                            <div class="flex items-baseline gap-xs">
-                                <span class="font-display-metrics text-display-metrics text-on-surface">--</span>
-                                <span class="font-label-sm text-label-sm text-on-surface-variant">kWh</span>
-                            </div>
-                        </div>
-                        <div
-                            class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-md flex flex-col gap-xs">
-                            <div class="flex justify-between items-center text-on-surface-variant">
-                                <span class="font-label-sm text-label-sm uppercase tracking-wider">Tiempo de
-                                    Sesión</span>
-                                <span class="material-symbols-outlined text-[20px]">timer</span>
-                            </div>
-                            <div class="flex items-baseline gap-xs">
-                                <span class="font-display-metrics text-display-metrics text-on-surface">--</span>
-                                <span class="font-label-sm text-label-sm text-on-surface-variant">min</span>
-                            </div>
-                        </div>
-                        <div
-                            class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-md flex flex-col gap-xs">
-                            <div class="flex justify-between items-center text-on-surface-variant">
-                                <span class="font-label-sm text-label-sm uppercase tracking-wider">Costo Actual</span>
-                                <span class="material-symbols-outlined text-[20px]">euro_symbol</span>
-                            </div>
-                            <div class="flex items-baseline gap-xs">
-                                <span class="font-display-metrics text-display-metrics text-on-surface">--</span>
-                                <span class="font-label-sm text-label-sm text-on-surface-variant">EUR</span>
-                            </div>
-                        </div>
-                    </section>
-                    {% endif %}
+                    {% include 'partials/metrics-panel.html' %}
+
                 </div>
 
-                <div class="md:col-span-4 flex flex-col gap-grid-gutter">
-                    {% if station_status == ChargePointStatus.PREPARING %}
-                    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-lg h-full"
-                        id="form-card">
-                        <h3 class="font-headline-md text-headline-md text-on-surface mb-md">Autorización de Pago</h3>
+                {% include 'partials/side-panel.html' %}
 
-                        <div id="success-state" class="hidden flex-col items-center text-center gap-sm py-lg">
-                            <span class="material-symbols-outlined text-[48px] text-secondary">check_circle</span>
-                            <h4 class="font-headline-md text-on-surface">Solicitud Enviada</h4>
-                            <p class="font-body-md text-on-surface-variant">Revisa tu correo electrónico para acceder al
-                                enlace de pago seguro mediante TPV e iniciar la recarga.</p>
-                        </div>
-
-                        <form class="space-y-md" id="charging-form">
-                            <input type="hidden" id="pool_code" value="{{ pool_code }}">
-                            <input type="hidden" id="station_name" value="{{ station_name }}">
-                            <input type="hidden" id="connector_id" value="{{ current_cid }}">
-
-                            <div class="flex flex-col gap-base">
-                                <label class="font-label-sm text-label-sm text-on-surface" for="email">Correo
-                                    Electrónico <span class="text-error">*</span></label>
-                                <input
-                                    class="bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                                    id="email" placeholder="conductor@ejemplo.com" required type="email" />
-                            </div>
-
-                            <div class="flex items-center gap-sm mt-sm border-t border-outline-variant pt-md">
-                                <input
-                                    class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary focus:ring-offset-0 bg-surface-container-lowest"
-                                    id="need-receipt" type="checkbox" />
-                                <label class="font-label-sm text-label-sm text-on-surface cursor-pointer select-none"
-                                    for="need-receipt">Solicitar factura</label>
-                            </div>
-
-                            <div class="hidden flex-col gap-md pl-sm border-l-2 border-outline-variant/30 mt-sm"
-                                id="receipt-fields">
-                                <div class="flex flex-col gap-base">
-                                    <label class="font-label-sm text-label-sm text-on-surface" for="nif">NIF / CIF <span
-                                            class="text-error">*</span></label>
-                                    <input
-                                        class="receipt-input bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                                        id="nif" placeholder="ES12345678" type="text" />
-                                </div>
-                                <div class="flex flex-col gap-base">
-                                    <label class="font-label-sm text-label-sm text-on-surface" for="billing_name">Nombre
-                                        / Razón Social <span class="text-error">*</span></label>
-                                    <input
-                                        class="receipt-input bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                                        id="billing_name" placeholder="Empresa o Particular" type="text" />
-                                </div>
-                                <div class="flex flex-col gap-base">
-                                    <label class="font-label-sm text-label-sm text-on-surface"
-                                        for="billing_address">Dirección Fiscal <span class="text-error">*</span></label>
-                                    <input
-                                        class="receipt-input bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                                        id="billing_address" placeholder="Calle, Número, Ciudad, CP" type="text" />
-                                </div>
-                                <div class="flex flex-col gap-base">
-                                    <label class="font-label-sm text-label-sm text-on-surface"
-                                        for="invoice_email">Correo de Facturación <span
-                                            class="text-error">*</span></label>
-                                    <input
-                                        class="receipt-input bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                                        id="invoice_email" placeholder="facturacion@ejemplo.com" type="email" />
-                                </div>
-                            </div>
-
-                            <div id="error-banner"
-                                class="hidden text-error text-label-sm bg-error-container p-sm rounded-lg mt-sm">
-                                Error al procesar la solicitud. Por favor, inténtelo de nuevo.
-                            </div>
-
-                            <div class="pt-md">
-                                <button id="submit-btn"
-                                    class="w-full bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-label-caps text-label-caps py-sm px-md rounded-lg shadow-sm transition-colors flex items-center justify-center gap-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                                    type="submit">
-                                    <span id="btn-icon" class="material-symbols-outlined text-[18px]">payments</span>
-                                    <span id="btn-text">ENVIAR ENLACE DE PAGO</span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                    {% else %}
-                    <div
-                        class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-lg h-full flex flex-col items-center justify-center text-center gap-md py-xl">
-                        <span class="material-symbols-outlined text-[48px] text-primary animate-pulse">ev_charger</span>
-                        <h3 class="font-headline-md text-on-surface">Conecte el Vehículo</h3>
-                        <p class="font-body-md text-on-surface-variant max-w-[280px]">
-                            Para realizar el proceso de pago e iniciar la recarga, conécte su VE al
-                            <strong>Conector {{current_cid }}</strong>.
-                        </p>
-                    </div>
-                    {% endif %}
-                </div>
             </div>
         </div>
 
@@ -344,10 +160,21 @@
     </nav>
 
     <script>
-        // Form Handling Logic
-        document.addEventListener('DOMContentLoaded', () => {
+        // 1. Global state to preserve form data across 5s HTMX OOB swaps
+        window.chargingFormState = window.chargingFormState || {
+            email: '',
+            needReceipt: false,
+            nif: '',
+            billingName: '',
+            billingAddress: '',
+            invoiceEmail: ''
+        };
+
+        function initFormLogic() {
             const form = document.getElementById('charging-form');
-            if (!form) return; // Exit if form isn't rendered (not Preparing)
+            // If the station isn't in PREPARING, the form doesn't exist, so we abort.
+            // Note: We intentionally removed the dataset.initialized check so this re-runs after every OOB swap.
+            if (!form) return;
 
             const receiptToggle = document.getElementById('need-receipt');
             const receiptFieldsContainer = document.getElementById('receipt-fields');
@@ -357,23 +184,67 @@
             const btnText = document.getElementById('btn-text');
             const successState = document.getElementById('success-state');
             const errorBanner = document.getElementById('error-banner');
+            const layoutGrid = document.getElementById('main-layout-grid');
 
+            // 2. Rehydrate State (Inject saved data back into the fresh DOM)
+            document.getElementById('email').value = window.chargingFormState.email;
+            receiptToggle.checked = window.chargingFormState.needReceipt;
+            document.getElementById('nif').value = window.chargingFormState.nif;
+            document.getElementById('billing_name').value = window.chargingFormState.billingName;
+            document.getElementById('billing_address').value = window.chargingFormState.billingAddress;
+            document.getElementById('invoice_email').value = window.chargingFormState.invoiceEmail;
+
+            // Apply visual grid state based on rehydration
+            if (receiptToggle.checked) {
+                receiptFieldsContainer.classList.remove('hidden');
+                receiptFieldsContainer.classList.add('flex');
+                receiptInputs.forEach(input => input.required = true);
+                if (layoutGrid) {
+                    layoutGrid.classList.remove('items-stretch');
+                    layoutGrid.classList.add('items-start'); // Breaks the height alignment
+                }
+            } else {
+                receiptFieldsContainer.classList.add('hidden');
+                receiptFieldsContainer.classList.remove('flex');
+                receiptInputs.forEach(input => input.required = false);
+                if (layoutGrid) {
+                    layoutGrid.classList.add('items-stretch'); // Restores the height alignment
+                    layoutGrid.classList.remove('items-start');
+                }
+            }
+
+            // 3. Bind State Updaters (Save to global object immediately on input)
+            document.getElementById('email').addEventListener('input', e => window.chargingFormState.email = e.target.value);
+            document.getElementById('nif').addEventListener('input', e => window.chargingFormState.nif = e.target.value);
+            document.getElementById('billing_name').addEventListener('input', e => window.chargingFormState.billingName = e.target.value);
+            document.getElementById('billing_address').addEventListener('input', e => window.chargingFormState.billingAddress = e.target.value);
+            document.getElementById('invoice_email').addEventListener('input', e => window.chargingFormState.invoiceEmail = e.target.value);
+
+            // 4. Handle Checkbox Toggle
             receiptToggle.addEventListener('change', (e) => {
                 const isChecked = e.target.checked;
+                window.chargingFormState.needReceipt = isChecked;
+
                 if (isChecked) {
                     receiptFieldsContainer.classList.remove('hidden');
                     receiptFieldsContainer.classList.add('flex');
                     receiptInputs.forEach(input => input.required = true);
+                    if (layoutGrid) {
+                        layoutGrid.classList.remove('items-stretch');
+                        layoutGrid.classList.add('items-start');
+                    }
                 } else {
                     receiptFieldsContainer.classList.add('hidden');
                     receiptFieldsContainer.classList.remove('flex');
-                    receiptInputs.forEach(input => {
-                        input.required = false;
-                        input.value = '';
-                    });
+                    receiptInputs.forEach(input => input.required = false);
+                    if (layoutGrid) {
+                        layoutGrid.classList.add('items-stretch');
+                        layoutGrid.classList.remove('items-start');
+                    }
                 }
             });
 
+            // 5. Form Submission
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
@@ -408,6 +279,9 @@
                     successState.classList.remove('hidden');
                     successState.classList.add('flex');
 
+                    // Wipe state on success so it doesn't linger if they charge again later
+                    window.chargingFormState = { email: '', needReceipt: false, nif: '', billingName: '', billingAddress: '', invoiceEmail: '' };
+
                 } catch (error) {
                     console.error('Submission failed:', error);
                     errorBanner.classList.remove('hidden');
@@ -417,7 +291,28 @@
                     btnText.textContent = 'ENVIAR ENLACE DE PAGO';
                 }
             });
+        }
+
+        // Initialize form logic on standard page load and after HTMX background swaps
+        document.addEventListener('DOMContentLoaded', initFormLogic);
+        document.addEventListener('htmx:load', initFormLogic);
+
+        // Global cleanup: If the car unplugs and the form disappears entirely, ensure the grid is reset.
+        document.addEventListener('htmx:oobAfterSwap', (e) => {
+            if (e.detail.target.id === 'side-panel-container') {
+                if (!document.getElementById('charging-form')) {
+                    const layoutGrid = document.getElementById('main-layout-grid');
+                    if (layoutGrid) {
+                        layoutGrid.classList.add('items-stretch');
+                        layoutGrid.classList.remove('items-start');
+                    }
+                }
+            }
         });
+
+        // Initialize form logic on standard page load and after HTMX background swaps
+        document.addEventListener('DOMContentLoaded', initFormLogic);
+        document.addEventListener('htmx:load', initFormLogic);
 
         // Tab Switching Logic
         function switchTab(tabId, element) {

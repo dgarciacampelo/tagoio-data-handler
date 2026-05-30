@@ -1,5 +1,4 @@
-import json
-from fastapi import APIRouter, Depends, status, HTTPException, Request
+from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.security import HTTPBasic
 from loguru import logger
 from pydantic import ValidationError
@@ -56,35 +55,18 @@ async def charge_point_update(
     pool_code: int,
     station_name: str,
     connector_id: int,
-    request: Request,
+    update_body: ChargePointUpdateBody,
     username: Annotated[str, Depends(check_credentials)],
 ):
-    "Manages the notification of a charge point status update"
-    try:
-        # Parse the request as a dictionary:
-        json_string = await request.json()
-        data = json.loads(json_string)
-        update_body = ChargePointUpdateBody(
-            connector_id=connector_id,
-            connection_status=data["connection_status"],
-            charge_point_status=data["charge_point_status"],
-            availability_type=data["availability_type"],
-            charge_point_error_code=data["charge_point_error_code"],
-            has_public_dashboard=data["has_public_dashboard"],
-        )
-        update_data = ChargePointUpdate(pool_code=pool_code, station_name=station_name, **update_body.model_dump())
-        charge_point_data = await manage_charge_point_update(update_data)
-        if charge_point_data is None:
-            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            detail = "Error updating charge point"
-            raise HTTPException(status_code=status_code, detail=detail)
+    """Manages the notification of a station status update"""
 
-        return charge_point_data.model_dump()
+    # Overwrite/sync the connector_id if it comes from the path parameter
+    update_body.connector_id = connector_id
 
-    except json.JSONDecodeError:
-        logger.error("Error parsing JSON response at charge_point_update")
-        status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        raise HTTPException(status_code=status_code, detail="Error parsing JSON")
-    except ValidationError as e:
-        status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
-        raise HTTPException(status_code=status_code, detail=str(e))
+    update_data = ChargePointUpdate(pool_code=pool_code, station_name=station_name, **update_body.model_dump())
+
+    charge_point_data = await manage_charge_point_update(update_data)
+    if charge_point_data is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error updating station data.")
+
+    return charge_point_data.model_dump()

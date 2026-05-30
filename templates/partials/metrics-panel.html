@@ -1,0 +1,6 @@
+<div id="metrics-container" hx-swap-oob="true"
+    class="{% if station_status != ChargePointStatus.CHARGING %}hidden{% endif %}">
+    {% if station_status == ChargePointStatus.CHARGING %}
+    <section class="grid grid-cols-1 sm:grid-cols-3 gap-grid-gutter"></section>
+    {% endif %}
+</div>
