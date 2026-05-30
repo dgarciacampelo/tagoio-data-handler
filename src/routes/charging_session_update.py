@@ -28,39 +28,18 @@ async def charging_session_update(
     pool_code: int,
     station_name: str,
     connector_id: int,
-    request: Request,
+    update: ChargingSessionUpdate,
     username: Annotated[str, Depends(check_credentials)],
 ):
-    "Manages the notification of a charging session update"
+    """Manages the notification of a charging session update"""
     try:
-        # Parse the request as a dictionary:
-        json_string = await request.json()
-        data = json.loads(json_string)
-        update = ChargingSessionUpdate(
-            pool_code=pool_code,
-            station_name=station_name,
-            connector_id=connector_id,
-            transaction_id=data["transaction_id"],
-            card_alias=data["card_alias"],
-            card_code=data["card_code"],
-            display_id=data["display_id"],
-            start_date=data["start_date"],
-            start_time=data["start_time"],
-            step=data["step"],
-            star_meter_value=data["star_meter_value"],
-            last_meter_value=data["last_meter_value"],
-            energy=data["energy"],
-            energy_unit=data["energy_unit"] if "energy_unit" in data else "kWh",
-            cost=data["cost"],
-            cost_unit=data["cost_unit"] if "cost_unit" in data else "€",
-            power=data["power"],
-            power_unit=data["power_unit"] if "power_unit" in data else "W",
-            time=data["time"],
-            has_public_dashboard=data["has_public_dashboard"],
-            stop_motive=data["stop_motive"] if "stop_motive" in data else None,
-            time_band=data["time_band"] if "time_band" in data else None,
-        )
+        # Sync path variables with the body for easier handling in the data management function
+        update.pool_code = pool_code
+        update.station_name = station_name
+        update.connector_id = connector_id
         await manage_charging_session_update(update)
+
+        return {"status": "success"}
 
     except json.JSONDecodeError:
         logger.error("Error parsing JSON response at charging_session_update")
