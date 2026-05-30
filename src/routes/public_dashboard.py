@@ -1,8 +1,9 @@
+from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import uuid4
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Form, HTTPException, Query, Request
 from fastapi.templating import Jinja2Templates
 from loguru import logger
 
@@ -74,13 +75,18 @@ async def trigger_payment_authorization(request: PaymentAuthRequest):
     # Generate a unique group ID for this transaction request
     event_group = uuid4().hex
 
+    # Follow the same cp_id format used in TagoIO for consistency in variable naming
     cp_id = f"{request.pool_code}/{request.station_name}"
+
+    # Include the current time timestamp as idempotency key for the payment management
+    timestamp: int = int(datetime.now(timezone.utc).timestamp() * 1000)  # Convert to milliseconds
 
     # Base payload for Paycomet pre-auth (using Any as type to avoid static type checking issues with the dynamic payload construction)
     tago_payload: list[dict[str, Any]] = [
         {"variable": "cp_id", "value": cp_id, "group": event_group},
         {"variable": "connector_id", "value": str(request.connector_id), "group": event_group},
         {"variable": "email", "value": request.email, "group": event_group},
+        {"variable": "payqr_start", "value": timestamp, "group": event_group},
     ]
 
     # Append Receipt variables if requested
@@ -107,6 +113,43 @@ async def trigger_payment_authorization(request: PaymentAuthRequest):
     except httpx.HTTPStatusError as e:
         logger.error(f"TagoIO API Error: {e.response.text}")
         raise HTTPException(status_code=502, detail="Gateway error communicating with payment handler.")
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error.")
+
+
+@router.post("/api/stop-request")
+async def trigger_stop_request(
+    pool_code: int = Form(...), station_name: str = Form(...), connector_id: int = Form(...)
+):
+    """
+    Triggers the stop analysis in TagoIO by sending the payqr_stop pivot variable.
+    Expects form data natively sent by HTMX hx-vals.
+    """
+    event_group = uuid4().hex
+    cp_id = f"{pool_code}/{station_name}"
+    timestamp: int = int(datetime.now(timezone.utc).timestamp() * 1000)
+
+    # Base payload for Paycomet/OCPP stop routing
+    tago_payload: list[dict[str, Any]] = [
+        {"variable": "cp_id", "value": cp_id, "group": event_group},
+        {"variable": "connector_id", "value": str(connector_id), "group": event_group},
+        {"variable": "payqr_stop", "value": timestamp, "group": event_group},
+    ]
+
+    headers = {"Content-Type": "application/json", "Device-Token": payments_gateway_token}
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post("https://api.tago.io/data", json=tago_payload, headers=headers)
+            response.raise_for_status()
+
+            logger.info(f"Stop analysis triggered for {cp_id} [{connector_id}]")
+            return {"status": "success"}
+
+    except httpx.HTTPStatusError as e:
+        logger.error(f"TagoIO API Error: {e.response.text}")
+        raise HTTPException(status_code=502, detail="Gateway error communicating with stop handler.")
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error.")
