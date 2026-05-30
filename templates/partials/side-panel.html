@@ -1,4 +1,4 @@
-<div id="side-panel-container" hx-swap-oob="true" class="md:col-span-4 flex flex-col gap-grid-gutter h-full">
+<div id="side-panel-container" hx-swap-oob="true" class="md:col-span-4 flex flex-col gap-grid-gutter">
     {% if station_status == ChargePointStatus.PREPARING %}
     <div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-lg h-full"
         id="form-card">
@@ -77,11 +77,10 @@
             </div>
         </form>
     </div>
-    {% else %}
+    {% elif station_status == ChargePointStatus.AVAILABLE %}
     <div
         class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-lg h-full flex flex-col items-center justify-center text-center gap-md py-xl">
-        <span
-            class="material-symbols-outlined text-[48px] text-primary {% if station_status == ChargePointStatus.AVAILABLE %}animate-pulse{% endif %}">ev_charger</span>
+        <span class="material-symbols-outlined text-[48px] text-primary animate-pulse">ev_charger</span>
         <h3 class="font-headline-md text-on-surface">Conecte el Vehículo</h3>
         <p class="font-body-md text-on-surface-variant max-w-[280px]">
             Para realizar el proceso de pago e iniciar la recarga, conécte su VE al

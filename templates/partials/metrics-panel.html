@@ -1,6 +1,40 @@
 <div id="metrics-container" hx-swap-oob="true"
     class="{% if station_status != ChargePointStatus.CHARGING %}hidden{% endif %}">
-    {% if station_status == ChargePointStatus.CHARGING %}
-    <section class="grid grid-cols-1 sm:grid-cols-3 gap-grid-gutter"></section>
-    {% endif %}
+    <section class="grid grid-cols-1 sm:grid-cols-3 gap-grid-gutter">
+        <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-md flex flex-col gap-xs">
+            <div class="flex justify-between items-center text-on-surface-variant">
+                <span class="font-label-sm text-label-sm uppercase tracking-wider">
+                    Energía Suministrada</span>
+                <span class="material-symbols-outlined text-[20px]">bolt</span>
+            </div>
+            <div class="flex items-baseline gap-xs">
+                <span class="font-display-metrics text-display-metrics text-on-surface">--</span>
+                <span class="font-label-sm text-label-sm text-on-surface-variant">kWh</span>
+            </div>
+        </div>
+        <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-md flex flex-col gap-xs">
+            <div class="flex justify-between items-center text-on-surface-variant">
+                <span class="font-label-sm text-label-sm uppercase tracking-wider">
+                    Duración de la Recarga</span>
+                <span class="material-symbols-outlined text-[20px]">timer</span>
+            </div>
+            <div class="flex items-baseline gap-xs">
+                <span class="font-display-metrics text-display-metrics text-on-surface">--</span>
+                <span class="font-label-sm text-label-sm text-on-surface-variant">min</span>
+            </div>
+        </div>
+        <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-md flex flex-col gap-xs">
+            <div class="flex justify-between items-center text-on-surface-variant">
+                <span class="font-label-sm text-label-sm uppercase tracking-wider">Costo Actual</span>
+                <span class="material-symbols-outlined text-[20px]">euro_symbol</span>
+            </div>
+            <div class="flex items-baseline gap-xs">
+                <span class="font-display-metrics text-display-metrics text-on-surface">--</span>
+                <span class="font-label-sm text-label-sm text-on-surface-variant">EUR</span>
+            </div>
+        </div>
+    </section>
 </div>
