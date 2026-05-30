@@ -3,6 +3,7 @@ from typing import Optional
 
 from charge_points import register_charge_point
 from database.query_database import insert_database_charging_session_history, update_station_noc_if_needed
+from enumerations import ChargePointStatus
 from tagoio.data_parsing import (
     update_charge_point_status,
     update_management_dashboard_charging_session,
@@ -50,7 +51,7 @@ async def manage_charge_point_update(update: ChargePointUpdate) -> ChargePointDa
         pool_code=update.pool_code,
         station_name=update.station_name,
         connector_id=update.connector_id,
-        charge_point_status=update.charge_point_status,
+        charge_point_status=ChargePointStatus(update.charge_point_status),
         is_quarantined=is_quarantined,
         quarantine_end=quarantine_end,
         last_update=datetime.now(),

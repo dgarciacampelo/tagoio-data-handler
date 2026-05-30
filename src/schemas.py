@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr, model_validator
 from datetime import datetime
 from typing import Optional
 
-from enumerations import ValidationAlert
+from enumerations import ChargePointStatus, ValidationAlert
 
 
 class ChargePointUpdateBody(BaseModel):
@@ -35,7 +35,7 @@ class ChargePointData(BaseModel):
     pool_code: int
     station_name: str
     connector_id: int
-    charge_point_status: str
+    charge_point_status: ChargePointStatus
     is_quarantined: bool = False
     quarantine_end: Optional[datetime] = None
     last_update: Optional[datetime] = None

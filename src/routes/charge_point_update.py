@@ -52,7 +52,6 @@ def get_charge_point_last_update(
     "/{version}/charge-point-update/{pool_code}/{station_name}/{connector_id}",
     status_code=status.HTTP_200_OK,
 )
-# username: Annotated[str, Depends(check_credentials)],
 async def charge_point_update(
     pool_code: int,
     station_name: str,
