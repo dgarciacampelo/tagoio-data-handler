@@ -15,6 +15,9 @@ from schemas import ChargePointUpdate, ChargePointData, ChargingSessionUpdate
 # Data of the known charge points
 charge_points: dict[tuple, ChargePointData] = dict()
 
+# Active charging sessions, stored with a tuple key (pool_code, station_name, connector_id) for template rendering
+active_sessions: dict[tuple, ChargingSessionUpdate] = dict()
+
 
 def get_search_key(pool_code: int, station_name: str, connector_id: int = 1) -> tuple:
     """Provides a deterministic tuple key for the charge point data"""
@@ -22,9 +25,15 @@ def get_search_key(pool_code: int, station_name: str, connector_id: int = 1) -> 
 
 
 def get_charge_point(pool_code: int, station_name: str, connector_id: int = 1) -> Optional[ChargePointData]:
-    "Returns the charge point data, if it exists"
+    """Returns the charge point data, if it exists"""
     search_key = get_search_key(pool_code, station_name, connector_id)
     return charge_points.get(search_key, None)
+
+
+def get_active_session(pool_code: int, station_name: str, connector_id: int = 1) -> Optional[ChargingSessionUpdate]:
+    """Returns the ongoing charging session data, if it exists"""
+    search_key = get_search_key(pool_code, station_name, connector_id)
+    return active_sessions.get(search_key, None)
 
 
 async def manage_charge_point_update(update: ChargePointUpdate) -> ChargePointData:
@@ -67,7 +76,7 @@ async def manage_charge_point_update(update: ChargePointUpdate) -> ChargePointDa
 
 
 def check_quarantine(update: ChargePointUpdate, quarantine_minutes: int = 30):
-    "Checks if the charge point should be quarantined or not"
+    """Checks if the charge point should be quarantined or not"""
     new_quarantine, is_quarantined, quarantine_end = False, False, None
 
     search_params = [update.pool_code, update.station_name, update.connector_id]
@@ -108,13 +117,20 @@ def check_quarantine(update: ChargePointUpdate, quarantine_minutes: int = 30):
 
 
 async def manage_charging_session_update(update: ChargingSessionUpdate) -> None:
-    "Updates the management, and the public dashboard if any, with the session data"
+    """Updates the management, and the public dashboard if any, with the session data"""
+
+    search_key = get_search_key(update.pool_code, update.station_name, update.connector_id)
+
     # Store the charging session in the local db, when completed (has a time band)
-    if update.time_band:
+    if update.time_band:  # The session has ended, we can store it in the history and remove it from the active sessions
+        active_sessions.pop(search_key, None)
+
         transaction_id = insert_database_charging_session_history(update)
         if transaction_id is None:
             # Likely a duplicate transaction_id insert attempt, skip setting the dashboards...
             return
+    else:  # The session is active. We update it in memory for the HTMX dashboard.
+        active_sessions[search_key] = update
 
     # Update the TagoIO dashboard/s
     await update_management_dashboard_charging_session(update)

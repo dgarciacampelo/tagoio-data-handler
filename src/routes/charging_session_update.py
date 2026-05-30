@@ -1,5 +1,5 @@
 import json
-from fastapi import APIRouter, Depends, status, HTTPException, Request
+from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.security import HTTPBasic
 from loguru import logger
 from pydantic import ValidationError

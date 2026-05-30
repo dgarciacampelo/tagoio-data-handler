@@ -9,7 +9,9 @@
                 <span class="material-symbols-outlined text-[20px]">bolt</span>
             </div>
             <div class="flex items-baseline gap-xs">
-                <span class="font-display-metrics text-display-metrics text-on-surface">--</span>
+                <span class="font-display-metrics text-display-metrics text-on-surface">
+                    {% if session %}{{ "%.2f"|format(session.energy) }}{% else %}--{% endif %}
+                </span>
                 <span class="font-label-sm text-label-sm text-on-surface-variant">kWh</span>
             </div>
         </div>
@@ -21,7 +23,9 @@
                 <span class="material-symbols-outlined text-[20px]">timer</span>
             </div>
             <div class="flex items-baseline gap-xs">
-                <span class="font-display-metrics text-display-metrics text-on-surface">--</span>
+                <span class="font-display-metrics text-display-metrics text-on-surface">
+                    {% if session %}{{ session.time }}{% else %}--{% endif %}
+                </span>
                 <span class="font-label-sm text-label-sm text-on-surface-variant">min</span>
             </div>
         </div>
@@ -32,7 +36,9 @@
                 <span class="material-symbols-outlined text-[20px]">euro_symbol</span>
             </div>
             <div class="flex items-baseline gap-xs">
-                <span class="font-display-metrics text-display-metrics text-on-surface">--</span>
+                <span class="font-display-metrics text-display-metrics text-on-surface">
+                    {% if session %}{{ "%.2f"|format(session.cost) }}{% else %}--{% endif %}
+                </span>
                 <span class="font-label-sm text-label-sm text-on-surface-variant">EUR</span>
             </div>
         </div>
