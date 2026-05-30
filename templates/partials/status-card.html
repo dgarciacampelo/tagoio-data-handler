@@ -46,6 +46,8 @@ ChargePointStatus.SUSPENDEDEVSE] %}
 
     <div
         class="sm:col-span-2 border border-outline-variant rounded-xl shadow-sm bg-surface-container-lowest p-lg flex flex-col items-center justify-center gap-md h-full text-center">
+
+        {% if session and 'paycomet' in session.card_code %}
         <div class="flex flex-col gap-base">
             <h3 class="font-headline-md text-on-surface">Detener Recarga</h3>
             <p class="font-label-sm text-on-surface-variant">
@@ -59,6 +61,17 @@ ChargePointStatus.SUSPENDEDEVSE] %}
             <span class="material-symbols-outlined text-[20px]">power_off</span>
             DETENER RECARGA
         </button>
+
+        {% else %}
+        <span class="material-symbols-outlined text-[32px] text-primary">lock_person</span>
+        <div class="flex flex-col gap-base mt-sm">
+            <h3 class="font-headline-md text-on-surface">Recarga Privada</h3>
+            <p class="font-label-sm text-on-surface-variant">
+                Recarga iniciada con tarjeta RFID.<br>
+                <strong>Pase la tarjeta por el lector</strong> para finalizarla.
+            </p>
+        </div>
+        {% endif %}
     </div>
 
 </div>
