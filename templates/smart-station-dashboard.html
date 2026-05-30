@@ -273,36 +273,40 @@
             </div>
         </div>
 
-        <div class="tab-content hidden" id="tab-tarifas">
-            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
-                <h2 class="font-headline-md text-on-surface mb-md">Tarifas (Incluyen IVA)</h2>
-                <div class="space-y-sm">
-                    <div class="flex justify-between border-b border-outline-variant pb-2">
-                        <span class="text-on-surface-variant">Tarifa horas valle</span>
-                        <span class="font-bold">0.4 €/kWh</span>
+        <div class="tab-content hidden" id="tab-tarifas-cpo">
+            <div class="flex flex-col gap-md">
+                <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
+                    <h2 class="font-headline-md text-on-surface mb-md">Tarifas (Incluyen IVA)</h2>
+                    <div class="space-y-sm">
+                        <div class="flex justify-between border-b border-outline-variant pb-2">
+                            <span class="text-on-surface-variant">Tarifa horas valle</span>
+                            <span class="font-bold">0.4 €/kWh</span>
+                        </div>
+                        <div class="flex justify-between border-b border-outline-variant pb-2">
+                            <span class="text-on-surface-variant">Tarifa horas llanas</span>
+                            <span class="font-bold">0.4 €/kWh</span>
+                        </div>
+                        <div class="flex justify-between border-b border-outline-variant pb-2">
+                            <span class="text-on-surface-variant">Tarifa horas punta</span>
+                            <span class="font-bold">0.6 €/kWh</span>
+                        </div>
+                        <div class="flex justify-between border-outline-variant pb-2">
+                            <span class="text-on-surface-variant">IVA</span>
+                            <span class="font-bold">10%</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between border-b border-outline-variant pb-2">
-                        <span class="text-on-surface-variant">Tarifa horas llanas</span>
-                        <span class="font-bold">0.4 €/kWh</span>
-                    </div>
-                    <div class="flex justify-between border-b border-outline-variant pb-2">
-                        <span class="text-on-surface-variant">Tarifa horas punta</span>
-                        <span class="font-bold">0.6 €/kWh</span>
-                    </div>
-                    <div class="flex justify-between border-outline-variant pb-2">
-                        <span class="text-on-surface-variant">IVA</span>
-                        <span class="font-bold">10%</span>
-                    </div>
+                </div>
+
+                <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
+                    <h2 class="font-headline-md text-on-surface mb-md">Operador del Punto de Recarga (CPO)</h2>
+                    <p class="font-body-md text-on-surface-variant">Voltage Command Infrastructure</p>
+                    <p class="font-body-md text-on-surface-variant mt-sm">Soporte: support@voltagecommand.com</p>
                 </div>
             </div>
         </div>
 
-        <div class="tab-content hidden" id="tab-cpo">
-            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
-                <h2 class="font-headline-md text-on-surface mb-md">Operador del Punto de Recarga (CPO)</h2>
-                <p class="font-body-md text-on-surface-variant">Voltage Command Infrastructure</p>
-                <p class="font-body-md text-on-surface-variant mt-sm">Soporte: support@voltagecommand.com</p>
-            </div>
+        <div class="tab-content hidden" id="tab-info">
+            {% include 'info-instructions.html' %}
         </div>
 
         <div class="tab-content hidden" id="tab-legal">
@@ -312,26 +316,30 @@
 
     <nav
         class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-16 pb-safe px-xs border-t border-outline-variant bg-surface shadow-lg">
+
         <a aria-current="page"
             class="flex flex-col items-center justify-center text-primary font-bold scale-95 transition-transform duration-150 w-full h-full"
             href="#" onclick="switchTab('conectores', this)">
             <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">ev_station</span>
-            <span class="font-label-sm mt-1">Conectores</span>
+            <span class="font-label-sm mt-1 text-center">Conectores</span>
         </a>
+
         <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors w-full h-full"
-            href="#" onclick="switchTab('tarifas', this)">
+            href="#" onclick="switchTab('tarifas-cpo', this)">
             <span class="material-symbols-outlined">payments</span>
-            <span class="font-label-sm mt-1">Tarifas</span>
+            <span class="font-label-sm mt-1 text-center leading-tight">Tarifas / CPO</span>
         </a>
+
         <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors w-full h-full"
-            href="#" onclick="switchTab('cpo', this)">
-            <span class="material-symbols-outlined">business</span>
-            <span class="font-label-sm mt-1">CPO</span>
+            href="#" onclick="switchTab('info', this)">
+            <span class="material-symbols-outlined">info</span>
+            <span class="font-label-sm mt-1 text-center">Info</span>
         </a>
+
         <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors w-full h-full"
             href="#" onclick="switchTab('legal', this)">
             <span class="material-symbols-outlined">gavel</span>
-            <span class="font-label-sm mt-1">Legal</span>
+            <span class="font-label-sm mt-1 text-center">Legal</span>
         </a>
     </nav>
 
