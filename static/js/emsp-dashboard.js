@@ -27,7 +27,7 @@ function openQrModal(url, poolCode, stationName, cpoName) {
     QRCode.toDataURL(url, {
         width: logicalWidth * scale,
         margin: 2,
-        color: { dark: '#00288e', light: '#ffffff' }
+        color: { dark: '#00571b', light: '#ffffff' }
     }, function (error, dataUrl) {
         if (error) {
             console.error("Error generating QR:", error);
@@ -54,7 +54,7 @@ function openQrModal(url, poolCode, stationName, cpoName) {
         ctx.fillRect(0, 0, logicalWidth, logicalHeight);
 
         // Draw Title Text (Will be rendered crisply due to ctx.scale)
-        ctx.fillStyle = '#00288e';
+        ctx.fillStyle = '#00571b';
         ctx.font = 'bold 14px "Segoe UI", Tahoma, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(`Velo Energy: ${poolCode} / ${stationName}`, logicalWidth / 2, 24);
@@ -116,14 +116,14 @@ function printPoster() {
                     height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                     background-color: white; color: #1a1a1a;
                 }
-                .header { color: #00288e; font-size: 3.5rem; font-weight: bold; margin-bottom: 10px; }
+                .header { color: #00571b; font-size: 3.5rem; font-weight: bold; margin-bottom: 10px; }
                 .subtitle { font-size: 2.2rem; color: #4a4a4a; margin-top: 0; margin-bottom: 40px; }
-                .qr-container { padding: 20px; border: 4px solid #00288e; border-radius: 24px; display: inline-block; }
+                .qr-container { padding: 20px; border: 4px solid #00571b; border-radius: 24px; display: inline-block; }
                 
                 /* FIXED: Set height to auto to prevent aspect ratio stretching */
                 .qr-image { width: 350px; height: auto; } 
                 
-                .info-box { margin-top: 40px; text-align: center; font-size: 1.8rem; color: #4a4a4a; line-height: 1.5; }
+                .info-box { margin-top: 40px; text-align: center; font-size: 1.8rem; color: #4a4a4a; line-height: 1.5; overflow-wrap: break-word; max-width: 90%; }
                 .bold { font-weight: bold; color: #1a1a1a; }
             </style>
         </head>
@@ -132,13 +132,13 @@ function printPoster() {
             <div class="subtitle">Escanea para Recargar</div>
             
             <div class="qr-container">
-                <img class="qr-image" src="${qrDataUrl}" alt="Código QR de la estación" />
+                <img class="qr-image" src="${qrDataUrl}" alt="Código QR del Punto de Recarga" />
             </div>
             
             <div class="info-box">
                 <p>Operador (CPO): <span class="bold">${currentStation.cpo}</span></p>
                 <p>Grupo: <span class="bold">${currentStation.pool}</span></p>
-                <p>Estación: <span class="bold">${currentStation.name}</span></p>
+                <p>Punto de Recarga: <span class="bold">${currentStation.name}</span></p>
             </div>
             
             <script>

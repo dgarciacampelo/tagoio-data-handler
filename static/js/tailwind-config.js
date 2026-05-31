@@ -5,21 +5,30 @@ tailwind.config = {
             "colors": {
                 "background": "#f7f9fb",
                 "on-background": "#191c1e",
-                "primary": "#00288e",
-                "on-primary": "#ffffff",
-                "primary-fixed": "#dde1ff",
-                "on-primary-fixed": "#001453",
-                "on-primary-fixed-variant": "#173bab",
+
+                // BRAND GREEN PALETTE (Migrated from Dark Blue)
+                "primary": "#00571b",                  // Main chosen deep forest green
+                "on-primary": "#ffffff",               // White text on primary background
+                "primary-fixed": "#9ef6b1",            // Soft, high-visibility light green container
+                "on-primary-fixed": "#002106",         // Ultra-dark green text for light green containers
+                "on-primary-fixed-variant": "#004e17", // Medium-dark green accent variant
+
+                // Secondary Accents (Kept the existing mint/teal accents)
                 "secondary": "#006c49",
                 "secondary-fixed-dim": "#4edea3",
+
                 "error": "#ba1a1a",
                 "error-container": "#ffdad6",
+
                 "surface": "#f7f9fb",
                 "on-surface": "#191c1e",
-                "surface-variant": "#e0e3e5",
-                "on-surface-variant": "#444653",
-                "outline": "#757684",
-                "outline-variant": "#c4c5d5",
+
+                // UI NEUTRALS (Shifted from cold blue-grays to harmonized sage-grays)
+                "surface-variant": "#dee5df",          // Soft background variant
+                "on-surface-variant": "#414942",       // Muted text color
+                "outline": "#717972",                  // Standard borders and dividers
+                "outline-variant": "#c1c9c1",          // Subtle/low-contrast borders
+
                 "surface-container-lowest": "#ffffff",
                 "surface-container-low": "#f2f4f6",
                 "surface-container": "#eceef0",

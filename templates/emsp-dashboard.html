@@ -56,7 +56,7 @@
             <h2
                 class="text-title-lg font-bold text-on-surface mb-4 flex items-center gap-2 border-b border-outline-variant pb-2">
                 <span class="material-symbols-outlined text-primary">ev_station</span>
-                Grupo de Recarga {{ pool_code }}: {{ cpo_names_by_pool[pool_code] }}
+                Instalación {{ pool_code }}: {{ cpo_names_by_pool[pool_code] }}
             </h2>
 
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -135,14 +135,14 @@
 
     <div id="print-template" class="hidden">
         <div style="text-align: center; font-family: sans-serif; padding: 20px;">
-            <h1 style="color: #00288e; font-size: 3rem; margin-bottom: 10px;">Velo Energy</h1>
+            <h1 style="color: #00571b; font-size: 3rem; margin-bottom: 10px;">Velo Energy</h1>
             <h2 style="font-size: 2rem; color: #333; margin-top: 0;">Escanea para Recargar</h2>
             <div
-                style="margin: 40px auto; display: inline-block; padding: 20px; border: 4px solid #00288e; border-radius: 20px;">
+                style="margin: 40px auto; display: inline-block; padding: 20px; border: 4px solid #00571b; border-radius: 20px;">
                 <img id="print-qr-image" src="" alt="QR Code" style="width: 300px; height: 300px;" />
             </div>
             <p style="font-size: 1.5rem; color: #666; margin-top: 20px;">Grupo: <strong id="print-pool"></strong></p>
-            <p style="font-size: 1.5rem; color: #666;">Estación: <strong id="print-station"></strong></p>
+            <p style="font-size: 1.5rem; color: #666;">Punto de Recarga: <strong id="print-station"></strong></p>
         </div>
     </div>
 

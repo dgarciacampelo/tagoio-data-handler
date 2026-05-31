@@ -19,10 +19,6 @@ def get_pool_known_charge_points(pool_code: int) -> set[tuple[str, int]]:
 
 def get_all_known_charge_points() -> dict[int, set[tuple[str, int]]]:
     """Returns the known charge points for all pools"""
-    # For debugging purposes, inject a fake station if the known charge points are empty
-    if not known_charge_points:
-        register_charge_point(220001, "22HBS0452HBS22", 1)
-
     return known_charge_points
 
 
