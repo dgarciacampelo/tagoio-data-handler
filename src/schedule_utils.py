@@ -65,22 +65,25 @@ def backup_database_to_telegram():
         pass  # TODO: Error handling (apart from sending a telegram message)
 
 
-async def setup_schedules():
+def register_schedules():
     """
-    Setups the scheduled jobs to be executed. The monthly backup job executes
-    before the conditional one, to clear the is_modified flag column at the end
-    of its backup, so the oconditional job has nothing to do for the day.
+    Synchronously registers the scheduled jobs.
+    The monthly backup job executes before the conditional one, to clear the
+    is_modified flag column at the end of its backup, so the oconditional job
+    has nothing to do for the day.
     Uses its own asyncio event loop, to avoid blocking the FastAPI server.
     """
-    await asyncio.sleep(5)  # Give time for the REST server to start...
     logger.info("Setting up schedules, using schedule.run_pending...")
     schedule.every().day.at("08:00", "Europe/Madrid").do(set_device_data_amount_check)
     schedule.every().day.at("20:00", "Europe/Madrid").do(set_device_data_amount_check)
     schedule.every().day.at("20:45", "Europe/Madrid").do(monthly_database_backup)
     schedule.every().day.at("21:15", "Europe/Madrid").do(conditional_database_backup)
 
-    while True:
-        schedule.run_pending()  # runs all pending jobs from the schedule module
+
+async def run_schedule_loop():
+    """Runs the infinite loop to execute pending jobs."""
+    while True:  # We no longer need the 5 second sleep here because we separated the logic
+        schedule.run_pending()
         if get_and_reset_device_data_amount_check():
             await device_data_amount_check()
 

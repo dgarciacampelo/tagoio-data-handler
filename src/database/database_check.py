@@ -6,7 +6,7 @@ from database import database_file
 
 
 def insert_modified_column(table_name: str, db_file: str = database_file) -> bool:
-    "Inserts a new modified column into the specified table."
+    """Inserts a new modified column into the specified table."""
     query = f"""
         ALTER TABLE {table_name}
         ADD COLUMN is_modified INTEGER NOT NULL DEFAULT 1;
@@ -22,7 +22,7 @@ def insert_modified_column(table_name: str, db_file: str = database_file) -> boo
 
 
 def check_table_has_column(table_name: str, column_name: str, db_file: str = database_file) -> bool:
-    "Checks if a column_name column exists in the specified table."
+    """Checks if a column_name column exists in the specified table."""
     check_query = f"PRAGMA table_info({table_name});"
     table_has_column: bool = False
     try:
@@ -44,7 +44,7 @@ def check_table_has_column(table_name: str, column_name: str, db_file: str = dat
 
 
 def alter_table_add_column(table_name: str, column_name: str, db_file: str = database_file) -> bool:
-    "Inserts a new column_name column into the specified table."
+    """Inserts a new column_name column into the specified table."""
     alter_query = f"""
         ALTER TABLE {table_name}
         ADD COLUMN {column_name} INTEGER NOT NULL DEFAULT 0;
@@ -60,7 +60,7 @@ def alter_table_add_column(table_name: str, column_name: str, db_file: str = dat
 
 
 def clear_modified_column(table_name: str, db_file: str = database_file) -> bool:
-    "Clears the modified flag in the specified table (after a backup)."
+    """Clears the modified flag in the specified table (after a backup)."""
     query = f"UPDATE {table_name} SET is_modified = 0;"
     try:
         with sqlite3.connect(db_file) as conn:
@@ -73,17 +73,18 @@ def clear_modified_column(table_name: str, db_file: str = database_file) -> bool
 
 
 def check_local_database(db_file: str = database_file):
-    "Checks if al the used tables exist in the database or creates new ones."
+    """Checks if all the used tables exist in the database or creates new ones."""
     check_pragma_statements(db_file)
     check_tagoio_device_table(db_file)
     check_station_config_table(db_file)
     check_charging_session_history_table(db_file)
     # check_table_has_column("charging_session_history", "transaction_id", db_file)
     check_session_history_table_index(db_file)
+    check_connector_status_table(db_file)
 
 
 def check_tagoio_device_table(db_file: str = database_file):
-    "Checks if the table exists in the database or creates a new one."
+    """Checks if the table exists in the database or creates a new one."""
     create_table_query = """
     CREATE TABLE IF NOT EXISTS tagoio_device(
         pool_code INTEGER NOT NULL PRIMARY KEY,
@@ -100,7 +101,7 @@ def check_tagoio_device_table(db_file: str = database_file):
 
 
 def check_station_config_table(db_file: str = database_file):
-    "Checks if the station configuration table exists or creates a new one."
+    """Checks if the station configuration table exists or creates a new one."""
     create_table_query = """
     CREATE TABLE IF NOT EXISTS station_config(
         station_name TEXT NOT NULL PRIMARY KEY,
@@ -117,7 +118,7 @@ def check_station_config_table(db_file: str = database_file):
 
 
 def check_charging_session_history_table(db_file: str = database_file):
-    "Checks if the table exists in the database or creates a new one."
+    """Checks if the table exists in the database or creates a new one."""
     create_table_query = """
     CREATE TABLE IF NOT EXISTS charging_session_history(
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -142,7 +143,7 @@ def check_charging_session_history_table(db_file: str = database_file):
 
 
 def check_pragma_statements(db_file: str = database_file):
-    "Executes pragma statements to enable foreign keys and WAL journal mode."
+    """Executes pragma statements to enable foreign keys and WAL journal mode."""
     try:
         with sqlite3.connect(db_file) as conn:
             conn.execute("PRAGMA journal_mode = WAL;")
@@ -155,7 +156,7 @@ def check_pragma_statements(db_file: str = database_file):
 def empty_session_history_table_add_index(
     db_file: str = database_file, index_name: str = "idx_charging_session_history"
 ):
-    "Empties the charging_session_history table and adds a new index."
+    """Empties the charging_session_history table and adds a new index."""
     delete_query = "DELETE FROM charging_session_history;"
     create_index_query = f"""
         CREATE UNIQUE INDEX IF NOT EXISTS {index_name} ON charging_session_history
@@ -170,7 +171,7 @@ def empty_session_history_table_add_index(
 
 
 def check_session_history_table_index(db_file: str = database_file, index_name: str = "idx_charging_session_history"):
-    "Checks if the index exists in the database table or creates a new one."
+    """Checks if the index exists in the database table or creates a new one."""
     check_index_query = f"""
         SELECT * FROM sqlite_master WHERE type= 'index'
         and tbl_name = 'charging_session_history' and name = '{index_name}';
@@ -182,3 +183,22 @@ def check_session_history_table_index(db_file: str = database_file, index_name: 
                 empty_session_history_table_add_index(db_file, index_name)
     except Exception as e:
         logger.error(f"Exception during check_session_history_index: {e}")
+
+
+def check_connector_status_table(db_file: str = database_file):
+    """Checks if the connector status table exists or creates a new one."""
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS connector_status(
+        pool_code INTEGER NOT NULL,
+        station_name TEXT NOT NULL,
+        connector_id INTEGER NOT NULL,
+        charge_point_status TEXT NOT NULL,
+        is_modified INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (pool_code, station_name, connector_id)
+    );
+    """
+    try:
+        with sqlite3.connect(db_file) as conn:
+            conn.execute(create_table_query)
+    except Exception as e:
+        logger.error(f"Exception during check_connector_status_table: {e}")

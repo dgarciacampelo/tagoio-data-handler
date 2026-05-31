@@ -94,40 +94,35 @@
                 <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
                     <h2 class="font-headline-md text-on-surface mb-md">Operador del Punto de Recarga (CPO)</h2>
                     <div class="space-y-sm">
-
                         <div class="flex justify-between items-center border-b border-outline-variant pb-2 gap-4">
                             <span class="text-on-surface-variant whitespace-nowrap">Empresa</span>
-                            <span class="font-bold text-right text-on-surface">PRUEBA DE DATOS SL</span>
+                            <span class="font-bold text-right text-on-surface">{{ pool_config.cpo_name }}</span>
                         </div>
-
                         <div class="flex justify-between items-center border-b border-outline-variant pb-2 gap-4">
                             <span class="text-on-surface-variant whitespace-nowrap">CIF</span>
-                            <span class="font-bold text-right text-on-surface">B77777777</span>
+                            <span class="font-bold text-right text-on-surface">{{ pool_config.cpo_fiscal_id }}</span>
                         </div>
-
                         <div class="flex justify-between items-center border-b border-outline-variant pb-2 gap-4">
                             <span class="text-on-surface-variant whitespace-nowrap">Dirección</span>
-                            <span class="font-bold text-right text-on-surface">OLLONIEGO</span>
+                            <span class="font-bold text-right text-on-surface">{{ pool_config.cpo_address }}</span>
                         </div>
-
                         <div class="flex justify-between items-center border-b border-outline-variant pb-2 gap-4">
                             <span class="text-on-surface-variant whitespace-nowrap">Teléfono</span>
-                            <a href="tel:+34985790454" class="font-bold text-right text-primary hover:underline">
-                                985790454
+                            <a href="tel:+34{{ pool_config.cpo_phone }}"
+                                class="font-bold text-right text-primary hover:underline">
+                                {{ pool_config.cpo_phone }}
                             </a>
                         </div>
-
                         <div class="flex justify-between items-center border-b border-outline-variant pb-2 gap-4">
                             <span class="text-on-surface-variant whitespace-nowrap">Correo electrónico</span>
-                            <a href="mailto:comercial@velo-energy.com"
+                            <a href="mailto:{{ pool_config.cpo_email }}"
                                 class="font-bold text-right text-primary hover:underline break-all">
-                                comercial@velo-energy.com
+                                {{ pool_config.cpo_email }}
                             </a>
                         </div>
-
                         <div class="flex justify-between items-center border-outline-variant pb-2 gap-4">
                             <span class="text-on-surface-variant whitespace-nowrap">Página web</span>
-                            <span class="font-bold text-right text-on-surface-variant">No disponible</span>
+                            <span class="font-bold text-right text-on-surface-variant">{{ pool_config.cpo_web }}</span>
                         </div>
                     </div>
                 </div>
@@ -137,23 +132,23 @@
                         <div class="space-y-sm">
                             <div class="flex justify-between border-b border-outline-variant pb-2">
                                 <span class="text-on-surface-variant">Tarifa horas valle</span>
-                                <span class="font-bold">0.4 €/kWh</span>
+                                <span class="font-bold">{{ pool_config.rate_off_peak }} €/kWh</span>
                             </div>
                             <div class="flex justify-between border-b border-outline-variant pb-2">
                                 <span class="text-on-surface-variant">Tarifa horas llanas</span>
-                                <span class="font-bold">0.4 €/kWh</span>
+                                <span class="font-bold">{{ pool_config.rate_flat }} €/kWh</span>
                             </div>
                             <div class="flex justify-between border-b border-outline-variant pb-2">
                                 <span class="text-on-surface-variant">Tarifa horas punta</span>
-                                <span class="font-bold">0.6 €/kWh</span>
+                                <span class="font-bold">{{ pool_config.rate_peak }} €/kWh</span>
                             </div>
                             <div class="flex justify-between border-b border-outline-variant pb-2">
                                 <span class="text-on-surface-variant">IVA aplicado</span>
-                                <span class="font-bold">10%</span>
+                                <span class="font-bold">{{ (pool_config.vat * 100) | int }}%</span>
                             </div>
                             <div class="flex justify-between border-outline-variant pb-2">
                                 <span class="text-on-surface-variant">Retención temporal para TPV</span>
-                                <span class="font-bold">40 €</span>
+                                <span class="font-bold">{{ pool_config.preauth_amount | int }} €</span>
                             </div>
                         </div>
                     </div>

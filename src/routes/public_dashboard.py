@@ -8,10 +8,11 @@ from fastapi.templating import Jinja2Templates
 from loguru import logger
 
 from config import payments_gateway_device_token as payments_gateway_token
-from data_handling import get_charge_point, get_active_session
+from data_handling import get_active_session, get_charge_point
 from database.query_database import get_noc_from_db
 from enumerations import ChargePointStatus
 from schemas import PaymentAuthRequest
+from tagoio.pool_setup_fetching import get_pool_config
 
 router = APIRouter()
 
@@ -57,6 +58,7 @@ async def render_public_dashboard(
         status = cp_data.charge_point_status if cp_data else ChargePointStatus.UNAVAILABLE
 
     session_data = get_active_session(pool_code, station_name, connector_id=cid)
+    pool_config = get_pool_config(pool_code)
 
     return templates.TemplateResponse(
         "smart-station-dashboard.html",
@@ -68,6 +70,7 @@ async def render_public_dashboard(
             "current_cid": cid,  # Pass the active connector ID
             "station_status": status,  # Status of the active connector
             "session_data": session_data,  # Data for the active charging session
+            "pool_config": pool_config,  # Pass the pool configuration to the template for dynamic rendering
             "force_status_str": force_status_str,  # Raw status string for the template (HTMX refreshes each ~5 seconds)
         },
     )
@@ -181,6 +184,7 @@ async def render_status_card_partial(
 
     # Retrieve the active session data for the specified connector to include in the partial metering template
     session_data = get_active_session(pool_code, station_name, connector_id=cid)
+    pool_config = get_pool_config(pool_code)
 
     return templates.TemplateResponse(
         "partials/poll-update.html",
@@ -191,6 +195,7 @@ async def render_status_card_partial(
             "current_cid": cid,
             "station_status": status,
             "session": session_data,
+            "pool_config": pool_config,
             "force_status_str": force_status_str,  # Keep passing it forward in case the partial triggers the next poll
         },
     )

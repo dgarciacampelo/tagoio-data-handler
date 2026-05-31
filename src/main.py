@@ -17,8 +17,10 @@ from routes.device_token import router as device_token_router
 from routes.feedback_message import router as feedback_message_router
 from routes.public_dashboard import router as public_dashboard_router  # For the "Smart Dashboard" for OCPP Stations
 from routes.trigger_task import router as trigger_task_router
-from schedule_utils import setup_schedules
+from schedule_utils import register_schedules, run_schedule_loop
 from security import check_credentials
+from tagoio.pool_setup_fetching import init_pool_configs
+from tagoio.token_fetching import get_all_devices_data
 
 # ? https://loguru.readthedocs.io/en/stable/api/logger.html#sink
 logger.remove()
@@ -55,10 +57,22 @@ async def setup_rest_api_server():
 
 
 async def main():
-    "Uses asyncio tasks to avoid the schedule library blocking uvicorn."
+    """Uses asyncio tasks to avoid the schedule library blocking uvicorn."""
+
+    # Extract the known charging pool codes from the devices dictionary
+    devices_data = get_all_devices_data()
+    known_pools = list(devices_data.keys())
+
+    # 1. Register schedules synchronously first
+    register_schedules()
+
+    # 2. Create the concurrent background tasks
     rest_server_task = asyncio.create_task(setup_rest_api_server())
-    schedules_task = asyncio.create_task(setup_schedules())
-    await asyncio.gather(rest_server_task, schedules_task)
+    schedules_loop_task = asyncio.create_task(run_schedule_loop())
+    pool_configs_task = asyncio.create_task(init_pool_configs(known_pools))
+
+    # 3. Run them all concurrently
+    await asyncio.gather(rest_server_task, schedules_loop_task, pool_configs_task)
 
 
 if __name__ == "__main__":

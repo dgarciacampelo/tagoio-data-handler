@@ -1,3 +1,14 @@
+{% if not pool_config.is_loaded %}
+{# LOADING STATE: Shown while TagoIO data is being fetched #}
+<section
+    class="border border-outline-variant rounded-xl shadow-sm bg-surface-container-lowest p-xl min-h-[12rem] flex-1 w-full flex flex-col items-center justify-center gap-md">
+    <span class="material-symbols-outlined text-[48px] text-primary animate-spin">progress_activity</span>
+    <h3 class="font-headline-md text-on-surface">Cargando configuración del punto de recarga...</h3>
+    <p class="font-label-sm text-on-surface-variant">Por favor, espere. Conectando con el servidor.</p>
+</section>
+
+{% else %}
+{# NORMAL STATE: Executed once pool_config.is_loaded is True #}
 {% if station_status == ChargePointStatus.AVAILABLE %}
 {% set status_bg = '#15FF00' %}
 {% set status_text = 'DISPONIBLE' %}
@@ -21,6 +32,7 @@
 {# Catches Reserved, Unavailable, or undefined #}
 {% set status_bg = '#949494' %}
 {% set status_text = 'NO DISPONIBLE' %}
+{% endif %}
 {% endif %}
 
 {% set is_active_session = station_status in [ChargePointStatus.CHARGING, ChargePointStatus.SUSPENDEDEV,

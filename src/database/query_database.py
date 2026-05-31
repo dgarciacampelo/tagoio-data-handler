@@ -204,3 +204,36 @@ def update_station_noc_if_needed(
 
     except Exception as e:
         logger.error(f"Error updating noc for station {station_name}: {e}")
+
+
+def upsert_connector_status(
+    pool_code: int, station_name: str, connector_id: int, status: str, db_file: str = database_file
+):
+    """Inserts or updates the last known status of a connector."""
+    query = """
+        INSERT INTO connector_status (pool_code, station_name, connector_id, charge_point_status, is_modified)
+        VALUES (?, ?, ?, ?, 1)
+        ON CONFLICT(pool_code, station_name, connector_id) 
+        DO UPDATE SET charge_point_status=excluded.charge_point_status, is_modified=1;
+    """
+    try:
+        with sqlite3.connect(db_file) as conn:
+            conn.execute(query, (pool_code, station_name, connector_id, status))
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Error upserting connector status: {e}")
+
+
+def get_all_connector_statuses(db_file: str = database_file) -> list[tuple]:
+    """Retrieves all stored connector statuses to rehydrate memory on startup."""
+    query = """
+        SELECT pool_code, station_name, connector_id, charge_point_status
+        FROM connector_status
+        ORDER BY pool_code, station_name, connector_id;
+    """
+    try:
+        with sqlite3.connect(db_file) as conn:
+            return conn.execute(query).fetchall()
+    except Exception as e:
+        logger.error(f"Error retrieving connector statuses: {e}")
+        return []

@@ -2,7 +2,12 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from charge_points import register_charge_point
-from database.query_database import insert_database_charging_session_history, update_station_noc_if_needed
+from database.query_database import (
+    get_all_connector_statuses,
+    insert_database_charging_session_history,
+    update_station_noc_if_needed,
+    upsert_connector_status,
+)
 from enumerations import ChargePointStatus
 from tagoio.data_parsing import (
     update_charge_point_status,
@@ -36,6 +41,24 @@ def get_active_session(pool_code: int, station_name: str, connector_id: int = 1)
     return active_sessions.get(search_key, None)
 
 
+def load_statuses_from_db():
+    """Used on startup to rehydrate the charge_points dictionary."""
+    rows = get_all_connector_statuses()
+    for pool_code, station_name, connector_id, status in rows:
+        search_key = get_search_key(pool_code, station_name, connector_id)
+        # Register in the general known endpoints map
+        register_charge_point(pool_code, station_name, connector_id)
+
+        # Populate in-memory dict
+        charge_points[search_key] = ChargePointData(
+            pool_code=pool_code,
+            station_name=station_name,
+            connector_id=connector_id,
+            charge_point_status=ChargePointStatus(status),
+            is_quarantined=False,
+        )
+
+
 async def manage_charge_point_update(update: ChargePointUpdate) -> ChargePointData:
     """Updates the dashboards with the charge point data, if conditions are met"""
     new_quarantine, is_quarantined, quarantine_end = check_quarantine(update)
@@ -67,6 +90,9 @@ async def manage_charge_point_update(update: ChargePointUpdate) -> ChargePointDa
         omitted_updates=omitted_updates,
     )
     charge_points[search_key] = charge_point_data
+
+    # Save the status to local SQLite
+    upsert_connector_status(update.pool_code, update.station_name, update.connector_id, update.charge_point_status)
 
     # Update the TagoIO device for the charging pool that has the charge point
     if not is_quarantined or new_quarantine:
