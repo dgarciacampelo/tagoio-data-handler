@@ -205,3 +205,17 @@ document.addEventListener('htmx:oobAfterSwap', (e) => {
         }
     }
 });
+
+// Listen to all HTMX requests before they are sent (avoid keyboard context resets during polling updates)
+document.body.addEventListener('htmx:beforeRequest', function (event) {
+    // Check if the request is originating from the polling container
+    if (event.detail.elt.id === 'status-card-container') {
+        const activeElement = document.activeElement;
+
+        // If the currently focused element is inside the charging form, cancel the request
+        if (activeElement && activeElement.closest('#charging-form')) {
+            event.preventDefault();
+            // console.debug('HTMX polling paused: Form input is currently focused.'); // Optional, for debugging purposes
+        }
+    }
+});
