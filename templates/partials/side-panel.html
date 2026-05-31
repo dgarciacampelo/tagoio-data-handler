@@ -1,4 +1,5 @@
-<div id="side-panel-container" hx-swap-oob="true" class="md:col-span-4 flex flex-col gap-grid-gutter">
+<div id="side-panel-container" hx-swap-oob="true"
+    class="{% if station_status in [ChargePointStatus.AVAILABLE, ChargePointStatus.PREPARING] %}md:col-span-4 flex{% else %}hidden{% endif %} flex-col gap-grid-gutter">
     {% if station_status == ChargePointStatus.PREPARING %}
     <div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-lg h-full"
         id="form-card">

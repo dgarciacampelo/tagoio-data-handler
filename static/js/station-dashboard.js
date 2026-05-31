@@ -193,9 +193,22 @@ document.addEventListener('DOMContentLoaded', () => {
 // If the nav is static, calling initTabsLogic() once on DOMContentLoaded is enough.
 document.addEventListener('htmx:load', initFormLogic);
 
-// Global cleanup: If the car unplugs and the form disappears entirely, ensure the grid is reset.
+// Global cleanup: Adjust main panel width and layout constraints dynamically during background swaps
 document.addEventListener('htmx:oobAfterSwap', (e) => {
     if (e.detail.target.id === 'side-panel-container') {
+        const mainContent = document.getElementById('main-content-panel');
+
+        if (mainContent) { // If the sidebar swapped into a hidden state, expand main content to full width
+            if (e.detail.target.classList.contains('hidden')) {
+                mainContent.classList.remove('md:col-span-8');
+                mainContent.classList.add('md:col-span-12');
+            } else { // If the sidebar is visible, restrict main content to 8 columns
+                mainContent.classList.remove('md:col-span-12');
+                mainContent.classList.add('md:col-span-8');
+            }
+        }
+
+        // Keep your existing form-grid alignment adjustment rules below
         if (!document.getElementById('charging-form')) {
             const layoutGrid = document.getElementById('main-layout-grid');
             if (layoutGrid) {

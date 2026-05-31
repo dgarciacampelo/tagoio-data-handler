@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300288e'><path d='M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.16-.28L11.5 5h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z'/></svg>">
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300571b'><path d='M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.16-.28L11.5 5h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z'/></svg>">
     <title>Velo Energy - Panel Público</title>
     <script src="/static/js/htmx.min.js"></script>
     <link
@@ -53,9 +53,14 @@
 
     <main class="max-w-[1440px] mx-auto p-4 md:p-8 space-y-lg w-full">
 
+        <!-- Check if the sidebar should be visible on initial load -->
+        {% set show_sidebar = station_status in [ChargePointStatus.AVAILABLE, ChargePointStatus.PREPARING] %}
+
         <div class="tab-content block" id="tab-conectores">
             <div class="grid grid-cols-1 md:grid-cols-12 gap-grid-gutter items-stretch" id="main-layout-grid">
-                <div class="md:col-span-8 flex flex-col gap-grid-gutter">
+                <!-- Added dynamic col-span and ID -->
+                <div id="main-content-panel"
+                    class="{% if show_sidebar %}md:col-span-8{% else %}md:col-span-12{% endif %} flex flex-col gap-grid-gutter">
 
                     {% if noc > 1 %}
                     <div class="flex gap-sm overflow-x-auto pb-1 mb-xs scrollbar-hide">
@@ -78,11 +83,9 @@
                         hx-trigger="every 5s" hx-swap="innerHTML">
                         {% include 'partials/status-card.html' %}
                     </div>
-
                     {% include 'partials/metrics-panel.html' %}
 
                 </div>
-
                 {% include 'partials/side-panel.html' %}
 
             </div>

@@ -14,6 +14,7 @@ load_dotenv()
 
 # ? https://www.colorhexa.com/c3bf48 color description: Moderate yellow
 primary_brand_color = "#c3bf48"
+forrest_green = "#00571b"  # Note: For the SVG fill, the # is replaced with %23 in the data URI
 
 # endregion
 # region QR generation
