@@ -89,34 +89,86 @@
         </div>
 
         <div class="tab-content hidden" id="tab-tarifas-cpo">
-            <div class="flex flex-col gap-md">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-md items-start">
+
                 <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
-                    <h2 class="font-headline-md text-on-surface mb-md">Tarifas (Incluyen IVA)</h2>
+                    <h2 class="font-headline-md text-on-surface mb-md">Operador del Punto de Recarga (CPO)</h2>
                     <div class="space-y-sm">
-                        <div class="flex justify-between border-b border-outline-variant pb-2">
-                            <span class="text-on-surface-variant">Tarifa horas valle</span>
-                            <span class="font-bold">0.4 €/kWh</span>
+
+                        <div class="flex justify-between items-center border-b border-outline-variant pb-2 gap-4">
+                            <span class="text-on-surface-variant whitespace-nowrap">Empresa</span>
+                            <span class="font-bold text-right text-on-surface">PRUEBA DE DATOS SL</span>
                         </div>
-                        <div class="flex justify-between border-b border-outline-variant pb-2">
-                            <span class="text-on-surface-variant">Tarifa horas llanas</span>
-                            <span class="font-bold">0.4 €/kWh</span>
+
+                        <div class="flex justify-between items-center border-b border-outline-variant pb-2 gap-4">
+                            <span class="text-on-surface-variant whitespace-nowrap">CIF</span>
+                            <span class="font-bold text-right text-on-surface">B77777777</span>
                         </div>
-                        <div class="flex justify-between border-b border-outline-variant pb-2">
-                            <span class="text-on-surface-variant">Tarifa horas punta</span>
-                            <span class="font-bold">0.6 €/kWh</span>
+
+                        <div class="flex justify-between items-center border-b border-outline-variant pb-2 gap-4">
+                            <span class="text-on-surface-variant whitespace-nowrap">Dirección</span>
+                            <span class="font-bold text-right text-on-surface">OLLONIEGO</span>
                         </div>
-                        <div class="flex justify-between border-outline-variant pb-2">
-                            <span class="text-on-surface-variant">IVA</span>
-                            <span class="font-bold">10%</span>
+
+                        <div class="flex justify-between items-center border-b border-outline-variant pb-2 gap-4">
+                            <span class="text-on-surface-variant whitespace-nowrap">Teléfono</span>
+                            <a href="tel:+34985790454" class="font-bold text-right text-primary hover:underline">
+                                985790454
+                            </a>
+                        </div>
+
+                        <div class="flex justify-between items-center border-b border-outline-variant pb-2 gap-4">
+                            <span class="text-on-surface-variant whitespace-nowrap">Correo electrónico</span>
+                            <a href="mailto:comercial@velo-energy.com"
+                                class="font-bold text-right text-primary hover:underline break-all">
+                                comercial@velo-energy.com
+                            </a>
+                        </div>
+
+                        <div class="flex justify-between items-center border-outline-variant pb-2 gap-4">
+                            <span class="text-on-surface-variant whitespace-nowrap">Página web</span>
+                            <span class="font-bold text-right text-on-surface-variant">No disponible</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
-                    <h2 class="font-headline-md text-on-surface mb-md">Operador del Punto de Recarga (CPO)</h2>
-                    <p class="font-body-md text-on-surface-variant">Voltage Command Infrastructure</p>
-                    <p class="font-body-md text-on-surface-variant mt-sm">Soporte: support@voltagecommand.com</p>
+                <div class="flex flex-col">
+                    <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
+                        <div class="space-y-sm">
+                            <div class="flex justify-between border-b border-outline-variant pb-2">
+                                <span class="text-on-surface-variant">Tarifa horas valle</span>
+                                <span class="font-bold">0.4 €/kWh</span>
+                            </div>
+                            <div class="flex justify-between border-b border-outline-variant pb-2">
+                                <span class="text-on-surface-variant">Tarifa horas llanas</span>
+                                <span class="font-bold">0.4 €/kWh</span>
+                            </div>
+                            <div class="flex justify-between border-b border-outline-variant pb-2">
+                                <span class="text-on-surface-variant">Tarifa horas punta</span>
+                                <span class="font-bold">0.6 €/kWh</span>
+                            </div>
+                            <div class="flex justify-between border-b border-outline-variant pb-2">
+                                <span class="text-on-surface-variant">IVA aplicado</span>
+                                <span class="font-bold">10%</span>
+                            </div>
+                            <div class="flex justify-between border-outline-variant pb-2">
+                                <span class="text-on-surface-variant">Retención temporal para TPV</span>
+                                <span class="font-bold">40 €</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-sm flex gap-xs items-start px-xs pt-xs">
+                        <span class="material-symbols-outlined text-[16px] text-on-surface-variant mt-0.5"
+                            style="font-variation-settings: 'FILL' 1;">info</span>
+                        <p class="font-label-sm text-on-surface-variant leading-snug">
+                            La <strong>retención temporal</strong> es una preautorización bancaria para verificar el
+                            saldo. Al finalizar la recarga, <strong>solo se le cobrará el importe consumido</strong>
+                            y el resto será liberado por su banco.
+                        </p>
+                    </div>
                 </div>
+
             </div>
         </div>
 
@@ -133,206 +185,32 @@
         class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-16 pb-safe px-xs border-t border-outline-variant bg-surface shadow-lg">
 
         <a aria-current="page"
-            class="flex flex-col items-center justify-center text-primary font-bold scale-95 transition-transform duration-150 w-full h-full"
-            href="#" onclick="switchTab('conectores', this)">
+            class="js-tab-link flex flex-col items-center justify-center text-primary font-bold scale-95 transition-transform duration-150 w-full h-full"
+            href="#" data-tab-target="conectores">
             <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">ev_station</span>
             <span class="font-label-sm mt-1 text-center">Conectores</span>
         </a>
 
-        <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors w-full h-full"
-            href="#" onclick="switchTab('tarifas-cpo', this)">
+        <a class="js-tab-link flex flex-col items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors w-full h-full"
+            href="#" data-tab-target="tarifas-cpo">
             <span class="material-symbols-outlined">payments</span>
-            <span class="font-label-sm mt-1 text-center leading-tight">Tarifas / CPO</span>
+            <span class="font-label-sm mt-1 text-center leading-tight">CPO / Tarifas</span>
         </a>
 
-        <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors w-full h-full"
-            href="#" onclick="switchTab('info', this)">
+        <a class="js-tab-link flex flex-col items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors w-full h-full"
+            href="#" data-tab-target="info">
             <span class="material-symbols-outlined">info</span>
             <span class="font-label-sm mt-1 text-center">Info</span>
         </a>
 
-        <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors w-full h-full"
-            href="#" onclick="switchTab('legal', this)">
+        <a class="js-tab-link flex flex-col items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors w-full h-full"
+            href="#" data-tab-target="legal">
             <span class="material-symbols-outlined">gavel</span>
             <span class="font-label-sm mt-1 text-center">Legal</span>
         </a>
     </nav>
 
-    <script>
-        // 1. Global state to preserve form data across 5s HTMX OOB swaps
-        window.chargingFormState = window.chargingFormState || {
-            email: '',
-            needReceipt: false,
-            nif: '',
-            billingName: '',
-            billingAddress: '',
-            invoiceEmail: ''
-        };
-
-        function initFormLogic() {
-            const form = document.getElementById('charging-form');
-            // If the station isn't in PREPARING, the form doesn't exist, so we abort.
-            // Note: We intentionally removed the dataset.initialized check so this re-runs after every OOB swap.
-            if (!form) return;
-
-            const receiptToggle = document.getElementById('need-receipt');
-            const receiptFieldsContainer = document.getElementById('receipt-fields');
-            const receiptInputs = document.querySelectorAll('.receipt-input');
-            const submitBtn = document.getElementById('submit-btn');
-            const btnIcon = document.getElementById('btn-icon');
-            const btnText = document.getElementById('btn-text');
-            const successState = document.getElementById('success-state');
-            const errorBanner = document.getElementById('error-banner');
-            const layoutGrid = document.getElementById('main-layout-grid');
-
-            // 2. Rehydrate State (Inject saved data back into the fresh DOM)
-            document.getElementById('email').value = window.chargingFormState.email;
-            receiptToggle.checked = window.chargingFormState.needReceipt;
-            document.getElementById('nif').value = window.chargingFormState.nif;
-            document.getElementById('billing_name').value = window.chargingFormState.billingName;
-            document.getElementById('billing_address').value = window.chargingFormState.billingAddress;
-            document.getElementById('invoice_email').value = window.chargingFormState.invoiceEmail;
-
-            // Apply visual grid state based on rehydration
-            if (receiptToggle.checked) {
-                receiptFieldsContainer.classList.remove('hidden');
-                receiptFieldsContainer.classList.add('flex');
-                receiptInputs.forEach(input => input.required = true);
-                if (layoutGrid) {
-                    layoutGrid.classList.remove('items-stretch');
-                    layoutGrid.classList.add('items-start'); // Breaks the height alignment
-                }
-            } else {
-                receiptFieldsContainer.classList.add('hidden');
-                receiptFieldsContainer.classList.remove('flex');
-                receiptInputs.forEach(input => input.required = false);
-                if (layoutGrid) {
-                    layoutGrid.classList.add('items-stretch'); // Restores the height alignment
-                    layoutGrid.classList.remove('items-start');
-                }
-            }
-
-            // 3. Bind State Updaters (Save to global object immediately on input)
-            document.getElementById('email').addEventListener('input', e => window.chargingFormState.email = e.target.value);
-            document.getElementById('nif').addEventListener('input', e => window.chargingFormState.nif = e.target.value);
-            document.getElementById('billing_name').addEventListener('input', e => window.chargingFormState.billingName = e.target.value);
-            document.getElementById('billing_address').addEventListener('input', e => window.chargingFormState.billingAddress = e.target.value);
-            document.getElementById('invoice_email').addEventListener('input', e => window.chargingFormState.invoiceEmail = e.target.value);
-
-            // 4. Handle Checkbox Toggle
-            receiptToggle.addEventListener('change', (e) => {
-                const isChecked = e.target.checked;
-                window.chargingFormState.needReceipt = isChecked;
-
-                if (isChecked) {
-                    receiptFieldsContainer.classList.remove('hidden');
-                    receiptFieldsContainer.classList.add('flex');
-                    receiptInputs.forEach(input => input.required = true);
-                    if (layoutGrid) {
-                        layoutGrid.classList.remove('items-stretch');
-                        layoutGrid.classList.add('items-start');
-                    }
-                } else {
-                    receiptFieldsContainer.classList.add('hidden');
-                    receiptFieldsContainer.classList.remove('flex');
-                    receiptInputs.forEach(input => input.required = false);
-                    if (layoutGrid) {
-                        layoutGrid.classList.add('items-stretch');
-                        layoutGrid.classList.remove('items-start');
-                    }
-                }
-            });
-
-            // 5. Form Submission
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-
-                submitBtn.disabled = true;
-                btnIcon.textContent = 'hourglass_empty';
-                btnIcon.classList.add('animate-spin');
-                btnText.textContent = 'PROCESANDO...';
-                errorBanner.classList.add('hidden');
-
-                const payload = {
-                    pool_code: parseInt(document.getElementById('pool_code').value, 10),
-                    station_name: document.getElementById('station_name').value,
-                    connector_id: parseInt(document.getElementById('connector_id').value, 10),
-                    email: document.getElementById('email').value,
-                    requires_invoice: receiptToggle.checked,
-                    nif: document.getElementById('nif').value || null,
-                    billing_name: document.getElementById('billing_name').value || null,
-                    billing_address: document.getElementById('billing_address').value || null,
-                    invoice_email: document.getElementById('invoice_email').value || null
-                };
-
-                try {
-                    const response = await fetch('/api/charge-request', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) throw new Error('Network response was not ok');
-
-                    form.classList.add('hidden');
-                    successState.classList.remove('hidden');
-                    successState.classList.add('flex');
-
-                    // Wipe state on success so it doesn't linger if they charge again later
-                    window.chargingFormState = { email: '', needReceipt: false, nif: '', billingName: '', billingAddress: '', invoiceEmail: '' };
-
-                } catch (error) {
-                    console.error('Submission failed:', error);
-                    errorBanner.classList.remove('hidden');
-                    submitBtn.disabled = false;
-                    btnIcon.textContent = 'payments';
-                    btnIcon.classList.remove('animate-spin');
-                    btnText.textContent = 'ENVIAR ENLACE DE PAGO';
-                }
-            });
-        }
-
-        // Initialize form logic on standard page load and after HTMX background swaps
-        document.addEventListener('DOMContentLoaded', initFormLogic);
-        document.addEventListener('htmx:load', initFormLogic);
-
-        // Global cleanup: If the car unplugs and the form disappears entirely, ensure the grid is reset.
-        document.addEventListener('htmx:oobAfterSwap', (e) => {
-            if (e.detail.target.id === 'side-panel-container') {
-                if (!document.getElementById('charging-form')) {
-                    const layoutGrid = document.getElementById('main-layout-grid');
-                    if (layoutGrid) {
-                        layoutGrid.classList.add('items-stretch');
-                        layoutGrid.classList.remove('items-start');
-                    }
-                }
-            }
-        });
-
-        // Initialize form logic on standard page load and after HTMX background swaps
-        document.addEventListener('DOMContentLoaded', initFormLogic);
-        document.addEventListener('htmx:load', initFormLogic);
-
-        // Tab Switching Logic
-        function switchTab(tabId, element) {
-            document.querySelectorAll('.tab-content').forEach(el => {
-                el.classList.add('hidden');
-                el.classList.remove('block');
-            });
-            document.getElementById('tab-' + tabId).classList.remove('hidden');
-            document.getElementById('tab-' + tabId).classList.add('block');
-
-            document.querySelectorAll('nav a').forEach(el => {
-                el.classList.remove('text-primary', 'font-bold', 'scale-95');
-                el.classList.add('text-on-surface-variant');
-                el.querySelector('.material-symbols-outlined').style.fontVariationSettings = "'FILL' 0";
-            });
-
-            element.classList.remove('text-on-surface-variant');
-            element.classList.add('text-primary', 'font-bold', 'scale-95');
-            element.querySelector('.material-symbols-outlined').style.fontVariationSettings = "'FILL' 1";
-        }
-    </script>
+    <script src="/static/js/dashboard.js" defer></script>
 </body>
 
 </html>
