@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
+from loguru import logger
+
 from charge_points import register_charge_point
 from database.query_database import (
     get_all_connector_statuses,
@@ -9,13 +11,12 @@ from database.query_database import (
     upsert_connector_status,
 )
 from enumerations import ChargePointStatus
+from schemas import ChargePointData, ChargePointUpdate, ChargingSessionUpdate
 from tagoio.data_parsing import (
     update_charge_point_status,
     update_management_dashboard_charging_session,
     update_public_dashboard_values,
 )
-from schemas import ChargePointUpdate, ChargePointData, ChargingSessionUpdate
-
 
 # Data of the known charge points
 charge_points: dict[tuple, ChargePointData] = dict()
@@ -157,6 +158,22 @@ async def manage_charging_session_update(update: ChargingSessionUpdate) -> None:
             return
     else:  # The session is active. We update it in memory for the HTMX dashboard.
         active_sessions[search_key] = update
+
+        # * If we receive metering data, the station is definitively engaged in a session.
+        # Force the status to CHARGING if it's currently showing as available or preparing.
+        cp_data = charge_points.get(search_key)
+        if cp_data and cp_data.charge_point_status not in [
+            ChargePointStatus.CHARGING,
+            ChargePointStatus.SUSPENDEDEV,
+            ChargePointStatus.SUSPENDEDEVSE,
+        ]:
+            prefix: str = "Inferring CHARGING status from session telemetry for"
+            logger.info(f"{prefix} {update.station_name} [{update.connector_id}]")
+            cp_data.charge_point_status = ChargePointStatus.CHARGING
+
+            # Persist inferred status to SQLite so it survives hot-reloads
+            cp_status: str = ChargePointStatus.CHARGING.value
+            upsert_connector_status(update.pool_code, update.station_name, update.connector_id, cp_status)
 
     # Update the TagoIO dashboard/s
     await update_management_dashboard_charging_session(update)

@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 from config import port as api_port
+from data_handling import load_statuses_from_db
 from routes.charge_point_alias import router as charge_point_alias_router
 from routes.charge_point_update import router as charge_point_update_router
 from routes.charging_session_update import router as charging_session_update_router
@@ -64,6 +65,7 @@ async def main():
     # Extract the known charging pool codes from the devices dictionary
     devices_data = get_all_devices_data()
     known_pools = list(devices_data.keys())
+    load_statuses_from_db()  # Load the last known charge point statuses from the local DB at startup
 
     # 1. Register schedules synchronously first
     register_schedules()
