@@ -9,6 +9,24 @@ not_set_error: str = "environment variable is not set!"
 # Load environment variables from .env file and assign to variables
 load_dotenv()
 
+
+# region Branding
+
+# ? https://www.colorhexa.com/c3bf48 color description: Moderate yellow
+primary_brand_color = "#c3bf48"
+
+# endregion
+# region QR generation
+
+# For QR code generation in the public dashboard:
+tagoio_handler_url_env = os.getenv("TAGOIO_HANDLER_URL")
+if tagoio_handler_url_env is None:
+    # Fallback to: https://tagoio-handler.ocpp-velo.es if not set
+    tagoio_handler_url_env = "https://tagoio-handler.ocpp-velo.es"
+tagoio_handler_url: str = tagoio_handler_url_env
+
+# endregion
+
 port_env = os.getenv("API_PORT")
 if port_env is None:
     raise EnvironmentError(f"API_PORT {not_set_error}")

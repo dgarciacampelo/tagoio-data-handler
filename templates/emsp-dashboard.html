@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300288e'><path d='M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.16-.28L11.5 5h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z'/></svg>">
+    <title>Velo Energy - Panel eMSP</title>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+
+    <script src="/static/js/tailwind-cdn.js"></script>
+    <script src="/static/js/tailwind-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+</head>
+
+<body class="bg-background text-on-background min-h-screen pt-16 pb-10 font-body-md text-body-md antialiased">
+
+    <header
+        class="fixed top-0 left-0 w-full z-40 flex justify-center items-center px-md h-16 bg-surface border-b border-outline-variant shadow-sm">
+        <div class="text-headline-md font-headline-md font-bold text-primary flex items-center gap-2">
+            <span class="material-symbols-outlined">admin_panel_settings</span>
+            Velo Energy - Panel eMSP
+        </div>
+    </header>
+
+    <main class="max-w-[1440px] mx-auto p-4 md:p-8 space-y-lg w-full">
+        {% if not stations_by_pool %}
+        <div class="text-center text-on-surface-variant py-10">
+            <span class="material-symbols-outlined text-[48px] mb-2 opacity-50">ev_station</span>
+            <p>No se han detectado estaciones de recarga registradas.</p>
+        </div>
+        {% else %}
+        {% for pool_code, stations in stations_by_pool.items() %}
+        <section class="mb-8">
+            <h2
+                class="text-title-lg font-bold text-on-surface mb-4 flex items-center gap-2 border-b border-outline-variant pb-2">
+                <span class="material-symbols-outlined text-primary">ev_station</span>
+                Grupo de Recarga: {{ pool_code }}
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {% for station in stations %}
+                <div
+                    class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-4 flex flex-col justify-between">
+                    <div>
+                        <h3 class="font-headline-md text-on-surface">{{ station }}</h3>
+                        <p class="font-label-sm text-on-surface-variant mb-4">
+                            Enlace público configurado para el escaneo directo.
+                        </p>
+                    </div>
+
+                    <button
+                        onclick="openQrModal('{{ base_url }}/dashboard/{{ pool_code }}/{{ station }}', '{{ pool_code }}', '{{ station }}')"
+                        class="w-full bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-label-caps text-label-caps py-sm px-md rounded-lg transition-opacity flex items-center justify-center gap-xs">
+                        <span class="material-symbols-outlined text-[18px]">qr_code_2</span>
+                        GENERAR CARTEL QR
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+        {% endif %}
+    </main>
+
+    <div id="qr-modal"
+        class="fixed inset-0 z-50 hidden bg-black/60 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-surface rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform scale-95 transition-transform duration-300"
+            id="qr-modal-content">
+
+            <div class="flex justify-between items-center p-4 border-b border-outline-variant">
+                <h3 class="font-headline-md text-on-surface" id="modal-title">Código QR</h3>
+                <button onclick="closeQrModal()" class="text-on-surface-variant hover:text-error transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <div class="p-6 flex flex-col items-center gap-4">
+                <div class="bg-white p-4 rounded-xl border border-outline-variant shadow-sm inline-block">
+                    <canvas id="qr-canvas"></canvas>
+                </div>
+
+                <p class="text-center font-label-sm text-on-surface-variant break-all" id="qr-url-text"></p>
+
+                <div class="flex flex-col sm:flex-row gap-3 w-full mt-4">
+                    <button onclick="downloadPNG()"
+                        class="flex-1 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-sm py-2 px-4 rounded-lg flex items-center justify-center gap-2 border border-outline-variant">
+                        <span class="material-symbols-outlined text-[18px]">download</span>
+                        PNG
+                    </button>
+                    <button onclick="printPoster()"
+                        class="flex-1 bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-label-sm py-2 px-4 rounded-lg flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">print</span>
+                        Cartel A4 / PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="print-template" class="hidden">
+        <div style="text-align: center; font-family: sans-serif; padding: 20px;">
+            <h1 style="color: #00288e; font-size: 3rem; margin-bottom: 10px;">Velo Energy</h1>
+            <h2 style="font-size: 2rem; color: #333; margin-top: 0;">Escanea para Recargar</h2>
+            <div
+                style="margin: 40px auto; display: inline-block; padding: 20px; border: 4px solid #00288e; border-radius: 20px;">
+                <img id="print-qr-image" src="" alt="QR Code" style="width: 300px; height: 300px;" />
+            </div>
+            <p style="font-size: 1.5rem; color: #666; margin-top: 20px;">Grupo: <strong id="print-pool"></strong></p>
+            <p style="font-size: 1.5rem; color: #666;">Estación: <strong id="print-station"></strong></p>
+        </div>
+    </div>
+
+    <script src="/static/js/emsp-dashboard.js"></script>
+</body>
+
+</html>

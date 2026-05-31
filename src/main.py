@@ -14,6 +14,7 @@ from routes.charge_point_alias import router as charge_point_alias_router
 from routes.charge_point_update import router as charge_point_update_router
 from routes.charging_session_update import router as charging_session_update_router
 from routes.device_token import router as device_token_router
+from routes.emsp_dashboard import router as emsp_dashboard_router  # For the "eMSP Dashboard" for eMSP managers
 from routes.feedback_message import router as feedback_message_router
 from routes.public_dashboard import router as public_dashboard_router  # For the "Smart Dashboard" for OCPP Stations
 from routes.trigger_task import router as trigger_task_router
@@ -38,9 +39,10 @@ app.include_router(charge_point_alias_router)
 app.include_router(charge_point_update_router)
 app.include_router(charging_session_update_router)
 app.include_router(device_token_router)
+app.include_router(emsp_dashboard_router)
 app.include_router(feedback_message_router)
-app.include_router(trigger_task_router)
 app.include_router(public_dashboard_router)
+app.include_router(trigger_task_router)
 
 
 @app.get("/{version}/credentials-check")
