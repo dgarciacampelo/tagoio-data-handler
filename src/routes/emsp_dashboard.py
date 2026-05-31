@@ -29,6 +29,8 @@ async def render_emsp_dashboard(request: Request):
 
             # Group and fetch status for every connector ID associated with the station
             for station_name, cid in sorted(list(cp_set)):
+                if cid == 0:  # Skip the input connector (Connector 0)
+                    continue
                 if station_name not in station_connectors[pool_code]:
                     station_connectors[pool_code][station_name] = {}
 
