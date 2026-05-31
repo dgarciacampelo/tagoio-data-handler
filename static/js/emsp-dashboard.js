@@ -137,7 +137,7 @@ function printPoster() {
             
             <div class="info-box">
                 <p>Operador (CPO): <span class="bold">${currentStation.cpo}</span></p>
-                <p>Grupo: <span class="bold">${currentStation.pool}</span></p>
+                <p>Instalación: <span class="bold">${currentStation.pool}</span></p>
                 <p>Punto de Recarga: <span class="bold">${currentStation.name}</span></p>
             </div>
             

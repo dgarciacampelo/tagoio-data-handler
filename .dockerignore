@@ -1,0 +1,30 @@
+# Git
+.git
+.gitignore
+
+# Python Virtual Environments
+venv/
+.venv/
+env/
+.env_python/
+
+# Python Cache & Bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment Variables
+.env
+
+# Tailwind / Node (Since we use the Standalone CLI)
+tailwindcss.exe
+tailwindcss-linux-x64
+tailwindcss-windows-x64.exe
+node_modules/
+
+# IDEs and OS files
+.vscode/
+.idea/
+.DS_Store
