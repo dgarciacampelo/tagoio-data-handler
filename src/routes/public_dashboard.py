@@ -181,7 +181,7 @@ async def render_status_card_partial(
     else:
         cp_data = get_charge_point(pool_code, station_name, connector_id=cid)
         status = cp_data.charge_point_status if cp_data else ChargePointStatus.UNAVAILABLE
-        logger.info(f"Dashboard -> GETS: ({pool_code}, {station_name}, {cid}) | AS cp_data: {cp_data}")
+        # logger.info(f"Dashboard -> GETS: ({pool_code}, {station_name}, {cid}) | AS cp_data: {cp_data}")
 
     # Retrieve the active session data for the specified connector to include in the partial metering template
     session_data = get_active_session(pool_code, station_name, connector_id=cid)

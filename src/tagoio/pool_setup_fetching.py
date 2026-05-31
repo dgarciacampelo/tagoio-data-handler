@@ -1,3 +1,5 @@
+import asyncio
+
 import httpx
 from loguru import logger
 from typing import Any, Optional
@@ -63,9 +65,23 @@ async def fetch_variable_last_value(pool_code: int, variable: str) -> Optional[d
 
 
 async def init_pool_configs(known_pools: list[int]):
-    """Fetches CPO, rates, and power info for all known pools on startup."""
-    logger.info("Initializing pool configurations...")
-    for pool_code in known_pools:
+    """Fetches CPO, rates, power info, and POS withholding for all known pools concurrently."""
+    logger.info(f"Initializing {len(known_pools)} pool configurations concurrently...")
+
+    # Limit concurrency to 10 simultaneous pools to protect against API rate limits
+    semaphore = asyncio.Semaphore(10)
+
+    # Create a task for each pool and run them concurrently
+    tasks = [asyncio.create_task(_process_single_pool(pool_code, semaphore)) for pool_code in known_pools]
+
+    # Wait for all background tasks to finish
+    await asyncio.gather(*tasks)
+    logger.info("Finished initializing all pool configurations.")
+
+
+async def _process_single_pool(pool_code: int, semaphore: asyncio.Semaphore):
+    """Worker function to process a single pool's configuration."""
+    async with semaphore:
         config = pool_configs.get(pool_code, PoolConfig())
 
         try:

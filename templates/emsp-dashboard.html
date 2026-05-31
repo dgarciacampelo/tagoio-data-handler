@@ -31,7 +31,7 @@
 
     <script src="/static/js/tailwind-cdn.js"></script>
     <script src="/static/js/tailwind-config.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="/static/js/qrcode.min.js"></script>
 </head>
 
 <body class="bg-background text-on-background min-h-screen pt-16 pb-10 font-body-md text-body-md antialiased">
@@ -56,26 +56,35 @@
             <h2
                 class="text-title-lg font-bold text-on-surface mb-4 flex items-center gap-2 border-b border-outline-variant pb-2">
                 <span class="material-symbols-outlined text-primary">ev_station</span>
-                Grupo de Recarga: {{ pool_code }}
+                Grupo de Recarga {{ pool_code }}: {{ cpo_names_by_pool[pool_code] }}
             </h2>
 
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {% for station in stations %}
                 <div
-                    class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-4 flex flex-col justify-between">
+                    class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-4 flex flex-col justify-between gap-6">
                     <div>
                         <h3 class="font-headline-md text-on-surface">{{ station }}</h3>
-                        <p class="font-label-sm text-on-surface-variant mb-4">
-                            Enlace público configurado para el escaneo directo.
-                        </p>
                     </div>
 
-                    <button
-                        onclick="openQrModal('{{ base_url }}/dashboard/{{ pool_code }}/{{ station }}', '{{ pool_code }}', '{{ station }}')"
-                        class="w-full bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-label-caps text-label-caps py-sm px-md rounded-lg transition-opacity flex items-center justify-center gap-xs">
-                        <span class="material-symbols-outlined text-[18px]">qr_code_2</span>
-                        GENERAR CARTEL QR
-                    </button>
+                    <!-- Button Container with explicit vertical separation for touch ergonomics -->
+                    <div class="flex flex-col gap-3">
+                        <!-- Main Action: QR Generator -->
+                        <button data-url="{{ base_url }}/dashboard/{{ pool_code }}/{{ station }}"
+                            data-pool="{{ pool_code }}" data-station="{{ station }}"
+                            data-cpo="{{ cpo_names_by_pool[pool_code] }}" onclick="openQrModalFromData(this)"
+                            class="w-full bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-label-caps text-label-caps py-sm px-md rounded-lg transition-opacity flex items-center justify-center gap-xs">
+                            <span class="material-symbols-outlined text-[18px]">qr_code_2</span>
+                            GENERAR CARTEL QR
+                        </button>
+
+                        <!-- Secondary Action: View Live Public Dashboard -->
+                        <a href="{{ base_url }}/dashboard/{{ pool_code }}/{{ station }}" target="_blank"
+                            class="w-full border border-outline hover:bg-surface-container-low text-primary font-label-caps text-label-caps py-sm px-md rounded-lg transition-colors flex items-center justify-center gap-xs text-center">
+                            <span class="material-symbols-outlined text-[18px]">open_in_new</span>
+                            VER PANEL PÚBLICO
+                        </a>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
@@ -89,9 +98,14 @@
         <div class="bg-surface rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform scale-95 transition-transform duration-300"
             id="qr-modal-content">
 
-            <div class="flex justify-between items-center p-4 border-b border-outline-variant">
-                <h3 class="font-headline-md text-on-surface" id="modal-title">Código QR</h3>
-                <button onclick="closeQrModal()" class="text-on-surface-variant hover:text-error transition-colors">
+            <div class="flex justify-between items-start p-4 border-b border-outline-variant">
+                <div class="flex flex-col">
+                    <span class="font-label-sm text-on-surface-variant uppercase tracking-wider"
+                        id="modal-cpo-name">Nombre CPO</span>
+                    <h3 class="font-headline-md text-on-surface" id="modal-title">Código QR</h3>
+                </div>
+                <button onclick="closeQrModal()"
+                    class="text-on-surface-variant hover:text-error transition-colors mt-1">
                     <span class="material-symbols-outlined">close</span>
                 </button>
             </div>

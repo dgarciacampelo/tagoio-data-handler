@@ -1,23 +1,69 @@
 // Store current context
-let currentStation = { url: '', pool: '', name: '' };
+let currentStation = { url: '', pool: '', name: '', cpo: '' };
 
-function openQrModal(url, poolCode, stationName) {
-    currentStation = { url, pool: poolCode, name: stationName };
+// Helper function to extract data from the HTML button safely
+function openQrModalFromData(buttonElement) {
+    const url = buttonElement.dataset.url;
+    const poolCode = buttonElement.dataset.pool;
+    const stationName = buttonElement.dataset.station;
+    const cpoName = buttonElement.dataset.cpo;
 
+    openQrModal(url, poolCode, stationName, cpoName);
+}
+
+function openQrModal(url, poolCode, stationName, cpoName) {
+    currentStation = { url, pool: poolCode, name: stationName, cpo: cpoName };
+
+    // Update Modal UI
+    document.getElementById('modal-cpo-name').textContent = cpoName;
     document.getElementById('modal-title').textContent = `${poolCode} / ${stationName}`;
     document.getElementById('qr-url-text').textContent = url;
 
-    // Generate QR on the canvas
-    const canvas = document.getElementById('qr-canvas');
-    QRCode.toCanvas(canvas, url, {
-        width: 250,
+    const scale = 3; // 3x resolution for ultra-crisp text and print-quality PNG
+    const logicalWidth = 280;
+    const logicalHeight = 320;
+
+    // Generate QR Data URL at the scaled-up resolution, for a sharper QR code image
+    QRCode.toDataURL(url, {
+        width: logicalWidth * scale,
         margin: 2,
-        color: {
-            dark: '#c3bf48',  // Primary brand color
-            light: '#ffffff'
+        color: { dark: '#00288e', light: '#ffffff' }
+    }, function (error, dataUrl) {
+        if (error) {
+            console.error("Error generating QR:", error);
+            return;
         }
-    }, function (error) {
-        if (error) console.error("Error generating QR:", error);
+
+        const canvas = document.getElementById('qr-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // 1. Set the actual physical pixel count of the canvas (High Res)
+        canvas.width = logicalWidth * scale;
+        canvas.height = logicalHeight * scale;
+
+        // 2. Set the CSS display size to keep it looking normal on the screen
+        canvas.style.width = logicalWidth + 'px';
+        canvas.style.height = logicalHeight + 'px';
+
+        // 3. Scale the drawing context. This lets us use normal coordinates (e.g. 280) 
+        // while the browser automatically draws it at the higher resolution.
+        ctx.scale(scale, scale);
+
+        // Draw white background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+
+        // Draw Title Text (Will be rendered crisply due to ctx.scale)
+        ctx.fillStyle = '#00288e';
+        ctx.font = 'bold 14px "Segoe UI", Tahoma, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Velo Energy: ${poolCode} / ${stationName}`, logicalWidth / 2, 24);
+
+        // Load the High-Res QR Image and draw it below the text
+        const img = new Image();
+        // Draw into the 280x280 logical box. The scaled context handles the high-res mapping.
+        img.onload = function () { ctx.drawImage(img, 0, 35, logicalWidth, logicalWidth); };
+        img.src = dataUrl;
     });
 
     // Show modal
@@ -25,7 +71,6 @@ function openQrModal(url, poolCode, stationName) {
     const content = document.getElementById('qr-modal-content');
     modal.classList.remove('hidden');
 
-    // Trigger reflow for transition
     void modal.offsetWidth;
     modal.classList.remove('opacity-0');
     content.classList.remove('scale-95');
@@ -38,9 +83,10 @@ function closeQrModal() {
     modal.classList.add('opacity-0');
     content.classList.add('scale-95');
 
-    setTimeout(() => { modal.classList.add('hidden'); }, 300); // Matches Tailwind transition duration
+    setTimeout(() => { modal.classList.add('hidden'); }, 300);
 }
 
+// Because we scaled the canvas above, this will download a beautiful 840x960 PNG
 function downloadPNG() {
     const canvas = document.getElementById('qr-canvas');
     const link = document.createElement('a');
@@ -50,11 +96,8 @@ function downloadPNG() {
 }
 
 function printPoster() {
-    // Convert canvas to image data URL for the print window
     const canvas = document.getElementById('qr-canvas');
     const qrDataUrl = canvas.toDataURL('image/png');
-
-    // Create a new invisible iframe or window for printing
     const printWindow = window.open('', '_blank');
 
     const htmlContent = `
@@ -76,8 +119,11 @@ function printPoster() {
                 .header { color: #00288e; font-size: 3.5rem; font-weight: bold; margin-bottom: 10px; }
                 .subtitle { font-size: 2.2rem; color: #4a4a4a; margin-top: 0; margin-bottom: 40px; }
                 .qr-container { padding: 20px; border: 4px solid #00288e; border-radius: 24px; display: inline-block; }
-                .qr-image { width: 400px; height: 400px; }
-                .info-box { margin-top: 40px; text-align: center; font-size: 1.8rem; color: #4a4a4a; }
+                
+                /* FIXED: Set height to auto to prevent aspect ratio stretching */
+                .qr-image { width: 350px; height: auto; } 
+                
+                .info-box { margin-top: 40px; text-align: center; font-size: 1.8rem; color: #4a4a4a; line-height: 1.5; }
                 .bold { font-weight: bold; color: #1a1a1a; }
             </style>
         </head>
@@ -86,20 +132,18 @@ function printPoster() {
             <div class="subtitle">Escanea para Recargar</div>
             
             <div class="qr-container">
-                <img class="qr-image" src="${qrDataUrl}" alt="Código QR del punto de recarga" />
+                <img class="qr-image" src="${qrDataUrl}" alt="Código QR de la estación" />
             </div>
             
             <div class="info-box">
+                <p>Operador (CPO): <span class="bold">${currentStation.cpo}</span></p>
                 <p>Grupo: <span class="bold">${currentStation.pool}</span></p>
-                <p>Punto de Recarga: <span class="bold">${currentStation.name}</span></p>
+                <p>Estación: <span class="bold">${currentStation.name}</span></p>
             </div>
             
             <script>
-                // Wait for image to load before triggering print
                 window.onload = function() {
                     window.print();
-                    // Optional: close the window after printing
-                    // setTimeout(() => window.close(), 500);
                 };
             </script>
         </body>
@@ -111,9 +155,6 @@ function printPoster() {
     printWindow.document.close();
 }
 
-// Close modal on outside click
 document.getElementById('qr-modal').addEventListener('click', function (e) {
-    if (e.target === this) {
-        closeQrModal();
-    }
+    if (e.target === this) { closeQrModal(); }
 });
