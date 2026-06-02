@@ -13,6 +13,7 @@ from config import port as api_port
 from data_handling import load_statuses_from_db
 from routes.charge_point_alias import router as charge_point_alias_router
 from routes.charge_point_update import router as charge_point_update_router
+from routes.charging_pool_update import router as charging_pool_update_router
 from routes.charging_session_update import router as charging_session_update_router
 from routes.device_token import router as device_token_router
 from routes.emsp_dashboard import router as emsp_dashboard_router  # For the "eMSP Dashboard" for eMSP managers
@@ -38,6 +39,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Add the imported routers to the FastAPI app
 app.include_router(charge_point_alias_router)
 app.include_router(charge_point_update_router)
+app.include_router(charging_pool_update_router)
 app.include_router(charging_session_update_router)
 app.include_router(device_token_router)
 app.include_router(emsp_dashboard_router)

@@ -7,7 +7,7 @@ from schemas import ChargingSessionUpdate
 """
 # ! NOTE: When testing charging session updates, remember the following index:
 CREATE UNIQUE INDEX IF NOT EXISTS idx_charging_session_history ON charging_session_history
-(pool_code, station_name, connector_id, star_meter_value, last_meter_value);
+(pool_code, station_name, connector_id, start_meter_value, last_meter_value);
 """
 
 station_name = "TEST"
@@ -33,7 +33,7 @@ update = ChargingSessionUpdate(
     start_date="27/02/2024",
     start_time="09:43",
     step=ChargingSessionStep.COMPLETED,
-    star_meter_value=2152,
+    start_meter_value=2152,
     last_meter_value=2200,
     energy=0.048,
     cost=0.0192,

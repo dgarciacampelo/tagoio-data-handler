@@ -75,10 +75,10 @@ class ChargingSessionUpdate(BaseModel):
     start_date: str  # Date with the DD/MM/YYYY format
     start_time: str  # Time with the HH:MM format
     step: str  # StrEnum, usually "INPROGRESS" or "COMPLETED"
-    star_meter_value: int  # Meter value when the charging session started (Wh)
+    start_meter_value: int  # Meter value when the charging session started (Wh)
     last_meter_value: int  # Meter value received in the last update (Wh)
 
-    energy: float  # (last_meter_value - star_meter_value) / 1000
+    energy: float  # (last_meter_value - start_meter_value) / 1000
     energy_unit: str = "KWh"
     cost: float
     cost_unit: str = "€"
@@ -86,6 +86,7 @@ class ChargingSessionUpdate(BaseModel):
     power_unit: str = "W"
     time: str  # Translated in minutes
 
+    with_payment: bool = False  # Whether the session has an associated payment
     has_public_dashboard: bool = False  # The station has a public dashboard
     stop_motive: Optional[str] = None  # StrEnum with the stop motive
     time_band: Optional[str] = None  # Time band in the HH:MM - HH:MM format
@@ -120,3 +121,24 @@ class PaymentAuthRequest(BaseModel):
             if not all([self.nif, self.billing_name, self.billing_address, self.invoice_email]):
                 raise ValueError("All invoice fields are mandatory when requires_invoice is true")
         return self
+
+
+class PoolConfigUpdate(BaseModel):
+    """Payload to hot-reload pool configuration caching in the TagoIO handler."""
+
+    pool_code: int
+
+    # CPO Info
+    cpo_name: Optional[str] = None
+    cpo_fiscal_id: Optional[str] = None
+    cpo_address: Optional[str] = None
+    cpo_phone: Optional[str] = None
+    cpo_email: Optional[str] = None
+    cpo_web: Optional[str] = None
+
+    # Rates Info
+    rate_off_peak: Optional[float] = None
+    rate_flat: Optional[float] = None
+    rate_peak: Optional[float] = None
+    vat: Optional[float] = None
+    preauth_amount: Optional[float] = None

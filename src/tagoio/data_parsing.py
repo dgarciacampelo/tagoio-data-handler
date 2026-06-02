@@ -4,7 +4,7 @@ import httpx
 from loguru import logger
 
 from config import tago_api_endpoint
-from enumerations import ChargingSessionStep
+from enumerations import AvailabilityType, ChargingSessionStep, ConnectionStatus, ChargePointStatus
 from schemas import ChargePointUpdate, ChargingSessionUpdate, FeedbackMessage
 from tagoio.data_deletion import pool_variable_cleanup
 from tagoio.token_fetching import get_headers_by_pool_code
@@ -129,6 +129,30 @@ async def update_public_dashboard_status(update: ChargePointUpdate):
 
 async def update_public_dashboard_values(update: ChargingSessionUpdate):
     "Updates the charging session values in the public dashboard"
+
+    # STATE SYNC FIX (Fires if Handler restarts during an active session)
+    if update.step != ChargingSessionStep.COMPLETED:
+        status_key = get_status_key(update.pool_code, update.station_name)
+        current_status = translated_statuses.get(status_key, {}).get(update.connector_id)
+        expected_status = translate_status(ChargePointStatus.CHARGING, ConnectionStatus.ONLINE)
+
+        if current_status != expected_status:
+            target: str = f"{update.station_name}[{update.connector_id}]"
+            logger.info(f"Handler restart / sync loss detected for {target}. Forcing CHARGING status.")
+
+            # Forge a status update to explicitly correct the cache and both dashboards
+            cp_update = ChargePointUpdate(
+                pool_code=update.pool_code,
+                station_name=update.station_name,
+                connector_id=update.connector_id,
+                connection_status=ConnectionStatus.ONLINE,  # Implicitly online if sending session updates
+                charge_point_status=ChargePointStatus.CHARGING,
+                availability_type=AvailabilityType.OPERATIVE,
+                charge_point_error_code="NoError",
+                has_public_dashboard=update.has_public_dashboard,
+            )
+            await update_charge_point_status(cp_update)
+
     if not update.has_public_dashboard:
         return
 
@@ -164,7 +188,7 @@ async def update_management_dashboard_charging_session(update: ChargingSessionUp
     metadata = {
         "card_alias": update.card_alias,
         "display_id": update.display_id,
-        "meter_values": f"[{update.star_meter_value}, {update.last_meter_value}]",
+        "meter_values": f"[{update.start_meter_value}, {update.last_meter_value}]",
         "start_date": update.start_date,
         "start_time": update.start_time,
         "step": update.step,

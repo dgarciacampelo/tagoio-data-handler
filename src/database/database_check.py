@@ -129,7 +129,7 @@ def check_charging_session_history_table(db_file: str = database_file):
         card_alias TEXT NOT NULL,
         start_date TEXT NOT NULL,
         time_band TEXT NOT NULL,
-        star_meter_value INTEGER NOT NULL,
+        start_meter_value INTEGER NOT NULL,
         last_meter_value INTEGER NOT NULL,
         cost REAL NOT NULL,
         is_modified INTEGER NOT NULL DEFAULT 1
@@ -160,7 +160,7 @@ def empty_session_history_table_add_index(
     delete_query = "DELETE FROM charging_session_history;"
     create_index_query = f"""
         CREATE UNIQUE INDEX IF NOT EXISTS {index_name} ON charging_session_history
-        (pool_code, station_name, connector_id, star_meter_value, last_meter_value);
+        (pool_code, station_name, connector_id, start_meter_value, last_meter_value);
     """
     try:
         with sqlite3.connect(db_file) as conn:

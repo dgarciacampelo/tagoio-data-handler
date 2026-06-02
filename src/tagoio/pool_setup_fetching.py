@@ -1,11 +1,12 @@
 import asyncio
+from typing import Any, Optional
 
 import httpx
 from loguru import logger
-from typing import Any, Optional
 from pydantic import BaseModel
 
 from config import tago_api_endpoint
+from schemas import PoolConfigUpdate
 from tagoio.token_fetching import delete_device_data_by_pool_code, get_headers_by_pool_code
 
 
@@ -142,3 +143,44 @@ async def _process_single_pool(pool_code: int, semaphore: asyncio.Semaphore):
         finally:  # Whether it succeeded or failed, mark as loaded so the UI drops the spinner
             config.is_loaded = True
             pool_configs[pool_code] = config
+
+
+def update_pool_config_in_memory(update: PoolConfigUpdate):
+    """
+    Surgically updates the in-memory pool configuration without requiring
+    a full TagoIO API fetch cycle.
+    """
+    config = pool_configs.get(update.pool_code)
+
+    if not config:
+        # If the pool wasn't loaded yet, initialize it
+        config = PoolConfig(is_loaded=True)
+        pool_configs[update.pool_code] = config
+
+    # Update CPO fields if they exist in the payload
+    if update.cpo_name is not None:
+        config.cpo_name = update.cpo_name
+    if update.cpo_fiscal_id is not None:
+        config.cpo_fiscal_id = update.cpo_fiscal_id
+    if update.cpo_address is not None:
+        config.cpo_address = update.cpo_address
+    if update.cpo_phone is not None:
+        config.cpo_phone = update.cpo_phone
+    if update.cpo_email is not None:
+        config.cpo_email = update.cpo_email
+    if update.cpo_web is not None:
+        config.cpo_web = update.cpo_web
+
+    # Update Rate fields if they exist in the payload
+    if update.rate_off_peak is not None:
+        config.rate_off_peak = update.rate_off_peak
+    if update.rate_flat is not None:
+        config.rate_flat = update.rate_flat
+    if update.rate_peak is not None:
+        config.rate_peak = update.rate_peak
+    if update.vat is not None:
+        config.vat = update.vat
+    if update.preauth_amount is not None:
+        config.preauth_amount = update.preauth_amount
+
+    logger.info(f"Hot-reloaded configuration for Pool {update.pool_code}")

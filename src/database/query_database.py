@@ -82,7 +82,7 @@ def insert_database_charging_session_history(
     "Inserts a new charging session into the history database table."
     query = """
         INSERT INTO charging_session_history
-        (pool_code, station_name, connector_id, card_alias, start_date, time_band, star_meter_value, last_meter_value, cost, is_modified, transaction_id)
+        (pool_code, station_name, connector_id, card_alias, start_date, time_band, start_meter_value, last_meter_value, cost, is_modified, transaction_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
         RETURNING transaction_id;
     """
@@ -95,7 +95,7 @@ def insert_database_charging_session_history(
                 update.card_alias,
                 update.start_date,
                 update.time_band,
-                update.star_meter_value,
+                update.start_meter_value,
                 update.last_meter_value,
                 update.cost,
                 update.transaction_id,
@@ -143,7 +143,7 @@ def get_charging_sessions_from_pool_code(pool_code: int, db_file: str = database
     select_query = """
         SELECT
             created_at, pool_code, station_name, connector_id, card_alias,
-            start_date, time_band, star_meter_value, last_meter_value, cost
+            start_date, time_band, start_meter_value, last_meter_value, cost
         FROM charging_session_history
         WHERE pool_code = ?
         ORDER BY created_at ASC;
