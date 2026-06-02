@@ -33,7 +33,6 @@
 {% set status_bg = '#949494' %}
 {% set status_text = 'NO DISPONIBLE' %}
 {% endif %}
-{% endif %}
 
 {% set is_active_session = station_status in [ChargePointStatus.CHARGING, ChargePointStatus.SUSPENDEDEV,
 ChargePointStatus.SUSPENDEDEVSE] %}
@@ -110,4 +109,5 @@ ChargePointStatus.SUSPENDEDEVSE] %}
         <p class="font-body-md text-on-surface opacity-80">Conector {{ current_cid }}</p>
     </div>
 </section>
+{% endif %}
 {% endif %}

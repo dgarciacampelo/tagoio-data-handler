@@ -50,7 +50,7 @@
             <p>No se han detectado estaciones de recarga registradas.</p>
         </div>
         {% else %}
-        {% for pool_code, stations in stations_by_pool.items() %}
+        {% for pool_code, stations in stations_by_pool|dictsort %}
         <section class="mb-8">
             <h2
                 class="text-title-lg font-bold text-on-surface mb-4 flex items-center gap-2 border-b border-outline-variant pb-2">
