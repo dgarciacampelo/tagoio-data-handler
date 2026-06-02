@@ -3,7 +3,7 @@ from typing import Optional
 
 from loguru import logger
 
-from charge_points import register_charge_point
+from charge_points import get_pool_known_charge_points, register_charge_point
 from database.query_database import (
     get_all_connector_statuses,
     insert_database_charging_session_history,
@@ -62,6 +62,19 @@ def load_statuses_from_db():
 
 async def manage_charge_point_update(update: ChargePointUpdate) -> ChargePointData:
     """Updates the dashboards with the charge point data, if conditions are met"""
+
+    # Force the physical status to reflect the connection reality
+    if update.connection_status == "Offline":
+        update.charge_point_status = "Unavailable"
+
+        # Cascade station-wide disconnects (Connector 0) to all known child connectors
+        if update.connector_id == 0:
+            pool_cps = get_pool_known_charge_points(update.pool_code)
+            for st_name, cid in pool_cps:
+                if st_name == update.station_name and cid != 0:  # Clone the payloads for each child connector
+                    child_update = update.model_copy(update={"connector_id": cid})
+                    await manage_charge_point_update(child_update)
+
     new_quarantine, is_quarantined, quarantine_end = check_quarantine(update)
 
     search_params = [update.pool_code, update.station_name, update.connector_id]
