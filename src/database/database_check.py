@@ -78,6 +78,7 @@ def check_local_database(db_file: str = database_file):
     check_tagoio_device_table(db_file)
     check_station_config_table(db_file)
     check_charging_session_history_table(db_file)
+    check_charging_session_telemetry_table(db_file)
     # check_table_has_column("charging_session_history", "transaction_id", db_file)
     check_session_history_table_index(db_file)
     check_connector_status_table(db_file)
@@ -118,7 +119,12 @@ def check_station_config_table(db_file: str = database_file):
 
 
 def check_charging_session_history_table(db_file: str = database_file):
-    """Checks if the table exists in the database or creates a new one."""
+    """
+    Ensures the charging_session_history table exists and automatically
+    migrates the schema to add any missing columns.
+    """
+
+    # 1. Base creation query
     create_table_query = """
     CREATE TABLE IF NOT EXISTS charging_session_history(
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -132,14 +138,68 @@ def check_charging_session_history_table(db_file: str = database_file):
         start_meter_value INTEGER NOT NULL,
         last_meter_value INTEGER NOT NULL,
         cost REAL NOT NULL,
+        rate_off_peak REAL NOT NULL DEFAULT 0.0,
+        rate_flat REAL NOT NULL DEFAULT 0.0,
+        rate_peak REAL NOT NULL DEFAULT 0.0,
+        energy_off_peak INTEGER NOT NULL DEFAULT 0,
+        energy_flat INTEGER NOT NULL DEFAULT 0,
+        energy_peak INTEGER NOT NULL DEFAULT 0,
         is_modified INTEGER NOT NULL DEFAULT 1
-        );
+    );
+    """
+
+    # 2. Dictionary of new columns to check and add if missing.
+    # The DEFAULT is strictly required by SQLite when adding NOT NULL columns.
+    columns_to_ensure = {
+        "rate_off_peak": "REAL NOT NULL DEFAULT 0.0",
+        "rate_flat": "REAL NOT NULL DEFAULT 0.0",
+        "rate_peak": "REAL NOT NULL DEFAULT 0.0",
+        "energy_off_peak": "INTEGER NOT NULL DEFAULT 0",
+        "energy_flat": "INTEGER NOT NULL DEFAULT 0",
+        "energy_peak": "INTEGER NOT NULL DEFAULT 0",
+    }
+
+    try:
+        with sqlite3.connect(db_file) as conn:
+            conn.execute(create_table_query)  # Create the table if it does not exist at all
+
+            # Retrieve the current list of columns in the table
+            cursor = conn.execute("PRAGMA table_info(charging_session_history)")
+            existing_columns = [row[1] for row in cursor.fetchall()]
+
+            # Iterate through our required new columns and append them if missing
+            for col_name, col_definition in columns_to_ensure.items():
+                if col_name not in existing_columns:
+                    alter_query = f"ALTER TABLE charging_session_history ADD COLUMN {col_name} {col_definition};"
+                    conn.execute(alter_query)
+                    logger.info(f"Database Migration: Added missing column '{col_name}' to charging_session_history.")
+
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Exception during check_charging_session_history_table: {e}")
+
+
+def check_charging_session_telemetry_table(db_file: str = database_file):
+    """Checks if the table exists in the database or creates a new one."""
+    create_table_query = """
+    CREATE TABLE IF NOT EXISTS charging_session_telemetry(
+        transaction_id INTEGER NOT NULL,
+        timestamp TEXT NOT NULL,
+        meter_value INTEGER NOT NULL,
+        power INTEGER NOT NULL,
+        cost REAL NOT NULL,
+        current_tariff_band TEXT NOT NULL,
+        energy_off_peak INTEGER NOT NULL DEFAULT 0,
+        energy_flat INTEGER NOT NULL DEFAULT 0,
+        energy_peak INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (transaction_id, timestamp)
+    );
     """
     try:
         with sqlite3.connect(db_file) as conn:
             conn.execute(create_table_query)
     except Exception as e:
-        logger.error(f"Exception during check_charging_session_history_table: {e}")
+        logger.error(f"Exception during check_charging_session_telemetry_table: {e}")
 
 
 def check_pragma_statements(db_file: str = database_file):

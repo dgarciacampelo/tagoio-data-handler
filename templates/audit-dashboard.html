@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300571b'><path d='M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.16-.28L11.5 5h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z'/></svg>">
+    <title>Velo Energy - Auditoría de Sesiones</title>
+    <script src="/static/js/htmx.min.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+        }
+    </style>
+    <link href="/static/css/output.css" rel="stylesheet" />
+</head>
+
+<body class="bg-background text-on-background min-h-screen pt-16 pb-10 font-body-md text-body-md antialiased">
+
+    <header
+        class="fixed top-0 left-0 w-full z-40 flex justify-between items-center px-md h-16 bg-surface border-b border-outline-variant shadow-sm">
+        <div class="text-headline-md font-headline-md font-bold text-primary flex items-center gap-2">
+            <span class="material-symbols-outlined">plumbing</span> Velo Energy - Auditoría Interna
+        </div>
+        <a href="/emsp-dashboard"
+            class="text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1 font-label-sm">
+            <span class="material-symbols-outlined text-[18px]">admin_panel_settings</span>
+            Volver a eMSP
+        </a>
+    </header>
+
+    <main class="max-w-[1440px] mx-auto p-4 md:p-8 space-y-lg w-full">
+        <section class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+            <div class="p-4 border-b border-outline-variant bg-surface flex justify-between items-center">
+                <h2 class="text-title-lg font-bold text-on-surface flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">manage_search</span>
+                    Análisis de Costes y Telemetría
+                </h2>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr
+                            class="bg-surface-container-low border-b border-outline-variant text-on-surface-variant font-label-sm">
+                            <th class="p-4">ID Transacción</th>
+                            <th class="p-4">Estación</th>
+                            <th class="p-4">Periodo (Total)</th>
+                            <th class="p-4 text-right">Energía Total</th>
+                            <th class="p-4 text-right">Coste Final</th>
+                            <th class="p-4 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline-variant">
+                        {% for session in sessions %}
+                        <tr class="hover:bg-surface-container-low transition-colors">
+                            <td class="p-4 font-mono text-sm font-bold">{{ session.transaction_id }}</td>
+                            <td class="p-4">
+                                <div class="font-bold text-on-surface">{{ session.pool_code }} / {{ session.station_name
+                                    }}</div>
+                                <div class="text-on-surface-variant text-sm">Conector {{ session.connector_id }} | {{
+                                    session.card_alias }}</div>
+                            </td>
+                            <td class="p-4">
+                                <div>{{ session.start_date }}</div>
+                                <div class="text-on-surface-variant text-sm font-mono">{{ session.time_band }}</div>
+                            </td>
+                            <td class="p-4 text-right font-display-metrics text-primary">{{
+                                "%.3f"|format(session.total_energy_kwh) }} kWh</td>
+                            <td class="p-4 text-right font-display-metrics font-bold">{{ "%.2f"|format(session.cost) }}
+                                €</td>
+                            <td class="p-4 text-center">
+                                <a href="/api/export-audit/{{ session.transaction_id }}"
+                                    class="inline-flex items-center justify-center bg-surface-container-highest hover:bg-outline-variant text-primary font-label-sm py-2 px-3 rounded-lg border border-outline-variant transition-colors gap-1"
+                                    title="Descargar telemetría paso a paso">
+                                    <span class="material-symbols-outlined text-[18px]">table_chart</span>
+                                    Excel
+                                </a>
+                            </td>
+                        </tr>
+                        <tr class="bg-surface-container-lowest border-b-2 border-outline">
+                            <td colspan="6" class="p-0">
+                                <div
+                                    class="px-4 py-3 flex flex-wrap gap-4 text-sm justify-end bg-surface-container-lowest">
+                                    <div
+                                        class="flex items-center gap-2 border border-outline-variant rounded px-3 py-1 bg-[#E8F5E9] text-[#1B5E20]">
+                                        <span class="font-bold">Valle:</span>
+                                        <span>{{ session.energy_off_peak }} Wh</span>
+                                        <span class="opacity-50">|</span>
+                                        <span class="font-mono">{{ "%.3f"|format(session.rate_off_peak) }} €/kWh</span>
+                                    </div>
+                                    <div
+                                        class="flex items-center gap-2 border border-outline-variant rounded px-3 py-1 bg-[#FFF3E0] text-[#E65100]">
+                                        <span class="font-bold">Llano:</span>
+                                        <span>{{ session.energy_flat }} Wh</span>
+                                        <span class="opacity-50">|</span>
+                                        <span class="font-mono">{{ "%.3f"|format(session.rate_flat) }} €/kWh</span>
+                                    </div>
+                                    <div
+                                        class="flex items-center gap-2 border border-outline-variant rounded px-3 py-1 bg-[#FFEBEE] text-[#B71C1C]">
+                                        <span class="font-bold">Punta:</span>
+                                        <span>{{ session.energy_peak }} Wh</span>
+                                        <span class="opacity-50">|</span>
+                                        <span class="font-mono">{{ "%.3f"|format(session.rate_peak) }} €/kWh</span>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="p-10 text-center text-on-surface-variant">
+                                <span class="material-symbols-outlined text-[32px] opacity-50 mb-2">inbox</span>
+                                <p>No hay sesiones registradas recientemente.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+
+</html>

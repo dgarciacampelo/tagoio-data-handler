@@ -41,28 +41,53 @@ def get_pool_config(pool_code: int) -> PoolConfig:
     return pool_configs.get(pool_code, PoolConfig())
 
 
-async def fetch_variable_last_value(pool_code: int, variable: str) -> Optional[dict[str, Any]]:
-    """Fetches the last value of a variable from TagoIO."""
+async def fetch_variable_last_value(
+    pool_code: int, variable: str, client: Optional[httpx.AsyncClient] = None, max_retries: int = 3
+) -> Optional[dict[str, Any]]:
+    """Fetches the last value of a variable from TagoIO with timeouts and retries."""
     url = f"{tago_api_endpoint}/data"
     params = {"variable": variable, "qty": 1}
     headers = get_headers_by_pool_code(pool_code)
 
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers, params=params)
-            response.raise_for_status()
-            data = response.json()
-            if data.get("status") and data.get("result"):
-                return data["result"][0]
+    # Explicit timeout prevents hanging requests
+    timeout = httpx.Timeout(10.0)
 
-    except httpx.HTTPStatusError as e:
-        # Re-raise HTTP errors so the parent function can handle the routing logic
-        logger.warning(f"HTTP {e.response.status_code} fetching {variable} for pool {pool_code}.")
-        raise
-    except Exception as e:
-        logger.warning(f"Error fetching {variable} for pool {pool_code}: {e}")
+    async def _perform_request(http_client: httpx.AsyncClient) -> Optional[dict[str, Any]]:
+        for att in range(1, max_retries + 1):
+            msg: str = f"'{variable}' for pool {pool_code}"
+            try:
+                response = await http_client.get(url, headers=headers, params=params, timeout=timeout)
+                response.raise_for_status()
 
-    return None
+                data = response.json()
+                if data.get("status") and data.get("result"):
+                    return data["result"][0]
+
+                return None  # The variable just doesn't exist in TagoIO yet
+
+            except httpx.HTTPStatusError as e:  # Re-raise HTTP errors (4xx, 5xx), leave for parent to handle
+                logger.warning(f"HTTP {e.response.status_code} fetching {msg}.")
+                raise
+
+            except httpx.RequestError as e:  # Network errors (timeouts, disconnected)
+                if att < max_retries:
+                    logger.debug(f"Attempt {att}/{max_retries} failed for {msg}. Retrying...")
+                    await asyncio.sleep(1 * att)  # Exponential backoff
+                else:
+                    logger.warning(f"Network error fetching {msg} after {max_retries} attempts: {repr(e)}")
+
+            except Exception as e:  # Catch-all for parsing errors (e.g., JSONDecodeError)
+                logger.error(f"Unexpected error parsing {msg}: {repr(e)}")
+                return None
+
+        return None
+
+    # Use the injected client (Best Practice) or spawn a temporary one
+    if client:
+        return await _perform_request(client)
+    else:
+        async with httpx.AsyncClient() as temp_client:
+            return await _perform_request(temp_client)
 
 
 async def init_pool_configs(known_pools: list[int]):

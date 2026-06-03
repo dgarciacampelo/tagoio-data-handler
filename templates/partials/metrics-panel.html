@@ -1,6 +1,6 @@
 <div id="metrics-container" hx-swap-oob="true"
     class="{% if station_status != ChargePointStatus.CHARGING %}hidden{% endif %}">
-    <section class="grid grid-cols-1 sm:grid-cols-3 gap-grid-gutter">
+    <section class="grid grid-cols-1 md:grid-cols-4 gap-grid-gutter">
         <div
             class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-md flex flex-col gap-xs">
             <div class="flex justify-between items-center text-on-surface-variant">
@@ -15,11 +15,27 @@
                 <span class="font-label-sm text-label-sm text-on-surface-variant">kWh</span>
             </div>
         </div>
+
         <div
             class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-md flex flex-col gap-xs">
             <div class="flex justify-between items-center text-on-surface-variant">
                 <span class="font-label-sm text-label-sm uppercase tracking-wider">
-                    Duración de la Recarga</span>
+                    Potencia Actual</span>
+                <span class="material-symbols-outlined text-[20px]">speed</span>
+            </div>
+            <div class="flex items-baseline gap-xs">
+                <span class="font-display-metrics text-display-metrics text-on-surface">
+                    {% if session %}{{ "%.1f"|format(session.power / 1000) }}{% else %}--{% endif %}
+                </span>
+                <span class="font-label-sm text-label-sm text-on-surface-variant">kW</span>
+            </div>
+        </div>
+
+        <div
+            class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-md flex flex-col gap-xs">
+            <div class="flex justify-between items-center text-on-surface-variant">
+                <span class="font-label-sm text-label-sm uppercase tracking-wider">
+                    Duración</span>
                 <span class="material-symbols-outlined text-[20px]">timer</span>
             </div>
             <div class="flex items-baseline gap-xs">
@@ -29,6 +45,7 @@
                 <span class="font-label-sm text-label-sm text-on-surface-variant">min</span>
             </div>
         </div>
+
         <div
             class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-md flex flex-col gap-xs">
             <div class="flex justify-between items-center text-on-surface-variant">
@@ -42,5 +59,6 @@
                 <span class="font-label-sm text-label-sm text-on-surface-variant">EUR</span>
             </div>
         </div>
+
     </section>
 </div>

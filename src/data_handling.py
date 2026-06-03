@@ -6,11 +6,12 @@ from loguru import logger
 from charge_points import get_pool_known_charge_points, register_charge_point
 from database.query_database import (
     get_all_connector_statuses,
+    insert_charging_session_telemetry,
     insert_database_charging_session_history,
     update_station_noc_if_needed,
     upsert_connector_status,
 )
-from enumerations import ChargePointStatus
+from enumerations import ChargePointStatus, ChargingSessionStep
 from schemas import ChargePointData, ChargePointUpdate, ChargingSessionUpdate
 from tagoio.data_parsing import (
     update_charge_point_status,
@@ -161,13 +162,16 @@ async def manage_charging_session_update(update: ChargingSessionUpdate) -> None:
 
     search_key = get_search_key(update.pool_code, update.station_name, update.connector_id)
 
-    # Store the charging session in the local db, when completed (has a time band)
+    # * Store high-frequency telemetry for the audit trail (XLSX export)
+    # Captures every meter tick during INPROGRESS, and the final tick at COMPLETED (INSERT OR IGNORE avoid duplicates).
+    if update.step in [ChargingSessionStep.INPROGRESS, ChargingSessionStep.COMPLETED]:
+        insert_charging_session_telemetry(update)
+
     if update.time_band:  # The session has ended, we can store it in the history and remove it from the active sessions
         active_sessions.pop(search_key, None)
 
         transaction_id = insert_database_charging_session_history(update)
-        if transaction_id is None:
-            # Likely a duplicate transaction_id insert attempt, skip setting the dashboards...
+        if transaction_id is None:  # Likely a duplicate transaction_id insert attempt, skip setting the dashboards...
             return
     else:  # The session is active. We update it in memory for the HTMX dashboard.
         active_sessions[search_key] = update

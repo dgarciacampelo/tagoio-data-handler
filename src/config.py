@@ -14,7 +14,7 @@ load_dotenv()
 
 # ? https://www.colorhexa.com/c3bf48 color description: Moderate yellow
 primary_brand_color = "#c3bf48"
-forrest_green = "#00571b"  # Note: For the SVG fill, the # is replaced with %23 in the data URI
+forest_green = "#00571b"  # Note: For the SVG fill, the # is replaced with %23 in the data URI
 
 # endregion
 # region QR generation
@@ -22,8 +22,7 @@ forrest_green = "#00571b"  # Note: For the SVG fill, the # is replaced with %23 
 # For QR code generation in the public dashboard:
 tagoio_handler_url_env = os.getenv("TAGOIO_HANDLER_URL")
 if tagoio_handler_url_env is None:
-    # Fallback to: https://tagoio-handler.ocpp-velo.es if not set
-    tagoio_handler_url_env = "https://tagoio-handler.ocpp-velo.es"
+    raise EnvironmentError(f"TAGOIO_HANDLER_URL {not_set_error}")
 tagoio_handler_url: str = tagoio_handler_url_env
 
 # endregion

@@ -7,6 +7,7 @@ from config import service_name
 from database import table_names_to_modified_check
 from database.database_backup import zip_database_file, get_all_modified_rows_count
 from database.database_check import clear_modified_column
+from database.query_database import delete_database_cs_telemetry
 from tagoio.check_data_amount import device_data_amount_check
 from telegram_utils import upload_document, append_doc_tuple, pending_document_generator
 
@@ -14,13 +15,13 @@ device_data_amount_check_is_due: bool = False
 
 
 def set_device_data_amount_check():
-    "Marks the device data amount check as due, to trigger the corresponding job."
+    """Marks the device data amount check as due, to trigger the corresponding job."""
     global device_data_amount_check_is_due
     device_data_amount_check_is_due = True
 
 
 def get_and_reset_device_data_amount_check() -> bool:
-    "Resets the device data amount check flag (after providing its value)."
+    """Resets the device data amount check flag (after providing its value)."""
     global device_data_amount_check_is_due
     return_value = device_data_amount_check_is_due
     device_data_amount_check_is_due = False
@@ -28,15 +29,21 @@ def get_and_reset_device_data_amount_check() -> bool:
 
 
 def monthly_database_backup():
-    "Performs a database backup, only on the first day of the month."
+    """Performs a database backup, only on the first day of the month."""
     if datetime.now().day != 1:
         return
 
     conditional_database_backup(True)
 
 
+def periodic_cs_telemetry_cleanup(days_threshold: int = 30):
+    """Manages the deletion of old records in the charging_session_telemetry table, to avoid DB bloat."""
+    deleted_count, remaining_count = delete_database_cs_telemetry(days_threshold=days_threshold)
+    logger.info(f"Deleted {deleted_count} telemetry records. {remaining_count} records remaining.")
+
+
 def conditional_database_backup(force_backup: bool = False, table_names: list = table_names_to_modified_check):
-    "Performs a database backup if there are modified rows in the specified tables."
+    """Performs a database backup if there are modified rows in the specified tables."""
     if not force_backup:
         modified_rows_count: int = get_all_modified_rows_count(table_names)
         if modified_rows_count == 0:
@@ -54,7 +61,7 @@ def conditional_database_backup(force_backup: bool = False, table_names: list = 
 
 
 def backup_database_to_telegram():
-    "Zips the local database file and sends it to Telegram, using a bot."
+    """Zips the local database file and sends it to Telegram, using a bot."""
     zip_file = zip_database_file()
     if zip_file is None:
         logger.error("Error zipping database file, no backup was created.")
@@ -74,6 +81,7 @@ def register_schedules():
     Uses its own asyncio event loop, to avoid blocking the FastAPI server.
     """
     logger.info("Setting up schedules, using schedule.run_pending...")
+    schedule.every().day.at("04:00", "Europe/Madrid").do(periodic_cs_telemetry_cleanup, days_threshold=30)
     schedule.every().day.at("08:00", "Europe/Madrid").do(set_device_data_amount_check)
     schedule.every().day.at("20:00", "Europe/Madrid").do(set_device_data_amount_check)
     schedule.every().day.at("20:45", "Europe/Madrid").do(monthly_database_backup)

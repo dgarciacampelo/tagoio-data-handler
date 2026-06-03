@@ -77,19 +77,31 @@ class ChargingSessionUpdate(BaseModel):
     step: str  # StrEnum, usually "INPROGRESS" or "COMPLETED"
     start_meter_value: int  # Meter value when the charging session started (Wh)
     last_meter_value: int  # Meter value received in the last update (Wh)
+    last_meter_ts: str  # Timestamp of the last meter value received, in ISO format
+    current_tariff_band: str  # Evaluated tariff band for the meter value update: "Peak", "Flat", "Off-Peak"
 
-    energy: float  # (last_meter_value - start_meter_value) / 1000
+    # Energy rates, taken from the pool configuration. They should be frozen at the start of the charging session
+    rate_off_peak: float  # Rate in €/kWh for the off-peak time band
+    rate_flat: float  # Rate in €/kWh for the flat time band
+    rate_peak: float  # Rate in €/kWh for the peak time band
+
+    # Energy values consumed by the charging session for each time band, updated each meter values update
+    energy_off_peak: int  # Energy consumed in the off-peak time band (Wh)
+    energy_flat: int  # Energy consumed in the flat time band (Wh)
+    energy_peak: int  # Energy consumed in the peak time band (Wh)
+
+    energy: float  # As kWh: (last_meter_value - start_meter_value) / 1000
     energy_unit: str = "KWh"
-    cost: float
+    cost: float  # Total evaluated cost of the charging session
     cost_unit: str = "€"
-    power: int
+    power: int  # Last updated power of the charging session
     power_unit: str = "W"
     time: str  # Translated in minutes
 
     with_payment: bool = False  # Whether the session has an associated payment
     has_public_dashboard: bool = False  # The station has a public dashboard
     stop_motive: Optional[str] = None  # StrEnum with the stop motive
-    time_band: Optional[str] = None  # Time band in the HH:MM - HH:MM format
+    time_band: Optional[str] = None  # Total session time in HH:MM - HH:MM format, only included after completion
 
 
 class FeedbackMessage(BaseModel):

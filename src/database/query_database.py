@@ -1,6 +1,6 @@
 import sqlite3
 from loguru import logger
-from typing import Optional, Tuple
+from typing import Optional
 
 from database import database_file
 from schemas import ChargingSessionUpdate
@@ -43,7 +43,7 @@ def get_database_charging_session_history_count(db_file: str = database_file) ->
         return 0
 
 
-def get_all_database_tagoio_devices(db_file: str = database_file) -> list[Tuple[int, str, str]]:
+def get_all_database_tagoio_devices(db_file: str = database_file) -> list[tuple[int, str, str]]:
     "Returns all tagoio_device rows in the database table."
     query = "SELECT pool_code, device_id, device_token FROM tagoio_device"
     try:
@@ -79,11 +79,16 @@ def insert_database_tagoio_device(pool_code: int, device_id: str, device_token: 
 def insert_database_charging_session_history(
     update: ChargingSessionUpdate, db_file: str = database_file
 ) -> Optional[int]:
-    "Inserts a new charging session into the history database table."
+    """Inserts a new charging session into the history database table."""
     query = """
         INSERT INTO charging_session_history
-        (pool_code, station_name, connector_id, card_alias, start_date, time_band, start_meter_value, last_meter_value, cost, is_modified, transaction_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        (
+            pool_code, station_name, connector_id, transaction_id, 
+            card_alias, start_date, time_band, start_meter_value, 
+            last_meter_value, cost, rate_off_peak, rate_flat, rate_peak, 
+            energy_off_peak, energy_flat, energy_peak, is_modified
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
         RETURNING transaction_id;
     """
     try:
@@ -92,13 +97,19 @@ def insert_database_charging_session_history(
                 update.pool_code,
                 update.station_name,
                 update.connector_id,
+                update.transaction_id,
                 update.card_alias,
                 update.start_date,
                 update.time_band,
                 update.start_meter_value,
                 update.last_meter_value,
                 update.cost,
-                update.transaction_id,
+                update.rate_off_peak,
+                update.rate_flat,
+                update.rate_peak,
+                update.energy_off_peak,
+                update.energy_flat,
+                update.energy_peak,
             )
             transaction_id = conn.execute(query, values).fetchone()[0]
             conn.commit()
@@ -110,6 +121,51 @@ def insert_database_charging_session_history(
     except Exception as e:
         logger.error(f"Exception during insert_database_charging_session_history: {e}")
         return None
+
+
+def insert_charging_session_telemetry(update: ChargingSessionUpdate, db_file: str = database_file):
+    """Stores high-frequency telemetry with cumulative energy breakdowns."""
+    query = """
+        INSERT OR IGNORE INTO charging_session_telemetry 
+        (transaction_id, timestamp, meter_value, power, cost, current_tariff_band, energy_off_peak, energy_flat, energy_peak)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """
+
+    try:
+        with sqlite3.connect(db_file) as conn:
+            conn.execute(
+                query,
+                (
+                    update.transaction_id,
+                    update.last_meter_ts,
+                    update.last_meter_value,
+                    update.power,
+                    update.cost,
+                    update.current_tariff_band,
+                    update.energy_off_peak,
+                    update.energy_flat,
+                    update.energy_peak,
+                ),
+            )
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Error inserting telemetry for {update.transaction_id}: {e}")
+
+
+def get_telemetry_for_session(transaction_id: int, db_file: str = database_file) -> list[tuple]:
+    """Retrieves all telemetry data for a specific transaction."""
+    query = """
+        SELECT timestamp, meter_value, power, cost, current_tariff_band, energy_off_peak, energy_flat, energy_peak
+        FROM charging_session_telemetry 
+        WHERE transaction_id = ? 
+        ORDER BY timestamp ASC
+    """
+    try:
+        with sqlite3.connect(db_file) as conn:
+            return conn.execute(query, (transaction_id,)).fetchall()
+    except Exception as e:
+        logger.error(f"Error retrieving telemetry for {transaction_id}: {e}")
+        return []
 
 
 def update_database_tagoio_device(pool_code: int, device_id: str, device_token: str, db_file: str = database_file):
@@ -237,3 +293,73 @@ def get_all_connector_statuses(db_file: str = database_file) -> list[tuple]:
     except Exception as e:
         logger.error(f"Error retrieving connector statuses: {e}")
         return []
+
+
+def get_session_history(transaction_id: int, db_file: str = database_file) -> Optional[dict]:
+    """Retrieves the full metadata and frozen rates for a specific charging session."""
+    query = """
+        SELECT transaction_id, pool_code, station_name, connector_id, 
+            start_date, time_band, cost, card_alias,
+            (last_meter_value - start_meter_value) / 1000.0 AS total_energy_kwh,
+            rate_off_peak, rate_flat, rate_peak,
+            energy_off_peak, energy_flat, energy_peak
+        FROM charging_session_history 
+        WHERE transaction_id = ?
+    """
+    try:
+        with sqlite3.connect(db_file) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(query, (transaction_id,)).fetchone()
+            return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"Error retrieving session history for {transaction_id}: {e}")
+        return None
+
+
+def get_recent_sessions(limit: int = 50, db_file: str = database_file) -> list[dict]:
+    """Retrieves recent completed sessions with full rate and energy breakdown."""
+    query = """
+        SELECT transaction_id, pool_code, station_name, connector_id, 
+            start_date, time_band, cost, card_alias,
+            (last_meter_value - start_meter_value) / 1000.0 AS total_energy_kwh,
+            rate_off_peak, rate_flat, rate_peak,
+            energy_off_peak, energy_flat, energy_peak
+        FROM charging_session_history 
+        ORDER BY created_at DESC LIMIT ?
+    """
+    try:
+        with sqlite3.connect(db_file) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(query, (limit,)).fetchall()
+            return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Error retrieving recent sessions: {e}")
+        return []
+
+
+def delete_database_cs_telemetry(db_file: str = database_file, days_threshold: int = 30) -> tuple[int, int]:
+    """
+    Deletes old charging_session_telemetry records from the database table to avoid DB bloat.
+    Returns tuple: (deleted_records_count, remaining_records_count)
+    """
+    delete_query = f"""
+        DELETE FROM charging_session_telemetry
+        WHERE timestamp < datetime('now', '-{days_threshold} days');
+    """
+    count_query = "SELECT COUNT(*) FROM charging_session_telemetry;"
+
+    try:
+        with sqlite3.connect(db_file) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(delete_query)  # Execute deletion and get the number of affected rows
+            deleted_count = cursor.rowcount
+
+            cursor.execute(count_query)  # Count the remaining rows
+            remaining_count = cursor.fetchone()[0]
+
+            conn.commit()
+            return deleted_count, remaining_count
+    except Exception as e:
+        logger.error(f"Exception during delete_database_cs_telemetry: {e}")
+        return 0, 0
