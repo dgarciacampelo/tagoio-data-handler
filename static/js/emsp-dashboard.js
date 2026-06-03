@@ -106,7 +106,8 @@ function printPoster() {
     // 2. Replace the placeholders with the current modal data
     htmlContent = htmlContent
         .replace(/__STATION_NAME__/g, currentStation.name)
-        .replace(/__QR_DATA_URL__/g, currentStation.qrDataUrl)
+        .replace(/__QR_DATA_URL__/g, currentStation.qrDataUrl) // Base64 image data for the <img> tag
+        .replace(/__TEXT_URL__/g, currentStation.url)         // Human-readable text for URL link
         .replace(/__CPO_NAME__/g, currentStation.cpo)
         .replace(/__POOL_NAME__/g, currentStation.pool);
 
