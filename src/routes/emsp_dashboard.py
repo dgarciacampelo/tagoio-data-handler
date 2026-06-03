@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
 
 from charge_points import get_all_known_charge_points
-from config import tagoio_handler_url
+from config import tagoio_handler_url, short_link_url
 from data_handling import get_charge_point
 from enumerations import ChargePointStatus
 from tagoio.pool_setup_fetching import get_pool_config
@@ -53,5 +53,6 @@ async def render_emsp_dashboard(request: Request):
             "cpo_names_by_pool": cpo_names_by_pool,
             "station_connectors": station_connectors,
             "base_url": tagoio_handler_url,
+            "short_link_url": short_link_url,
         },
     )

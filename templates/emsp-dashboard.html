@@ -107,7 +107,7 @@
                     <!-- Button Container with explicit vertical separation for touch ergonomics -->
                     <div class="flex flex-col gap-3">
                         <!-- Main Action: QR Generator -->
-                        <button data-url="{{ base_url }}/dashboard/{{ pool_code }}/{{ station }}"
+                        <button data-url="{{ short_link_url }}/{{ pool_code }}/{{ station }}"
                             data-pool="{{ pool_code }}" data-station="{{ station }}"
                             data-cpo="{{ cpo_names_by_pool[pool_code] }}" onclick="openQrModalFromData(this)"
                             class="w-full bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-label-caps text-label-caps py-sm px-md rounded-lg transition-opacity flex items-center justify-center gap-xs">
@@ -164,7 +164,7 @@
                     <button onclick="printPoster()"
                         class="flex-1 bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-label-sm py-2 px-4 rounded-lg flex items-center justify-center gap-2">
                         <span class="material-symbols-outlined text-[18px]">print</span>
-                        Cartel A4 / PDF
+                        Cartel A5 / PDF
                     </button>
                 </div>
             </div>
@@ -172,7 +172,7 @@
     </div>
 
     <!-- Print Template to print the QR Code poster -->
-    {% include 'partials/print-qr.html' %}
+    {% include 'partials/print-qr-A5.html' %}
 
     <script src="/static/js/emsp-dashboard.js"></script>
 </body>

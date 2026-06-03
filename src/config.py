@@ -25,6 +25,11 @@ if tagoio_handler_url_env is None:
     raise EnvironmentError(f"TAGOIO_HANDLER_URL {not_set_error}")
 tagoio_handler_url: str = tagoio_handler_url_env
 
+short_link_url_env = os.getenv("SHORT_LINK_URL")
+if short_link_url_env is None:
+    raise EnvironmentError(f"SHORT_LINK_URL {not_set_error}")
+short_link_url: str = short_link_url_env
+
 # endregion
 
 port_env = os.getenv("API_PORT")

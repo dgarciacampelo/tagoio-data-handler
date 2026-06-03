@@ -117,6 +117,10 @@ function printPoster() {
         printWindow.document.open();
         printWindow.document.write(htmlContent);
         printWindow.document.close(); // Crucial: tells the browser writing is finished so it can fire window.onload
+        printWindow.onload = function () {
+            printWindow.focus(); // Focus the new window before printing
+            printWindow.print(); // This will open the print dialog
+        };
     } else {
         alert("Por favor, permita las ventanas emergentes (pop-ups) para imprimir el cartel.");
     }
