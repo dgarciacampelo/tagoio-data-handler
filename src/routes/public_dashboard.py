@@ -26,7 +26,7 @@ templates.env.globals["ChargePointStatus"] = ChargePointStatus
 cp_status_map = {e.value.lower(): e for e in ChargePointStatus}
 
 
-@router.get("/dashboard/{pool_code}/{station_name}")
+@router.get("/{pool_code:int}/{station_name}")
 async def render_public_dashboard(
     request: Request,
     pool_code: int,
@@ -161,7 +161,7 @@ async def trigger_stop_request(
         raise HTTPException(status_code=500, detail="Internal server error.")
 
 
-@router.get("/dashboard/partial/status/{pool_code}/{station_name}")
+@router.get("/partial/status/{pool_code}/{station_name}")
 async def render_status_card_partial(
     request: Request,
     pool_code: int,

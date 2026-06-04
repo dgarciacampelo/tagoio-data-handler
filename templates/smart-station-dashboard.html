@@ -78,7 +78,7 @@
                     {% endif %}
 
                     <div id="status-card-container" class="flex-1 flex flex-col"
-                        hx-get="/dashboard/partial/status/{{ pool_code }}/{{ station_name }}?cid={{ current_cid }}{% if force_status_str %}&force-status={{ force_status_str }}{% endif %}"
+                        hx-get="/partial/status/{{ pool_code }}/{{ station_name }}?cid={{ current_cid }}{% if force_status_str %}&force-status={{ force_status_str }}{% endif %}"
                         hx-trigger="every 5s" hx-swap="innerHTML">
                         {% include 'partials/status-card.html' %}
                     </div>

@@ -130,3 +130,16 @@ function printPoster() {
 document.getElementById('qr-modal').addEventListener('click', function (e) {
     if (e.target === this) { closeQrModal(); }
 });
+
+// Handles the generation of QR codes for stations that have not yet connected to OCPP
+function handleScaffoldSubmit(event) {
+    event.preventDefault();
+
+    const poolCode = document.getElementById('scaffold-pool').value.trim();
+    const stationName = document.getElementById('scaffold-station').value.trim();
+    const cpoName = window.cpoDirectory[poolCode] || ""; // CPO name lookup based on the pool code
+    const url = `${window.shortLinkBase}/${poolCode}/${stationName}`; // Construct the native route
+
+    // Leverage the existing modal logic
+    openQrModal(url, poolCode, stationName, cpoName);
+}
