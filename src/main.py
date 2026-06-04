@@ -8,7 +8,9 @@ from fastapi import Depends, FastAPI
 from fastapi.security import HTTPBasic
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
+from starlette.middleware.sessions import SessionMiddleware
 
+from config import dashboard_secret_key
 from config import port as api_port
 from data_handling import load_statuses_from_db
 from routes.audit_dashboard import router as audit_dashboard_router  # For the "Audit Dashboard" for internal use
@@ -33,6 +35,7 @@ logger.add(sys.stderr, level=INFO, colorize=True)
 
 app = FastAPI()
 security = HTTPBasic()
+app.add_middleware(SessionMiddleware, secret_key=dashboard_secret_key, max_age=604800)
 
 # Mount the static directory
 app.mount("/static", StaticFiles(directory="static"), name="static")

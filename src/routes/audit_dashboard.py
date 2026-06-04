@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import StreamingResponse
 from database.query_database import get_recent_sessions, get_session_history, get_telemetry_for_session
 from export_utils import generate_telemetry_excel
+from security import check_admin_credentials
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
 
-@router.get("/emsp-dashboard/audits")
+@router.get("/emsp-dashboard/audits", dependencies=[Depends(check_admin_credentials)])
 async def render_audit_dashboard(request: Request):
     """Renders the audit dashboard with the latest charging sessions."""
     recent_sessions = get_recent_sessions(limit=100)
@@ -19,7 +20,7 @@ async def render_audit_dashboard(request: Request):
     )
 
 
-@router.get("/api/export-audit/{transaction_id}")
+@router.get("/api/export-audit/{transaction_id}", dependencies=[Depends(check_admin_credentials)])
 async def export_session_audit(transaction_id: int):
     """Generates an XLSX file containing session metadata and tick-by-tick telemetry."""
 

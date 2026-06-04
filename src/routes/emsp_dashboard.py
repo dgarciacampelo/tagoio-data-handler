@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.templating import Jinja2Templates
 
 from charge_points import get_all_known_charge_points
 from config import tagoio_handler_url, short_link_url
 from data_handling import get_charge_point
 from enumerations import ChargePointStatus
+from security import check_admin_credentials
 from tagoio.pool_setup_fetching import get_pool_config
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
 
-@router.get("/emsp-dashboard")
+@router.get("/emsp-dashboard", dependencies=[Depends(check_admin_credentials)])
 async def render_emsp_dashboard(request: Request):
     """Renders the eMSP dashboard with all known charging stations and their connectors."""
     pools_data = get_all_known_charge_points()
