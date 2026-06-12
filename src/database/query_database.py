@@ -316,7 +316,7 @@ def get_session_history(transaction_id: int, db_file: str = database_file) -> Op
         return None
 
 
-def get_recent_sessions(limit: int = 50, db_file: str = database_file) -> list[dict]:
+def get_recent_sessions(limit: int = 50, pool_code: Optional[int] = None, db_file: str = database_file) -> list[dict]:
     """Retrieves recent completed sessions with full rate and energy breakdown."""
     query = """
         SELECT transaction_id, pool_code, station_name, connector_id, 
@@ -325,19 +325,29 @@ def get_recent_sessions(limit: int = 50, db_file: str = database_file) -> list[d
             rate_off_peak, rate_flat, rate_peak,
             energy_off_peak, energy_flat, energy_peak
         FROM charging_session_history 
-        ORDER BY created_at DESC LIMIT ?
     """
+    params = []
+
+    # Conditionally add the WHERE clause
+    if pool_code is not None:
+        query += " WHERE pool_code = ?"
+        params.append(pool_code)
+
+    # Always append the ORDER BY and LIMIT
+    query += " ORDER BY created_at DESC LIMIT ?"
+    params.append(limit)
+
     try:
         with sqlite3.connect(db_file) as conn:
             conn.row_factory = sqlite3.Row
-            rows = conn.execute(query, (limit,)).fetchall()
+            rows = conn.execute(query, tuple(params)).fetchall()
             return [dict(row) for row in rows]
     except Exception as e:
         logger.error(f"Error retrieving recent sessions: {e}")
         return []
 
 
-def delete_database_cs_telemetry(db_file: str = database_file, days_threshold: int = 30) -> tuple[int, int]:
+def delete_database_cs_telemetry(db_file: str = database_file, days_threshold: int = 120) -> tuple[int, int]:
     """
     Deletes old charging_session_telemetry records from the database table to avoid DB bloat.
     Returns tuple: (deleted_records_count, remaining_records_count)
@@ -363,3 +373,42 @@ def delete_database_cs_telemetry(db_file: str = database_file, days_threshold: i
     except Exception as e:
         logger.error(f"Exception during delete_database_cs_telemetry: {e}")
         return 0, 0
+
+
+def ensure_station_profile_exists(pool_code: int, station_name: str, db_file: str = database_file):
+    """Inserts a default configuration profile if the station was deleted or is brand new."""
+    query = """
+        INSERT OR IGNORE INTO station_config (pool_code, station_name)
+        VALUES (?, ?);
+    """
+    try:
+        with sqlite3.connect(db_file) as conn:
+            conn.execute(query, (pool_code, station_name))
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Error auto-provisioning station profile: {e}")
+
+
+def delete_station_from_db(pool_code: int, station_name: str, db_file: str = database_file) -> bool:
+    """Removes a station from the config and connector_status tables."""
+    delete_config_query = "DELETE FROM station_config WHERE pool_code = ? AND station_name = ?;"
+    delete_status_query = "DELETE FROM connector_status WHERE pool_code = ? AND station_name = ?;"
+
+    try:
+        with sqlite3.connect(db_file) as conn:
+            cursor = conn.cursor()
+
+            # Delete the station configuration
+            cursor.execute(delete_config_query, (pool_code, station_name))
+            rows_affected = cursor.rowcount
+
+            # Delete all cached connector statuses for this station
+            cursor.execute(delete_status_query, (pool_code, station_name))
+
+            conn.commit()
+
+            # Return True if we actually deleted something
+            return rows_affected > 0
+    except Exception as e:
+        logger.error(f"Error deleting station {station_name} from database: {e}")
+        return False

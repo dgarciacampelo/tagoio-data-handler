@@ -10,9 +10,20 @@ templates = Jinja2Templates(directory="templates")
 
 
 @router.get("/emsp-dashboard/audits", dependencies=[Depends(check_admin_credentials)])
-async def render_audit_dashboard(request: Request):
+async def render_global_audit_dashboard(request: Request):
     """Renders the audit dashboard with the latest charging sessions."""
     recent_sessions = get_recent_sessions(limit=100)
+
+    return templates.TemplateResponse(
+        "audit-dashboard.html",
+        {"request": request, "sessions": recent_sessions},
+    )
+
+
+@router.get("/emsp-dashboard/audits/{pool_code}", dependencies=[Depends(check_admin_credentials)])
+async def render_pool_audit_dashboard(request: Request, pool_code: int):
+    """Renders the audit dashboard with the latest charging sessions for a specific pool."""
+    recent_sessions = get_recent_sessions(limit=100, pool_code=pool_code)
 
     return templates.TemplateResponse(
         "audit-dashboard.html",

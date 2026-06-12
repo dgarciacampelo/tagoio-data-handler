@@ -36,7 +36,7 @@ def monthly_database_backup():
     conditional_database_backup(True)
 
 
-def periodic_cs_telemetry_cleanup(days_threshold: int = 30):
+def periodic_cs_telemetry_cleanup(days_threshold: int = 120):
     """Manages the deletion of old records in the charging_session_telemetry table, to avoid DB bloat."""
     deleted_count, remaining_count = delete_database_cs_telemetry(days_threshold=days_threshold)
     logger.info(f"Deleted {deleted_count} telemetry records. {remaining_count} records remaining.")
@@ -81,7 +81,7 @@ def register_schedules():
     Uses its own asyncio event loop, to avoid blocking the FastAPI server.
     """
     logger.info("Setting up schedules, using schedule.run_pending...")
-    schedule.every().day.at("04:00", "Europe/Madrid").do(periodic_cs_telemetry_cleanup, days_threshold=30)
+    schedule.every().day.at("04:00", "Europe/Madrid").do(periodic_cs_telemetry_cleanup, days_threshold=120)
     schedule.every().day.at("08:00", "Europe/Madrid").do(set_device_data_amount_check)
     schedule.every().day.at("20:00", "Europe/Madrid").do(set_device_data_amount_check)
     schedule.every().day.at("20:45", "Europe/Madrid").do(monthly_database_backup)

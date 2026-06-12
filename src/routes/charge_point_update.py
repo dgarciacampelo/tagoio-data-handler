@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from typing import Annotated, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBasic
 from loguru import logger
 from pydantic import ValidationError
-from typing import Annotated, Optional
 
-from config import version  # noqa: F401
-from data_handling import manage_charge_point_update, get_charge_point
-from schemas import ChargePointData, ChargePointUpdateBody, ChargePointUpdate
+from data_handling import get_charge_point, manage_charge_point_update
+from schemas import ChargePointData, ChargePointUpdate, ChargePointUpdateBody
 from security import check_credentials
 
 router = APIRouter()

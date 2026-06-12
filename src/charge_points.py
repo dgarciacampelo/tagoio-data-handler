@@ -12,6 +12,15 @@ def register_charge_point(pool_code: int, station_name: str, connector_id: int):
     known_charge_points[pool_code].add((station_name, connector_id))
 
 
+def unregister_charge_point(pool_code: int, station_name: str):
+    """Removes a station and all its known connectors from memory."""
+    if pool_code in known_charge_points:
+        # ! Create a list of tuples to remove (avoiding modifying the set during iteration)
+        to_remove = [(s_name, cid) for s_name, cid in known_charge_points[pool_code] if s_name == station_name]
+        for item in to_remove:
+            known_charge_points[pool_code].remove(item)
+
+
 def get_pool_known_charge_points(pool_code: int) -> set[tuple[str, int]]:
     """Returns the known charge points for a pool, by pool code"""
     return known_charge_points.get(pool_code, set())

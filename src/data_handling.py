@@ -3,8 +3,9 @@ from typing import Optional
 
 from loguru import logger
 
-from charge_points import get_pool_known_charge_points, register_charge_point
+from charge_points import get_pool_known_charge_points, register_charge_point, unregister_charge_point
 from database.query_database import (
+    ensure_station_profile_exists,
     get_all_connector_statuses,
     insert_charging_session_telemetry,
     insert_database_charging_session_history,
@@ -83,6 +84,7 @@ async def manage_charge_point_update(update: ChargePointUpdate) -> ChargePointDa
     register_charge_point(*search_params)
 
     # Dynamically infer and update the noc based on the payload
+    ensure_station_profile_exists(update.pool_code, update.station_name)
     update_station_noc_if_needed(update.pool_code, update.station_name, update.connector_id)
 
     omitted_updates = 0  # When new_quarantine, the error status is sent
@@ -195,3 +197,17 @@ async def manage_charging_session_update(update: ChargingSessionUpdate) -> None:
     # Update the TagoIO dashboard/s
     await update_management_dashboard_charging_session(update)
     await update_public_dashboard_values(update)
+
+
+def remove_station_from_memory(pool_code: int, station_name: str):
+    """Purges the station and its ongoing data from active RAM."""
+    unregister_charge_point(pool_code, station_name)
+
+    # Clean the live status dictionary
+    keys_to_delete = []
+    for key in charge_points.keys():
+        if key[0] == pool_code and key[1] == station_name:
+            keys_to_delete.append(key)
+
+    for key in keys_to_delete:
+        del charge_points[key]

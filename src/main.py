@@ -22,6 +22,7 @@ from routes.device_token import router as device_token_router
 from routes.emsp_dashboard import router as emsp_dashboard_router  # For the "eMSP Dashboard" for eMSP managers
 from routes.feedback_message import router as feedback_message_router
 from routes.public_dashboard import router as public_dashboard_router  # For the "Smart Dashboard" for OCPP Stations
+from routes.station_management import router as station_management_router
 from routes.trigger_task import router as trigger_task_router
 from schedule_utils import register_schedules, run_schedule_loop
 from security import check_credentials
@@ -50,6 +51,7 @@ app.include_router(device_token_router)
 app.include_router(emsp_dashboard_router)
 app.include_router(feedback_message_router)
 app.include_router(public_dashboard_router)
+app.include_router(station_management_router)
 app.include_router(trigger_task_router)
 
 

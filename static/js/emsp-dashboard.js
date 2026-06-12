@@ -143,3 +143,42 @@ function handleScaffoldSubmit(event) {
     // Leverage the existing modal logic
     openQrModal(url, poolCode, stationName, cpoName);
 }
+
+// Handles the deletion of a station from the dashboard, with confirmation and graceful UI updates
+function confirmDeleteStation(button, poolCode, stationName) {
+    const confirmMessage = `¿Estás seguro de que deseas eliminar la estación "${stationName}" (Instalación ${poolCode})?\nEsta acción la borrará permanentemente de las tablas de la base de datos.`;
+
+    if (!confirm(confirmMessage)) { return; }
+
+    // Temporarily disable the button to prevent multiple clicks while processing
+    button.disabled = true;
+    button.classList.add('opacity-40', 'pointer-events-none');
+
+    const targetUrl = `/api/stations/${poolCode}/${stationName}`; // Delete endpoint for the station
+
+    fetch(targetUrl, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', }
+    })
+        .then(response => {
+            if (response.ok) {  // Soft animation to fade out and remove the station card from the UI
+                const stationCard = button.closest('.bg-surface-container-lowest');
+                if (stationCard) {
+                    stationCard.style.transition = 'all 0.3s ease';
+                    stationCard.style.opacity = '0';
+                    stationCard.style.transform = 'scale(0.95)';
+
+                    setTimeout(() => { stationCard.remove(); }, 300);
+                }
+            } else {
+                throw new Error('La respuesta del servidor no fue exitosa.');
+            }
+        })
+        .catch(error => {
+            console.error('Error al eliminar la estación:', error);
+            alert('No se pudo eliminar la estación de recarga. Por favor, inténtalo de nuevo o revisa la conexión con el servidor.');
+
+            button.disabled = false;
+            button.classList.remove('opacity-40', 'pointer-events-none');
+        });
+}

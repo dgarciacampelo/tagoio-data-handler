@@ -1,5 +1,5 @@
 # * Stage 1: Tailwind CSS Builder
-FROM python:3.12-slim AS css-builder
+FROM python:3.12-slim-bookworm AS css-builder
 
 # Install curl to download the standalone CLI
 RUN apt-get update && apt-get install -y curl
@@ -20,7 +20,7 @@ COPY static ./static
 RUN tailwindcss -i ./static/css/input.css -o ./static/css/output.css --minify
 
 # * Stage 2: Final Application Image
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
 
 # Creation of src directory
 WORKDIR /src
