@@ -187,7 +187,7 @@ async def manage_charging_session_update(update: ChargingSessionUpdate) -> None:
             ChargePointStatus.SUSPENDEDEVSE,
         ]:
             prefix: str = "Inferring CHARGING status from session telemetry for"
-            logger.info(f"{prefix} {update.station_name} [{update.connector_id}]")
+            logger.info(f"{prefix} {update.pool_code}/{update.station_name} [{update.connector_id}]")
             cp_data.charge_point_status = ChargePointStatus.CHARGING
 
             # Persist inferred status to SQLite so it survives hot-reloads

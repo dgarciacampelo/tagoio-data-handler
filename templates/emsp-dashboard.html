@@ -99,78 +99,81 @@
                 </a>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {% for station in stations %}
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-sm w-full">
-                    <div class="flex items-center gap-2 group">
-                        <button onclick="confirmDeleteStation(this, '{{ pool_code }}', '{{ station }}')"
-                            class="text-on-surface-variant hover:text-error transition-colors p-1.5 rounded-full hover:bg-surface-container-high flex items-center justify-center opacity-80 hover:opacity-100"
-                            title="Eliminar Estación de Recarga">
-                            <span class="material-symbols-outlined text-[20px]">delete</span>
+                <div
+                    class="flex flex-col sm:flex-row items-center justify-between w-full border border-outline-variant rounded-xl p-4 gap-4 bg-surface shadow-sm">
+
+                    <div class="flex flex-col gap-3 w-full" style="flex: 6;">
+
+                        <div class="flex items-center gap-2">
+                            <button onclick="confirmDeleteStation(this, '{{ pool_code }}', '{{ station }}')"
+                                class="text-on-surface-variant hover:text-error transition-colors p-1.5 rounded-full hover:bg-surface-container-high flex items-center justify-center opacity-80 hover:opacity-100 shrink-0"
+                                title="Eliminar Estación de Recarga">
+                                <span class="material-symbols-outlined text-[20px]">delete</span>
+                            </button>
+                            <h3 class="font-headline-md text-on-surface break-all">{{ station }}</h3>
+                        </div>
+
+                        <!-- Connectors Container -->
+                        <div class="flex flex-wrap items-center gap-xs w-full pl-10">
+                            {% for cid, station_status in station_connectors[pool_code][station].items() %}
+
+                            {# Localization logic matching status-card.html #}
+                            {% if station_status == 'Available' %}
+                            {% set status_bg = '#15FF00' %}
+                            {% set status_text = 'DISPONIBLE' %}
+                            {% elif station_status in ['SuspendedEV', 'SuspendedEVSE'] %}
+                            {% set status_bg = '#AEAEAE' %}
+                            {% set status_text = 'SUSPENDIDO' %}
+                            {% elif station_status == 'Preparing' %}
+                            {% set status_bg = '#00FFFF' %}
+                            {% set status_text = 'PREPARANDO' %}
+                            {% elif station_status == 'Charging' %}
+                            {% set status_bg = '#FAD000' %}
+                            {% set status_text = 'CARGANDO' %}
+                            {% elif station_status == 'Finishing' %}
+                            {% set status_bg = '#EE88FF' %}
+                            {% set status_text = 'FINALIZANDO' %}
+                            {% elif station_status in ['Faulted', 'Error'] %}
+                            {% set status_bg = '#FF0000' %}
+                            {% set status_text = 'ERROR' %}
+                            {% else %}
+                            {% set status_bg = '#949494' %}
+                            {% set status_text = 'NO DISPONIBLE' %}
+                            {% endif %}
+
+                            <!-- Individual Connector Badge -->
+                            <span
+                                class="font-label-caps text-label-caps px-2 py-1 rounded text-black whitespace-nowrap shadow-sm border border-outline-variant flex items-center gap-xs"
+                                style="background-color: {{ status_bg }};">
+                                <span class="opacity-60 font-mono text-[11px]">C{{ cid }}:</span>
+                                {{ status_text }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-3 w-full" style="flex: 4;">
+                        <!-- Main Action: QR Generator -->
+                        <button data-url="{{ short_link_url }}/{{ pool_code }}/{{ station }}"
+                            data-pool="{{ pool_code }}" data-station="{{ station }}"
+                            data-cpo="{{ cpo_names_by_pool[pool_code] }}" onclick="openQrModalFromData(this)"
+                            class="w-full bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-label-caps text-label-caps py-sm px-md rounded-lg transition-opacity flex items-center justify-center gap-xs">
+                            <span class="material-symbols-outlined text-[18px]">qr_code_2</span>
+                            GENERAR CARTEL QR
                         </button>
 
-                        <h3 class="font-headline-md text-on-surface">{{ station }}</h3>
+                        <!-- Secondary Action: View Live Public Dashboard -->
+                        <a href="{{ short_link_url }}/{{ pool_code }}/{{ station }}" target="_blank"
+                            class="w-full border border-outline hover:bg-surface-container-low text-primary font-label-caps text-label-caps py-sm px-md rounded-lg transition-colors flex items-center justify-center gap-xs text-center">
+                            <span class="material-symbols-outlined text-[18px]">open_in_new</span>
+                            VER PANEL PÚBLICO
+                        </a>
                     </div>
 
-                    <!-- Connectors Container -->
-                    <div class="flex flex-wrap gap-xs">
-                        {% for cid, station_status in station_connectors[pool_code][station].items() %}
-
-                        {# Localization logic matching status-card.html #}
-                        {% if station_status == 'Available' %}
-                        {% set status_bg = '#15FF00' %}
-                        {% set status_text = 'DISPONIBLE' %}
-                        {% elif station_status in ['SuspendedEV', 'SuspendedEVSE'] %}
-                        {% set status_bg = '#AEAEAE' %}
-                        {% set status_text = 'SUSPENDIDO' %}
-                        {% elif station_status == 'Preparing' %}
-                        {% set status_bg = '#00FFFF' %}
-                        {% set status_text = 'PREPARANDO' %}
-                        {% elif station_status == 'Charging' %}
-                        {% set status_bg = '#FAD000' %}
-                        {% set status_text = 'CARGANDO' %}
-                        {% elif station_status == 'Finishing' %}
-                        {% set status_bg = '#EE88FF' %}
-                        {% set status_text = 'FINALIZANDO' %}
-                        {% elif station_status in ['Faulted', 'Error'] %}
-                        {% set status_bg = '#FF0000' %}
-                        {% set status_text = 'ERROR' %}
-                        {% else %}
-                        {% set status_bg = '#949494' %}
-                        {% set status_text = 'NO DISPONIBLE' %}
-                        {% endif %}
-
-                        <!-- Individual Connector Badge -->
-                        <span
-                            class="font-label-caps text-label-caps px-2 py-1 rounded text-black whitespace-nowrap shadow-sm border border-outline-variant flex items-center gap-xs"
-                            style="background-color: {{ status_bg }};">
-                            <span class="opacity-60 font-mono text-[11px]">C{{ cid }}:</span>
-                            {{ status_text }}
-                        </span>
-                        {% endfor %}
-                    </div>
                 </div>
-
-                <!-- Button Container with explicit vertical separation for touch ergonomics -->
-                <div class="flex flex-col gap-3">
-                    <!-- Main Action: QR Generator -->
-                    <button data-url="{{ short_link_url }}/{{ pool_code }}/{{ station }}" data-pool="{{ pool_code }}"
-                        data-station="{{ station }}" data-cpo="{{ cpo_names_by_pool[pool_code] }}"
-                        onclick="openQrModalFromData(this)"
-                        class="w-full bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-label-caps text-label-caps py-sm px-md rounded-lg transition-opacity flex items-center justify-center gap-xs">
-                        <span class="material-symbols-outlined text-[18px]">qr_code_2</span>
-                        GENERAR CARTEL QR
-                    </button>
-
-                    <!-- Secondary Action: View Live Public Dashboard -->
-                    <a href="{{ short_link_url }}/{{ pool_code }}/{{ station }}" target="_blank"
-                        class="w-full border border-outline hover:bg-surface-container-low text-primary font-label-caps text-label-caps py-sm px-md rounded-lg transition-colors flex items-center justify-center gap-xs text-center">
-                        <span class="material-symbols-outlined text-[18px]">open_in_new</span>
-                        VER PANEL PÚBLICO
-                    </a>
-                </div>
-            </div>
-            {% endfor %}
+                {% endfor %}
             </div>
         </section>
         {% endfor %}

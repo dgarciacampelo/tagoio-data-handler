@@ -137,7 +137,7 @@ async def update_public_dashboard_values(update: ChargingSessionUpdate):
         expected_status = translate_status(ChargePointStatus.CHARGING, ConnectionStatus.ONLINE)
 
         if current_status != expected_status:
-            target: str = f"{update.station_name}[{update.connector_id}]"
+            target: str = f"{update.pool_code}/{update.station_name} [{update.connector_id}]"
             logger.info(f"Handler restart / sync loss detected for {target}. Forcing CHARGING status.")
 
             # Forge a status update to explicitly correct the cache and both dashboards

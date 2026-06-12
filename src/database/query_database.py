@@ -213,7 +213,7 @@ def get_charging_sessions_from_pool_code(pool_code: int, db_file: str = database
 
 
 def get_noc_from_db(station_name: str, db_file: str = database_file) -> Optional[int]:
-    """Retrieves the number of connectors (noc) for a given station."""
+    """Retrieves the number of connectors (NOC) for a given station."""
     query = "SELECT noc FROM station_config WHERE station_name = ?;"
     try:
         with sqlite3.connect(db_file) as conn:
@@ -222,7 +222,7 @@ def get_noc_from_db(station_name: str, db_file: str = database_file) -> Optional
                 return result[0]
             return None
     except Exception as e:
-        logger.error(f"Error retrieving noc for station {station_name}: {e}")
+        logger.error(f"Error retrieving NOC for station {station_name}: {e}")
         return None
 
 
@@ -230,8 +230,8 @@ def update_station_noc_if_needed(
     pool_code: int, station_name: str, connector_id: int, db_file: str = database_file
 ) -> None:
     """
-    Infers and updates the number of connectors (noc) for a station.
-    If the incoming connector_id is higher than the stored noc, the database is updated.
+    Infers and updates the number of connectors (NOC) for a station.
+    If the incoming connector_id is higher than the stored NOC, the database is updated.
     """
     select_query = "SELECT noc FROM station_config WHERE station_name = ?;"
     insert_query = """
@@ -248,18 +248,18 @@ def update_station_noc_if_needed(
         with sqlite3.connect(db_file) as conn:
             result = conn.execute(select_query, (station_name,)).fetchone()
 
-            if result is None:  # Station not in DB, insert it with the current connector_id as noc
+            if result is None:  # Station not in DB, insert it with the current connector_id as NOC
                 conn.execute(insert_query, (station_name, pool_code, connector_id))
                 conn.commit()
-                logger.info(f"Registered new station {pool_code}/{station_name} with noc {connector_id}.")
+                logger.info(f"Registered new station {pool_code}/{station_name} with NOC {connector_id}.")
 
             elif connector_id > result[0]:  # Station exists, but a higher connector_id was broadcasted
                 conn.execute(update_query, (connector_id, station_name))
                 conn.commit()
-                logger.info(f"Updated station {pool_code}/{station_name} noc from {result[0]} to {connector_id}.")
+                logger.info(f"Updated station {pool_code}/{station_name} NOC from {result[0]} to {connector_id}.")
 
     except Exception as e:
-        logger.error(f"Error updating noc for station {pool_code}/{station_name}: {e}")
+        logger.error(f"Error updating NOC for station {pool_code}/{station_name}: {e}")
 
 
 def upsert_connector_status(
