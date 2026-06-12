@@ -6,7 +6,7 @@ from loguru import logger
 from pydantic import BaseModel
 
 from config import tago_api_endpoint
-from schemas import PoolConfigUpdate
+from schemas import PoolConfigUpdate, PoolDeviceSetupResponse, RFIDCard
 from tagoio.token_fetching import delete_device_data_by_pool_code, get_headers_by_pool_code
 
 
@@ -88,6 +88,31 @@ async def fetch_variable_last_value(
     else:
         async with httpx.AsyncClient() as temp_client:
             return await _perform_request(temp_client)
+
+
+async def fetch_variable_list(
+    pool_code: int, variable: str, qty: int = 100, client: Optional[httpx.AsyncClient] = None
+) -> list[dict[str, Any]]:
+    """Fetches a list of values for a given variable from TagoIO."""
+    url = f"{tago_api_endpoint}/data"
+    params = {"variable": variable, "qty": qty}
+    headers = get_headers_by_pool_code(pool_code)
+
+    async def _perform(http_client: httpx.AsyncClient):
+        try:
+            response = await http_client.get(url, headers=headers, params=params, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+            if data.get("status") and data.get("result"):
+                return data["result"]
+        except Exception as e:
+            logger.error(f"Error fetching list for {variable} at pool {pool_code}: {e}")
+        return []
+
+    if client:
+        return await _perform(client)
+    async with httpx.AsyncClient() as temp_client:
+        return await _perform(temp_client)
 
 
 async def init_pool_configs(known_pools: list[int]):
@@ -209,3 +234,96 @@ def update_pool_config_in_memory(update: PoolConfigUpdate):
         config.preauth_amount = update.preauth_amount
 
     logger.info(f"Hot-reloaded configuration for Pool {update.pool_code}")
+
+
+async def fetch_full_pool_config(
+    pool_code: int, device_id: str, device_token: str, is_newly_created: bool
+) -> PoolDeviceSetupResponse:
+    """
+    Gathers all installation data from TagoIO concurrently and maps it
+    into the standardized response payload for the CSMS.
+    """
+    # Initialize the response with baseline data
+    response_data = PoolDeviceSetupResponse(
+        pool_code=pool_code, device_id=device_id, device_token=device_token, is_newly_created=is_newly_created
+    )
+
+    # If it's a brand new device, there is no remote data to fetch.
+    if is_newly_created:
+        return response_data
+
+    async with httpx.AsyncClient() as client:  # Launch all HTTP requests concurrently
+        results = await asyncio.gather(
+            fetch_variable_list(pool_code, "card_id", qty=100, client=client),
+            fetch_variable_last_value(pool_code, "operator_info", client=client),
+            fetch_variable_last_value(pool_code, "max_installation_power", client=client),
+            fetch_variable_last_value(pool_code, "load_balancing_mode", client=client),
+            fetch_variable_last_value(pool_code, "rate_costs", client=client),
+            return_exceptions=True,
+        )
+
+    # 1. Unpack the tuple directly to preserve unique positional types
+    res_cards, res_cpo, res_power, res_lbm, res_rates = results
+
+    # 2. Filter out BaseException individually using precise type guards
+    raw_cards = None if isinstance(res_cards, BaseException) else res_cards
+    raw_cpo = None if isinstance(res_cpo, BaseException) else res_cpo
+    raw_power = None if isinstance(res_power, BaseException) else res_power
+    raw_lbm = None if isinstance(res_lbm, BaseException) else res_lbm
+    raw_rates = None if isinstance(res_rates, BaseException) else res_rates
+
+    # 3. Parse RFID Cards
+    if raw_cards:
+        for card_data in raw_cards:
+            try:
+                card_id = card_data["value"]
+                meta = card_data.get("metadata", {})
+                linked_cps_str = meta.get("cps", "")
+                linked_to = set(linked_cps_str.split(", ")) if linked_cps_str else set()
+
+                response_data.cards.append(
+                    RFIDCard(
+                        card_id=card_id,
+                        card_alias=meta.get("alias", card_id),
+                        linked_to=linked_to,
+                        email=meta.get("email"),
+                    )
+                )
+            except KeyError as e:
+                logger.warning(f"Malformed card data at pool {pool_code}: {e}")
+
+    # 4. Parse CPO Info
+    if raw_cpo and "metadata" in raw_cpo:
+        meta = raw_cpo["metadata"]
+        response_data.cpo_name = meta.get("nombre")
+        response_data.cpo_fiscal_id = meta.get("CIF")
+        response_data.cpo_address = meta.get("direccion")
+        response_data.cpo_phone = meta.get("telefono")
+        response_data.cpo_email = meta.get("correo")
+        response_data.cpo_web = meta.get("web")
+
+    # 5. Parse Max Power
+    if raw_power and "value" in raw_power:
+        try:
+            response_data.max_installation_power = float(raw_power["value"])
+        except ValueError:
+            pass
+
+    # 6. Parse Load Balancing Mode
+    if raw_lbm and "value" in raw_lbm:
+        response_data.load_balancing_mode = str(raw_lbm["value"])
+
+    # 7. Parse Rates
+    if raw_rates and "metadata" in raw_rates:
+        meta = raw_rates["metadata"]
+        try:
+            response_data.rate_off_peak = float(meta.get("valle", response_data.rate_off_peak))
+            response_data.rate_flat = float(meta.get("llanas", response_data.rate_flat))
+            response_data.rate_peak = float(meta.get("punta", response_data.rate_peak))
+
+            vat = float(meta.get("IVA", response_data.vat))
+            response_data.vat = vat / 100 if vat > 1 else vat
+        except ValueError:
+            logger.warning(f"Malformed rates at pool {pool_code}")
+
+    return response_data

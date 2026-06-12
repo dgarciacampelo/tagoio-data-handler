@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, model_validator
+from pydantic import BaseModel, EmailStr, Field, model_validator
 from datetime import datetime
 from typing import Optional
 
@@ -154,3 +154,67 @@ class PoolConfigUpdate(BaseModel):
     rate_peak: Optional[float] = None
     vat: Optional[float] = None
     preauth_amount: Optional[float] = None
+
+
+class RFIDCard(BaseModel):
+    """Represents an RFID card that can be used to authorize charging sessions."""
+
+    card_id: str = Field(..., description="The unique physical or virtual card identifier.")
+    card_alias: str = Field(..., description="Display name for dashboards and UI.")
+    linked_to: set[str] = Field(default_factory=set, description="Serial IDs of Charge Points this card can activate.")
+    email: Optional[str] = Field(default=None, description="Email of the cardholder or CPO.")
+    pk: int = Field(default=-1, exclude=True)  # Local PostgreSQL PK, excluded from JSON dumps by default.
+
+    def __hash__(self) -> int:
+        return hash(self.card_id)
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, RFIDCard):
+            return self.card_id == other.card_id
+        if isinstance(other, str):
+            return self.card_id == other
+        return False
+
+
+class PoolDeviceSetupRequest(BaseModel):
+    """
+    Request payload sent by the CSMS to ensure a TagoIO device exists
+    for a given charging pool, creating it with defaults if missing.
+    """
+
+    pool_code: int = Field(..., description="The unique code of the charging pool")
+    server_alias: str = Field(default="Neos", description="Alias of the CSMS server")
+    advanced_plan: bool = Field(default=True, description="Whether to provision the device with an ADVANCED plan")
+
+
+class PoolDeviceSetupResponse(BaseModel):
+    """
+    Response returned to the CSMS containing the device credentials
+    and the pool's remote configuration (fetched or newly defaulted).
+    """
+
+    pool_code: int
+    device_id: str
+    device_token: str
+    is_newly_created: bool
+
+    # Installation & Power Configuration
+    load_balancing_mode: str = Field(default="Ninguno")
+    max_installation_power: float = Field(default=5000.0)
+
+    # Financial Rates and VAT (0.1: 10% VAT)
+    rate_off_peak: float = Field(default=0.4)
+    rate_flat: float = Field(default=0.4)
+    rate_peak: float = Field(default=0.4)
+    vat: float = Field(default=0.1)
+
+    # Optional CPO Info (Will be None if newly created, or populated if fetched)
+    cpo_name: Optional[str] = None
+    cpo_fiscal_id: Optional[str] = None
+    cpo_address: Optional[str] = None
+    cpo_phone: Optional[str] = None
+    cpo_email: Optional[str] = None
+    cpo_web: Optional[str] = None
+
+    # Authorization
+    cards: list[RFIDCard] = Field(default_factory=list)
