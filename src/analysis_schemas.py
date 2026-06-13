@@ -22,7 +22,6 @@ class BaseSSEEvent(BaseModel):
     """The generic envelope structure broadcasted out of the SSE Broker."""
 
     # event_type: SSEEventType (commented out to avoid: overrides symbol of same name in class "BaseSSEEvent")
-    tago_device_id: str
     pool_code: int = Field(..., description="The Charging Pool ID")
 
 
@@ -81,7 +80,7 @@ class ChangeAvailabilityEvent(BaseSSEEvent):
     """Dedicated event for toggling overall operativity directly via the dashboard."""
 
     event_type: Literal[SSEEventType.AVAILABILITY] = SSEEventType.AVAILABILITY
-    serial_id: str
+    station_name: str
 
 
 # Discriminators for Debug Tab OCPP Requests
@@ -89,23 +88,26 @@ class ChangeAvailabilityEvent(BaseSSEEvent):
 
 class StatusNotificationPayload(BaseModel):
     request: Literal["status_notification"]
+    station_names: list[str] = Field(..., description="Target charge points")
     connector_id: int
 
 
 class ChangeAvailabilityPayload(BaseModel):
     request: Literal["change_availability"]
+    station_names: list[str]
     connector_id: int
-    availability_type: Literal["available", "unavailable"]
+    availability_type: Literal["Operative", "Inoperative"]  # Strict OCPP 1.6
 
 
 class ResetPayload(BaseModel):
     request: Literal["reset"]
-    reset_type: Literal["soft", "hard"]
+    station_names: list[str] = Field(..., description="Target charge points")
+    reset_type: Literal["Soft", "Hard"]  # Capitalized to match OCPP spec
 
 
 class RemoteStartPayload(BaseModel):
     request: Literal["remote_start_transaction"]
-    station_name: str
+    station_names: list[str] = Field(..., description="Target charge points")
     connector_id: int
     id_tag: str
 
@@ -125,7 +127,6 @@ class OCPPRequestEvent(BaseSSEEvent):
     """Handles commands dispatched from the Debug Tag in the Management Dashboard."""
 
     event_type: Literal[SSEEventType.OCPP_REQUEST] = SSEEventType.OCPP_REQUEST
-    serial_ids: list[str] = Field(..., description="Target charge points")
     payload: OCPPActionPayload
 
 

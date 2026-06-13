@@ -24,7 +24,8 @@ async def ocpp_requests(context, scope):
             logger.error(f"Cannot process OCPP Request: Unknown Pool code for device {device_id}")
             return
 
-        serial_ids_str = str(scope[0]["value"])
+        raw_station_names = str(scope[0]["value"])
+        station_names = [sn.strip() for sn in raw_station_names.split(",") if sn.strip()]
         # Cast the request type literal to satisfy Pylance for the StatusNotification payload mapping
         request_type = str(scope[1]["value"])
 
@@ -32,29 +33,34 @@ async def ocpp_requests(context, scope):
 
         if request_type == "status_notification":
             payload_model = StatusNotificationPayload(
-                request="status_notification", connector_id=int(scope[2]["value"])
+                request="status_notification", station_names=station_names, connector_id=int(scope[2]["value"])
             )
 
         elif request_type == "change_availability":
-            # Cast the dynamic string to the specific Literal expected by Pydantic
-            avail_type = cast(Literal["available", "unavailable"], str(scope[3]["value"]))
+            # Map TagoIO dashboard's "available"/"unavailable" to OCPP's "Operative"/"Inoperative"
+            ui_value = str(scope[3]["value"]).lower()
+            ocpp_avail = "Operative" if ui_value == "available" else "Inoperative"
 
             payload_model = ChangeAvailabilityPayload(
-                request="change_availability", connector_id=int(scope[2]["value"]), availability_type=avail_type
+                request="change_availability",
+                station_names=station_names,
+                connector_id=int(scope[2]["value"]),
+                availability_type=cast(Literal["Operative", "Inoperative"], ocpp_avail),
             )
 
         elif request_type == "reset":
             # Cast the dynamic string to the specific Literal expected by Pydantic
-            reset_type = cast(Literal["soft", "hard"], str(scope[2]["value"]))
+            raw_reset = str(scope[2]["value"]).capitalize()
+            reset_type = cast(Literal["Soft", "Hard"], raw_reset)
 
-            payload_model = ResetPayload(request="reset", reset_type=reset_type)
+            payload_model = ResetPayload(request="reset", station_names=station_names, reset_type=reset_type)
 
         elif request_type == "remote_start_transaction":
             payload_model = RemoteStartPayload(
                 request="remote_start_transaction",
+                station_names=station_names,
                 connector_id=int(scope[2]["value"]),
                 id_tag=str(scope[3]["value"]),
-                station_name="Placeholder",  # Handled downstream
             )
 
         elif request_type == "remote_stop_transaction":
@@ -64,12 +70,7 @@ async def ocpp_requests(context, scope):
             logger.warning(f"Ignored unsupported or deprecated OCPP request: {request_type}")
             return
 
-        event = OCPPRequestEvent(
-            tago_device_id=device_id,
-            pool_code=pool_code,
-            serial_ids=[sid.strip() for sid in serial_ids_str.split(",") if sid.strip()],
-            payload=payload_model,
-        )
+        event = OCPPRequestEvent(pool_code=pool_code, payload=payload_model)
 
         logger.info(f"Broadcasting OCPP '{request_type}' Event for Pool {pool_code}")
         await event_broker.broadcast(event_name=event.event_type.value, payload=event.model_dump(mode="json"))

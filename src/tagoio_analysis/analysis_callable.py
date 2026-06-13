@@ -67,7 +67,7 @@ async def change_availability(context, scope):
             logger.error(f"Cannot process Availability Event: Unknown Pool code for device {device_id}")
             return
 
-        event = ChangeAvailabilityEvent(tago_device_id=device_id, pool_code=pool_code, serial_id=str(scope[0]["value"]))
+        event = ChangeAvailabilityEvent(pool_code=pool_code, station_name=str(scope[0]["value"]))
 
         logger.info(f"Broadcasting Availability Event for Pool {pool_code}")
         await event_broker.broadcast(event_name=event.event_type.value, payload=event.model_dump(mode="json"))
@@ -95,7 +95,6 @@ async def manage_rfid(context, scope):
             email = str(scope[2].get("value", "")) if "value" in scope[2] else None
 
             event = RFIDManagementEvent(
-                tago_device_id=device_id,
                 pool_code=pool_code,
                 card_id=card_id,
                 action="create",
@@ -106,7 +105,6 @@ async def manage_rfid(context, scope):
         else:
             linked_cps_str = str(scope[0]["metadata"].get("cps", ""))
             event = RFIDManagementEvent(
-                tago_device_id=device_id,
                 pool_code=pool_code,
                 card_id=card_id,
                 action="delete",
@@ -130,9 +128,7 @@ async def change_max_grid_power(context, scope):
             logger.error(f"Cannot process Max Grid Power Event: Unknown Pool code for device {device_id}")
             return
 
-        event = MaxGridPowerEvent(
-            tago_device_id=device_id, pool_code=pool_code, max_power_watts=float(scope[0]["value"])
-        )
+        event = MaxGridPowerEvent(pool_code=pool_code, max_power_watts=float(scope[0]["value"]))
 
         logger.info(f"Broadcasting Max Power Event for Pool {pool_code}")
         await event_broker.broadcast(event_name=event.event_type.value, payload=event.model_dump(mode="json"))
@@ -167,7 +163,6 @@ async def change_cpo_info(context, scope):
 
         # Instantiate the strict Pydantic event
         event = CPOInfoEvent(
-            tago_device_id=device_id,
             pool_code=pool_code,
             name=name,
             fiscal_id=fiscal_id,
@@ -207,7 +202,6 @@ async def change_rate_list(context, scope):
 
         # Instantiate the strict Pydantic event
         event = RateListEvent(
-            tago_device_id=device_id,
             pool_code=pool_code,
             rate_off_peak=rate_off_peak,
             rate_flat=rate_flat,
@@ -237,7 +231,7 @@ async def change_load_balancing_mode(context, scope):
         selected_mode = str(scope[0].get("value", ""))
 
         # Instantiate the strict Pydantic event
-        event = LoadBalancingEvent(tago_device_id=device_id, pool_code=pool_code, selected_mode=selected_mode)
+        event = LoadBalancingEvent(pool_code=pool_code, selected_mode=selected_mode)
 
         logger.info(f"Broadcasting Load Balancing Event for Pool {pool_code} (Mode: '{selected_mode}')")
         await event_broker.broadcast(event_name=event.event_type.value, payload=event.model_dump(mode="json"))
@@ -300,7 +294,7 @@ async def power_consumption_update(context, scope):
             device_id = fetched_device_id or f"unmapped-pool-{pool_code}"
 
         # 4. Instantiate and Broadcast
-        event = PowerUpdateEvent(tago_device_id=device_id, pool_code=pool_code, meter_watts=meter_watts)
+        event = PowerUpdateEvent(pool_code=pool_code, meter_watts=meter_watts)
 
         logger.debug(f"Broadcasting Power Update Event for Pool {pool_code} ({meter_watts} W)")
         await event_broker.broadcast(event_name=event.event_type.value, payload=event.model_dump(mode="json"))
