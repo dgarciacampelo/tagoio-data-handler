@@ -122,15 +122,15 @@ class PaymentAuthRequest(BaseModel):
     requires_invoice: bool
 
     # Invoice fields
-    nif: Optional[str] = None
-    billing_name: Optional[str] = None
-    billing_address: Optional[str] = None
-    invoice_email: Optional[EmailStr] = None
+    receipt_fiscal_id: Optional[str] = None
+    receipt_name: Optional[str] = None
+    receipt_address: Optional[str] = None
+    receipt_email: Optional[EmailStr] = None
 
     @model_validator(mode="after")
     def check_invoice_fields(self):
         if self.requires_invoice:
-            if not all([self.nif, self.billing_name, self.billing_address, self.invoice_email]):
+            if not all([self.receipt_fiscal_id, self.receipt_name, self.receipt_address, self.receipt_email]):
                 raise ValueError("All invoice fields are mandatory when requires_invoice is true")
         return self
 

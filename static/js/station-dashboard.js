@@ -2,10 +2,10 @@
 window.chargingFormState = window.chargingFormState || {
     email: '',
     needReceipt: false,
-    nif: '',
-    billingName: '',
-    billingAddress: '',
-    invoiceEmail: ''
+    receiptFiscalId: '',
+    receiptName: '',
+    receiptAddress: '',
+    receiptEmail: ''
 };
 
 function initFormLogic() {
@@ -31,10 +31,10 @@ function initFormLogic() {
     // 2. Rehydrate State
     document.getElementById('email').value = window.chargingFormState.email;
     receiptToggle.checked = window.chargingFormState.needReceipt;
-    document.getElementById('nif').value = window.chargingFormState.nif;
-    document.getElementById('billing_name').value = window.chargingFormState.billingName;
-    document.getElementById('billing_address').value = window.chargingFormState.billingAddress;
-    document.getElementById('invoice_email').value = window.chargingFormState.invoiceEmail;
+    document.getElementById('receipt_fiscal_id').value = window.chargingFormState.receiptFiscalId;
+    document.getElementById('receipt_name').value = window.chargingFormState.receiptName;
+    document.getElementById('receipt_address').value = window.chargingFormState.receiptAddress;
+    document.getElementById('receipt_email').value = window.chargingFormState.receiptEmail;
 
     // Apply visual grid state based on rehydration
     if (receiptToggle.checked) {
@@ -60,10 +60,10 @@ function initFormLogic() {
 
     // 3. Bind State Updaters
     document.getElementById('email').addEventListener('input', e => window.chargingFormState.email = e.target.value);
-    document.getElementById('nif').addEventListener('input', e => window.chargingFormState.nif = e.target.value);
-    document.getElementById('billing_name').addEventListener('input', e => window.chargingFormState.billingName = e.target.value);
-    document.getElementById('billing_address').addEventListener('input', e => window.chargingFormState.billingAddress = e.target.value);
-    document.getElementById('invoice_email').addEventListener('input', e => window.chargingFormState.invoiceEmail = e.target.value);
+    document.getElementById('receipt_fiscal_id').addEventListener('input', e => window.chargingFormState.receiptFiscalId = e.target.value);
+    document.getElementById('receipt_name').addEventListener('input', e => window.chargingFormState.receiptName = e.target.value);
+    document.getElementById('receipt_address').addEventListener('input', e => window.chargingFormState.receiptAddress = e.target.value);
+    document.getElementById('receipt_email').addEventListener('input', e => window.chargingFormState.receiptEmail = e.target.value);
 
     // Listen to all form input events to check validity in real-time
     form.addEventListener('input', checkFormValidity);
@@ -111,10 +111,10 @@ function initFormLogic() {
             connector_id: parseInt(document.getElementById('connector_id').value, 10),
             email: document.getElementById('email').value,
             requires_invoice: receiptToggle.checked,
-            nif: document.getElementById('nif').value || null,
-            billing_name: document.getElementById('billing_name').value || null,
-            billing_address: document.getElementById('billing_address').value || null,
-            invoice_email: document.getElementById('invoice_email').value || null
+            receipt_fiscal_id: document.getElementById('receipt_fiscal_id').value || null,
+            receipt_name: document.getElementById('receipt_name').value || null,
+            receipt_address: document.getElementById('receipt_address').value || null,
+            receipt_email: document.getElementById('receipt_email').value || null
         };
 
         try {
@@ -131,7 +131,7 @@ function initFormLogic() {
             successState.classList.add('flex');
 
             // Wipe state on success so it doesn't linger if they charge again later
-            window.chargingFormState = { email: '', needReceipt: false, nif: '', billingName: '', billingAddress: '', invoiceEmail: '' };
+            window.chargingFormState = { email: '', needReceipt: false, receiptFiscalId: '', receiptName: '', receiptAddress: '', receiptEmail: '' };
 
         } catch (error) {
             console.error('Submission failed:', error);

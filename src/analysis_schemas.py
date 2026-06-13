@@ -142,14 +142,15 @@ class VPOSStartEvent(BaseSSEEvent):
     connector_id: int
 
     email: str  # EV user email to receive URL link to the virtual POS payment page
+    amount: float = 40.0  # Amount in currency units (EUR)
+    currency: str = "EUR"
+
     # Optional fields for the receipt information (requested to the Charging Pool CPO):
+    requires_invoice: bool
     receipt_email: Optional[str] = None
     receipt_name: Optional[str] = None
     receipt_fiscal_id: Optional[str] = None
     receipt_address: Optional[str] = None
-
-    amount: float = 40.0  # Amount in currency units (EUR)
-    currency: str = "EUR"
 
 
 class VPOSStopEvent(BaseSSEEvent):

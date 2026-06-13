@@ -1,17 +1,15 @@
-from datetime import datetime, timezone
-from typing import Any, Optional
-from uuid import uuid4
+from typing import Optional
 
-import httpx
 from fastapi import APIRouter, Form, HTTPException, Query, Request
 from fastapi.templating import Jinja2Templates
 from loguru import logger
 
-from config import payments_gateway_device_token as payments_gateway_token
+from analysis_schemas import VPOSStartEvent, VPOSStopEvent
 from data_handling import get_active_session, get_charge_point
 from database.query_database import get_noc_from_db
 from enumerations import ChargePointStatus
 from schemas import PaymentAuthRequest
+from sse_broker import event_broker
 from tagoio.pool_setup_fetching import get_pool_config
 
 router = APIRouter()
@@ -79,50 +77,44 @@ async def render_public_dashboard(
 
 @router.post("/api/charge-request")
 async def trigger_payment_authorization(request: PaymentAuthRequest):
-    # Generate a unique group ID for this transaction request
-    event_group = uuid4().hex
+    try:
+        # 1. Securely fetch the required holding amount from the server-side cache
+        pool_config = get_pool_config(request.pool_code)
+        if not pool_config:
+            raise HTTPException(status_code=404, detail="Pool configuration not found")
 
-    # Follow the same cp_id format used in TagoIO for consistency in variable naming
-    cp_id = f"{request.pool_code}/{request.station_name}"
+        # Fallback to 40.0 if not explicitly set in the config
+        amount = getattr(pool_config, "preauth_amount", 40.0)
 
-    # Include the current time timestamp as idempotency key for the payment management
-    timestamp: int = int(datetime.now(timezone.utc).timestamp() * 1000)  # Convert to milliseconds
-
-    # Base payload for Paycomet pre-auth (using Any as type to avoid static type checking issues with the dynamic payload construction)
-    tago_payload: list[dict[str, Any]] = [
-        {"variable": "cp_id", "value": cp_id, "group": event_group},
-        {"variable": "connector_id", "value": str(request.connector_id), "group": event_group},
-        {"variable": "email", "value": request.email, "group": event_group},
-        {"variable": "payqr_start", "value": timestamp, "group": event_group},
-    ]
-
-    # Append Receipt variables if requested
-    if request.requires_invoice:
-        tago_payload.extend(
-            [
-                {"variable": "receipt_fiscal_id", "value": request.nif, "group": event_group},
-                {"variable": "receipt_name", "value": request.billing_name, "group": event_group},
-                {"variable": "receipt_address", "value": request.billing_address, "group": event_group},
-                {"variable": "receipt_email", "value": request.invoice_email, "group": event_group},
-            ]
+        # 2. Package the event for the CSMS
+        event = VPOSStartEvent(
+            pool_code=request.pool_code,
+            station_name=request.station_name,
+            connector_id=request.connector_id,
+            email=request.email,
+            amount=amount,
+            # Unpack the invoice fields safely
+            requires_invoice=request.requires_invoice,
+            receipt_fiscal_id=request.receipt_fiscal_id,
+            receipt_name=request.receipt_name,
+            receipt_address=request.receipt_address,
+            receipt_email=request.receipt_email,
         )
 
-    headers = {"Content-Type": "application/json", "Device-Token": payments_gateway_token}
+        # 3. Broadcast to the SSE stream
+        pool_code, station_name, connector_id = request.pool_code, request.station_name, request.connector_id
+        logger.info(f"Broadcasting VPOS Start Request for {pool_code}/{station_name} [{connector_id}] ({amount}€)")
 
-    try:  # POST to TagoIO immutable bucket
-        async with httpx.AsyncClient() as client:
-            response = await client.post("https://api.tago.io/data", json=tago_payload, headers=headers)
-            response.raise_for_status()
+        await event_broker.broadcast(event_name=event.event_type.value, payload=event.model_dump(mode="json"))
 
-            logger.info(f"Payment analysis triggered for {cp_id} [{request.connector_id}]")
-            return {"status": "success"}
+        return {"status": "pending_authorization", "amount_requested": amount}
 
-    except httpx.HTTPStatusError as e:
-        logger.error(f"TagoIO API Error: {e.response.text}")
-        raise HTTPException(status_code=502, detail="Gateway error communicating with payment handler.")
+    except ValueError as ve:  # Catch Pydantic validation errors explicitly
+        logger.warning(f"VPOS Request Validation Error: {ve}")
+        raise HTTPException(status_code=422, detail=str(ve))
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error.")
+        logger.error(f"Failed to broadcast VPOS Start Request: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/api/stop-request")
@@ -130,36 +122,19 @@ async def trigger_stop_request(
     pool_code: int = Form(...), station_name: str = Form(...), connector_id: int = Form(...)
 ):
     """
-    Triggers the stop analysis in TagoIO by sending the payqr_stop pivot variable.
+    Triggers a SSE event to stop the charging session for a specific connector.
     Expects form data natively sent by HTMX hx-vals.
     """
-    event_group = uuid4().hex
-    cp_id = f"{pool_code}/{station_name}"
-    timestamp: int = int(datetime.now(timezone.utc).timestamp() * 1000)
-
-    # Base payload for Paycomet/OCPP stop routing
-    tago_payload: list[dict[str, Any]] = [
-        {"variable": "cp_id", "value": cp_id, "group": event_group},
-        {"variable": "connector_id", "value": str(connector_id), "group": event_group},
-        {"variable": "payqr_stop", "value": timestamp, "group": event_group},
-    ]
-
-    headers = {"Content-Type": "application/json", "Device-Token": payments_gateway_token}
-
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post("https://api.tago.io/data", json=tago_payload, headers=headers)
-            response.raise_for_status()
+        event = VPOSStopEvent(pool_code=pool_code, station_name=station_name, connector_id=connector_id)
 
-            logger.info(f"Stop analysis triggered for {cp_id} [{connector_id}]")
-            return {"status": "success"}
+        logger.info(f"Broadcasting VPOS Stop Request for {pool_code}/{station_name} [{connector_id}]")
+        await event_broker.broadcast(event_name=event.event_type.value, payload=event.model_dump(mode="json"))
 
-    except httpx.HTTPStatusError as e:
-        logger.error(f"TagoIO API Error: {e.response.text}")
-        raise HTTPException(status_code=502, detail="Gateway error communicating with stop handler.")
+        return {"status": "success", "message": "Stop request dispatched"}
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error.")
+        logger.error(f"Failed to broadcast VPOS Stop Request: {e}")
+        return {"status": "error", "message": "Internal server error"}
 
 
 @router.get("/partial/status/{pool_code}/{station_name}")
