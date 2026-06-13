@@ -65,6 +65,17 @@ def get_database_tagoio_device(pool_code: int, db_file: str = database_file):
         return None
 
 
+def get_database_pool_code_by_device_id(device_id: str, db_file: str = database_file):
+    "Returns the pool code for a given device ID."
+    query = "SELECT pool_code FROM tagoio_device WHERE device_id = ?;"
+    try:
+        with sqlite3.connect(db_file) as conn:
+            return conn.execute(query, (device_id,)).fetchone()[0]
+    except Exception as e:
+        logger.error(f"Exception during get_database_pool_code_by_device_id: {e}")
+        return None
+
+
 def insert_database_tagoio_device(pool_code: int, device_id: str, device_token: str, db_file: str = database_file):
     "Inserts a new tagoio_device into the database table."
     query = "INSERT INTO tagoio_device (pool_code, device_id, device_token) VALUES (?, ?, ?);"

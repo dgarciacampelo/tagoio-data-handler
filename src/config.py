@@ -1,6 +1,9 @@
 import os
-from dotenv import load_dotenv
+from dataclasses import dataclass
+from typing import Optional
+from uuid import UUID
 
+from dotenv import load_dotenv
 
 service_name: str = "TagoIO data handler"
 not_int_error: str = "is not a valid integer!"
@@ -110,3 +113,63 @@ try:
 except ValueError:
     name: str = "TELEGRAM_BACKUPS_CHAT_ID"
     raise EnvironmentError(f"{name} ('{tg_backups_chat_id_env}') {not_int_error}")
+
+
+# Tokens for TagoIO Analysis workers:
+change_availability_token_env: Optional[str] = os.getenv("TAGO_CHANGE_AVAILABILITY_TOKEN")
+if change_availability_token_env is None:
+    raise EnvironmentError(f"TAGO_CHANGE_AVAILABILITY_TOKEN {not_set_error}")
+
+change_max_grid_power_token_env: Optional[str] = os.getenv("TAGO_CHANGE_MAX_POWER_GRID_TOKEN")
+if change_max_grid_power_token_env is None:
+    raise EnvironmentError(f"TAGO_CHANGE_MAX_POWER_GRID_TOKEN {not_set_error}")
+
+manage_rfid_token_env: Optional[str] = os.getenv("TAGO_MANAGE_RFID_TOKEN")
+if manage_rfid_token_env is None:
+    raise EnvironmentError(f"TAGO_MANAGE_RFID_TOKEN {not_set_error}")
+
+change_cpo_info_token_env: Optional[str] = os.getenv("TAGO_CHANGE_CPO_INFO_TOKEN")
+if change_cpo_info_token_env is None:
+    raise EnvironmentError(f"TAGO_CHANGE_CPO_INFO_TOKEN {not_set_error}")
+
+change_rate_list_token_env: Optional[str] = os.getenv("TAGO_CHANGE_RATE_LIST_TOKEN")
+if change_rate_list_token_env is None:
+    raise EnvironmentError(f"TAGO_CHANGE_RATE_LIST_TOKEN {not_set_error}")
+
+change_dlb_mode_token_env: Optional[str] = os.getenv("TAGO_CHANGE_LOAD_BALANCING_MODE_TOKEN")
+if change_dlb_mode_token_env is None:
+    raise EnvironmentError(f"TAGO_CHANGE_LOAD_BALANCING_MODE_TOKEN {not_set_error}")
+
+power_consumption_update_token_env: Optional[str] = os.getenv("TAGO_METER_VALUES_MQTT_TOKEN")
+if power_consumption_update_token_env is None:
+    raise EnvironmentError(f"TAGO_METER_VALUES_MQTT_TOKEN {not_set_error}")
+
+ocpp_requests_token_env: Optional[str] = os.getenv("TAGO_OCPP_REQUESTS_TOKEN")
+if ocpp_requests_token_env is None:
+    raise EnvironmentError(f"TAGO_OCPP_REQUESTS_TOKEN {not_set_error}")
+
+
+@dataclass(frozen=True)
+class AnalysisTokensContainer:
+    """Token container for TagoIO Analysis workers."""
+
+    change_availability_token: UUID
+    change_max_grid_power_token: UUID
+    manage_rfid_token: UUID
+    change_cpo_info_token: UUID
+    change_rate_list_token: UUID
+    change_dlb_mode_token: UUID
+    power_consumption_update_token: UUID
+    ocpp_requests_token: UUID
+
+
+analysis_tokens = AnalysisTokensContainer(
+    change_availability_token=UUID(change_availability_token_env),
+    change_max_grid_power_token=UUID(change_max_grid_power_token_env),
+    manage_rfid_token=UUID(manage_rfid_token_env),
+    change_cpo_info_token=UUID(change_cpo_info_token_env),
+    change_rate_list_token=UUID(change_rate_list_token_env),
+    change_dlb_mode_token=UUID(change_dlb_mode_token_env),
+    power_consumption_update_token=UUID(power_consumption_update_token_env),
+    ocpp_requests_token=UUID(ocpp_requests_token_env),
+)

@@ -137,3 +137,19 @@ class ValidationAlert(StrEnum):
     ACCEPT = "accept"
     REJECT = "danger"
     WARNING = "warning"
+
+
+class SSEEventType(StrEnum):
+    """Event types for the Server-Sent Events (SSE) broker"""
+
+    AVAILABILITY = "change_availability"
+    MAX_GRID_POWER = "change_max_grid_power"
+    RFID_MANAGEMENT = "manage_rfid"
+    CPO_INFO = "change_cpo_info"
+    RATE_LIST = "change_rate_list"
+    LOAD_BALANCING = "change_load_balancing_mode"
+    OCPP_REQUEST = "ocpp_request"
+    POWER_UPDATE = "power_consumption_update"
+    # Related to Paycomet payment gateway integration for virtual POS transactions:
+    VPOS_START = "virtual_POS_start_transaction"
+    VPOS_STOP = "virtual_POS_stop_transaction"

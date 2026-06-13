@@ -2,7 +2,7 @@ import asyncio
 from fastapi import APIRouter, Request, Depends
 from sse_starlette.sse import EventSourceResponse
 
-from sse_broker import broker
+from sse_broker import event_broker
 from security import check_credentials
 
 router = APIRouter()
@@ -14,7 +14,7 @@ async def sse_event_stream(request: Request):
     Endpoint for CSMS instances to connect and listen for events.
     Provides an ACL between TagoIO "Analysis" and the CSMS instances.
     """
-    queue = await broker.subscribe()
+    queue = await event_broker.subscribe()
 
     async def event_generator():
         try:
@@ -34,7 +34,7 @@ async def sse_event_stream(request: Request):
         except asyncio.CancelledError:
             pass  # Triggered when the client forcefully closes the connection
         finally:
-            broker.unsubscribe(queue)
+            event_broker.unsubscribe(queue)
 
     # ping=15 sends a keep-alive comment every 15 seconds to prevent load balancers from dropping the connection
     return EventSourceResponse(event_generator(), ping=15)

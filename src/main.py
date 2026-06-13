@@ -12,7 +12,6 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from config import dashboard_secret_key
 from config import port as api_port
-from data_handling import load_statuses_from_db
 from routes.audit_dashboard import router as audit_dashboard_router  # For the "Audit Dashboard" for internal use
 from routes.charge_point_alias import router as charge_point_alias_router
 from routes.charge_point_update import router as charge_point_update_router
@@ -23,20 +22,18 @@ from routes.emsp_dashboard import router as emsp_dashboard_router  # For the "eM
 from routes.feedback_message import router as feedback_message_router
 from routes.pool_management import router as pool_management_router  # For managing the charging pool configurations
 from routes.public_dashboard import router as public_dashboard_router  # For the "Smart Dashboard" for OCPP Stations
-from routes.station_management import router as station_management_router
 from routes.sse_stream import router as sse_stream_router  # For the SSE event stream for CSMS instances
+from routes.station_management import router as station_management_router
 from routes.trigger_task import router as trigger_task_router
-from schedule_utils import register_schedules, run_schedule_loop
 from security import check_credentials
-from tagoio.pool_setup_fetching import init_pool_configs
-from tagoio.token_fetching import get_all_devices_data
+from tagoio_analysis.lifecycle import application_lifespan
 
 # ? https://loguru.readthedocs.io/en/stable/api/logger.html#sink
 logger.remove()
 logger.add(sys.stderr, level=INFO, colorize=True)
 
 
-app = FastAPI()
+app = FastAPI(lifespan=application_lifespan)  # With TagoIO Analysis Worker Lifespan handler
 security = HTTPBasic()
 app.add_middleware(SessionMiddleware, secret_key=dashboard_secret_key, max_age=604800)
 
@@ -73,23 +70,14 @@ async def setup_rest_api_server():
 
 
 async def main():
-    """Uses asyncio tasks to avoid the schedule library blocking uvicorn."""
+    """
+    Uses asyncio tasks to avoid the schedule library blocking uvicorn.
 
-    # Extract the known charging pool codes from the devices dictionary
-    devices_data = get_all_devices_data()
-    known_pools = list(devices_data.keys())
-    load_statuses_from_db()  # Load the last known charge point statuses from the local DB at startup
-
-    # 1. Register schedules synchronously first
-    register_schedules()
-
-    # 2. Create the concurrent background tasks
-    rest_server_task = asyncio.create_task(setup_rest_api_server())
-    schedules_loop_task = asyncio.create_task(run_schedule_loop())
-    pool_configs_task = asyncio.create_task(init_pool_configs(known_pools))
-
-    # 3. Run them all concurrently
-    await asyncio.gather(rest_server_task, schedules_loop_task, pool_configs_task)
+    All background tasks (Schedules, Pool Configs, TagoIO Workers) are now strictly
+    managed by the FastAPI lifespan handler in lifecycle.py. We only need to start
+    the REST server here.
+    """
+    await setup_rest_api_server()
 
 
 if __name__ == "__main__":

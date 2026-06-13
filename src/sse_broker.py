@@ -45,4 +45,4 @@ class SSEBroker:
 
 
 # Global singleton instance to be imported by routes
-broker = SSEBroker()
+event_broker = SSEBroker()

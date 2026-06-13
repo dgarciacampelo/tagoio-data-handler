@@ -90,13 +90,24 @@ def register_schedules():
 
 async def run_schedule_loop():
     """Runs the infinite loop to execute pending jobs."""
-    while True:  # We no longer need the 5 second sleep here because we separated the logic
-        schedule.run_pending()
-        if get_and_reset_device_data_amount_check():
-            await device_data_amount_check()
+    while True:
+        try:
+            # Offload synchronous blocking tasks (DB cleanup, backups, zipping) to a thread pool
+            # This prevents event loop starvation so FastAPI and SSE streams stay alive.
+            await asyncio.to_thread(schedule.run_pending)
 
-        for file_to_send, bot_token, chat_id in pending_document_generator():
-            result_ok: bool = await upload_document(file_to_send, bot_token, chat_id)
-            if not result_ok:
-                logger.warning(f"Error uploading document: {file_to_send}")
-        await asyncio.sleep(15)
+            # Handle the async TagoIO data check if flagged
+            if get_and_reset_device_data_amount_check():
+                await device_data_amount_check()
+
+            # Handle pending Telegram uploads concurrently
+            for file_to_send, bot_token, chat_id in pending_document_generator():
+                result_ok: bool = await upload_document(file_to_send, bot_token, chat_id)
+                if not result_ok:
+                    logger.warning(f"Error uploading document: {file_to_send}")
+
+        except Exception as e:
+            logger.error(f"Error executing background schedule loop: {e}")
+
+        finally:
+            await asyncio.sleep(15)
