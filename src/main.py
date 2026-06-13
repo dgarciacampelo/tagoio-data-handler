@@ -24,6 +24,7 @@ from routes.feedback_message import router as feedback_message_router
 from routes.pool_management import router as pool_management_router  # For managing the charging pool configurations
 from routes.public_dashboard import router as public_dashboard_router  # For the "Smart Dashboard" for OCPP Stations
 from routes.station_management import router as station_management_router
+from routes.sse_stream import router as sse_stream_router  # For the SSE event stream for CSMS instances
 from routes.trigger_task import router as trigger_task_router
 from schedule_utils import register_schedules, run_schedule_loop
 from security import check_credentials
@@ -53,6 +54,7 @@ app.include_router(emsp_dashboard_router)
 app.include_router(feedback_message_router)
 app.include_router(pool_management_router)
 app.include_router(public_dashboard_router)
+app.include_router(sse_stream_router)
 app.include_router(station_management_router)
 app.include_router(trigger_task_router)
 
