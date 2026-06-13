@@ -259,11 +259,12 @@ async def fetch_full_pool_config(
             fetch_variable_last_value(pool_code, "max_installation_power", client=client),
             fetch_variable_last_value(pool_code, "load_balancing_mode", client=client),
             fetch_variable_last_value(pool_code, "rate_costs", client=client),
+            fetch_variable_last_value(pool_code, "withholding_amount", client=client),  # <-- Added task
             return_exceptions=True,
         )
 
     # 1. Unpack the tuple directly to preserve unique positional types
-    res_cards, res_cpo, res_power, res_lbm, res_rates = results
+    res_cards, res_cpo, res_power, res_lbm, res_rates, res_withholding = results
 
     # 2. Filter out BaseException individually using precise type guards
     raw_cards = None if isinstance(res_cards, BaseException) else res_cards
@@ -271,6 +272,7 @@ async def fetch_full_pool_config(
     raw_power = None if isinstance(res_power, BaseException) else res_power
     raw_lbm = None if isinstance(res_lbm, BaseException) else res_lbm
     raw_rates = None if isinstance(res_rates, BaseException) else res_rates
+    raw_withholding = None if isinstance(res_withholding, BaseException) else res_withholding
 
     # 3. Parse RFID Cards
     if raw_cards:
@@ -325,5 +327,12 @@ async def fetch_full_pool_config(
             response_data.vat = vat / 100 if vat > 1 else vat
         except ValueError:
             logger.warning(f"Malformed rates at pool {pool_code}")
+
+    # 8. Parse Withholding Amount
+    if raw_withholding and "value" in raw_withholding:
+        try:
+            response_data.preauth_amount = float(raw_withholding["value"])
+        except (ValueError, TypeError):
+            logger.warning(f"Malformed withholding_amount at pool {pool_code}")
 
     return response_data

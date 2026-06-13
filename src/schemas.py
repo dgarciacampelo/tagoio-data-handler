@@ -207,6 +207,7 @@ class PoolDeviceSetupResponse(BaseModel):
     rate_flat: float = Field(default=0.4)
     rate_peak: float = Field(default=0.4)
     vat: float = Field(default=0.1)
+    preauth_amount: float = Field(default=40.0, description="Amount to preauthorize for charging sessions, in €")
 
     # Optional CPO Info (Will be None if newly created, or populated if fetched)
     cpo_name: Optional[str] = None
