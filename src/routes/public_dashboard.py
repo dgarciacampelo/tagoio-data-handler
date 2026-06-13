@@ -61,8 +61,9 @@ async def render_public_dashboard(
     pool_config = get_pool_config(pool_code)
 
     return templates.TemplateResponse(
-        "smart-station-dashboard.html",
-        {
+        request=request,
+        name="smart-station-dashboard.html",
+        context={
             "request": request,
             "pool_code": pool_code,
             "station_name": station_name,
@@ -188,8 +189,9 @@ async def render_status_card_partial(
     pool_config = get_pool_config(pool_code)
 
     return templates.TemplateResponse(
-        "partials/poll-update.html",
-        {
+        request=request,
+        name="partials/poll-update.html",
+        context={
             "request": request,
             "pool_code": pool_code,
             "station_name": station_name,

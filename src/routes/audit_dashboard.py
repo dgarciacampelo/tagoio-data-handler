@@ -15,8 +15,9 @@ async def render_global_audit_dashboard(request: Request):
     recent_sessions = get_recent_sessions(limit=100)
 
     return templates.TemplateResponse(
-        "audit-dashboard.html",
-        {"request": request, "sessions": recent_sessions},
+        request=request,
+        name="audit-dashboard.html",
+        context={"request": request, "sessions": recent_sessions},
     )
 
 
@@ -26,8 +27,9 @@ async def render_pool_audit_dashboard(request: Request, pool_code: int):
     recent_sessions = get_recent_sessions(limit=100, pool_code=pool_code)
 
     return templates.TemplateResponse(
-        "audit-dashboard.html",
-        {"request": request, "sessions": recent_sessions},
+        request=request,
+        name="audit-dashboard.html",
+        context={"request": request, "sessions": recent_sessions},
     )
 
 

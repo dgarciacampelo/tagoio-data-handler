@@ -47,8 +47,9 @@ async def render_emsp_dashboard(request: Request):
             stations_by_pool[pool_code] = sorted(list(station_connectors[pool_code].keys()))
 
     return templates.TemplateResponse(
-        "emsp-dashboard.html",
-        {
+        request=request,
+        name="emsp-dashboard.html",
+        context={
             "request": request,
             "stations_by_pool": stations_by_pool,
             "cpo_names_by_pool": cpo_names_by_pool,
