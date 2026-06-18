@@ -1,13 +1,13 @@
 import httpx
 
-from config import test_pool_code, port, version, app_default_user, app_default_token
+from config import app_default_token, app_default_user, port, test_pool_code, version
 from enumerations import (
     AvailabilityType,
     ChargePointErrorCode,
     ChargePointStatus,
     ConnectionStatus,
 )
-from schemas import ChargePointUpdateBody
+from schemas.ocpp_csms import ChargePointUpdateBody
 
 station_name = "TEST"
 connector_id = 1

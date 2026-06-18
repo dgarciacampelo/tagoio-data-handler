@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from typing import Annotated
 
 from config import version  # noqa: F401
-from schemas import FeedbackMessage
+from schemas.ocpp_csms import FeedbackMessage
 from security import check_credentials
 from tagoio.data_parsing import send_feedback_message
 

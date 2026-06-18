@@ -9,7 +9,7 @@ from typing import Optional
 
 from loguru import logger
 
-from analysis_schemas import (
+from schemas.analysis import (
     ChangeAvailabilityEvent,
     CPOInfoEvent,
     LoadBalancingEvent,

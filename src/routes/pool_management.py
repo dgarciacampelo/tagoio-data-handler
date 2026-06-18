@@ -27,12 +27,7 @@ async def get_pool_configuration(pool_code: int):
                 detail=f"Failed to resolve or provision a valid TagoIO device for Pool {pool_code}.",
             )
 
-        pool_config = await fetch_full_pool_config(
-            pool_code=pool_code,
-            device_id=context.device_id,
-            device_token=context.device_token,
-            is_newly_created=not context.is_found,
-        )
+        pool_config = await fetch_full_pool_config(pool_code=pool_code, is_newly_created=not context.is_found)
 
         if not pool_config:
             raise HTTPException(

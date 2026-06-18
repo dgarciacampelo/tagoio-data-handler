@@ -2,7 +2,7 @@ from typing import Literal, cast
 
 from loguru import logger
 
-from analysis_schemas import (
+from schemas.analysis import (
     ChangeAvailabilityPayload,
     OCPPRequestEvent,
     RemoteStartPayload,

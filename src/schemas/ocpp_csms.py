@@ -194,8 +194,6 @@ class PoolDeviceSetupResponse(BaseModel):
     """
 
     pool_code: int
-    device_id: str
-    device_token: str
     is_newly_created: bool
 
     # Installation & Power Configuration

@@ -4,11 +4,11 @@ from fastapi import APIRouter, Form, HTTPException, Query, Request
 from fastapi.templating import Jinja2Templates
 from loguru import logger
 
-from analysis_schemas import VPOSStartEvent, VPOSStopEvent
+from schemas.analysis import VPOSStartEvent, VPOSStopEvent
 from data_handling import get_active_session, get_charge_point
 from database.query_database import get_noc_from_db
 from enumerations import ChargePointStatus
-from schemas import PaymentAuthRequest
+from schemas.ocpp_csms import PaymentAuthRequest
 from sse_broker import event_broker
 from tagoio.pool_setup_fetching import get_pool_config
 

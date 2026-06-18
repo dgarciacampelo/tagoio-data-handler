@@ -17,6 +17,7 @@ from routes.charge_point_alias import router as charge_point_alias_router
 from routes.charge_point_update import router as charge_point_update_router
 from routes.charging_pool_update import router as charging_pool_update_router
 from routes.charging_session_update import router as charging_session_update_router
+from routes.cpo_provisioning import router as cpo_provisioning_router  # For provisioning new CPOs on TagoIO
 from routes.device_token import router as device_token_router
 from routes.emsp_dashboard import router as emsp_dashboard_router  # For the "eMSP Dashboard" for eMSP managers
 from routes.feedback_message import router as feedback_message_router
@@ -46,6 +47,7 @@ app.include_router(charge_point_alias_router)
 app.include_router(charge_point_update_router)
 app.include_router(charging_pool_update_router)
 app.include_router(charging_session_update_router)
+app.include_router(cpo_provisioning_router)
 app.include_router(device_token_router)
 app.include_router(emsp_dashboard_router)
 app.include_router(feedback_message_router)

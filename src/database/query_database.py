@@ -3,7 +3,7 @@ from loguru import logger
 from typing import Optional
 
 from database import database_file
-from schemas import ChargingSessionUpdate
+from schemas.ocpp_csms import ChargingSessionUpdate
 
 
 def get_modified_rows_count(table_name: str, db_file: str = database_file) -> Optional[int]:

@@ -7,7 +7,7 @@ from typing import Annotated
 
 from config import version  # noqa: F401
 from data_handling import manage_charging_session_update
-from schemas import ChargingSessionUpdate
+from schemas.ocpp_csms import ChargingSessionUpdate
 from security import check_credentials
 
 router = APIRouter()

@@ -5,7 +5,7 @@ from loguru import logger
 
 from config import tago_api_endpoint
 from enumerations import AvailabilityType, ChargingSessionStep, ConnectionStatus, ChargePointStatus
-from schemas import ChargePointUpdate, ChargingSessionUpdate, FeedbackMessage
+from schemas.ocpp_csms import ChargePointUpdate, ChargingSessionUpdate, FeedbackMessage
 from tagoio.data_deletion import pool_variable_cleanup
 from tagoio.token_fetching import get_headers_by_pool_code
 from user_interface import translate_status

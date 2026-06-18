@@ -6,7 +6,7 @@ from loguru import logger
 from pydantic import ValidationError
 
 from data_handling import get_charge_point, manage_charge_point_update
-from schemas import ChargePointData, ChargePointUpdate, ChargePointUpdateBody
+from schemas.ocpp_csms import ChargePointData, ChargePointUpdate, ChargePointUpdateBody
 from security import check_credentials
 
 router = APIRouter()

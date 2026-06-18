@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from typing import Annotated
 
 from config import version  # noqa: F401
-from schemas import PoolConfigUpdate
+from schemas.ocpp_csms import PoolConfigUpdate
 from security import check_credentials
 from tagoio.pool_setup_fetching import update_pool_config_in_memory
 

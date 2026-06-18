@@ -3,7 +3,7 @@ from fastapi.security import HTTPBasic
 from typing import Annotated, Any
 
 from config import version  # noqa: F401
-from schemas import device_data_dump
+from schemas.ocpp_csms import device_data_dump
 from security import check_credentials
 from tagoio.token_fetching import (
     get_all_devices_data,

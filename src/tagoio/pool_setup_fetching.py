@@ -6,7 +6,7 @@ from loguru import logger
 from pydantic import BaseModel
 
 from config import tago_api_endpoint
-from schemas import PoolConfigUpdate, PoolDeviceSetupResponse, RFIDCard
+from schemas.ocpp_csms import PoolConfigUpdate, PoolDeviceSetupResponse, RFIDCard
 from tagoio.token_fetching import delete_device_data_by_pool_code, get_headers_by_pool_code
 
 
@@ -236,17 +236,13 @@ def update_pool_config_in_memory(update: PoolConfigUpdate):
     logger.info(f"Hot-reloaded configuration for Pool {update.pool_code}")
 
 
-async def fetch_full_pool_config(
-    pool_code: int, device_id: str, device_token: str, is_newly_created: bool
-) -> PoolDeviceSetupResponse:
+async def fetch_full_pool_config(pool_code: int, is_newly_created: bool) -> PoolDeviceSetupResponse:
     """
     Gathers all installation data from TagoIO concurrently and maps it
     into the standardized response payload for the CSMS.
     """
     # Initialize the response with baseline data
-    response_data = PoolDeviceSetupResponse(
-        pool_code=pool_code, device_id=device_id, device_token=device_token, is_newly_created=is_newly_created
-    )
+    response_data = PoolDeviceSetupResponse(pool_code=pool_code, is_newly_created=is_newly_created)
 
     # If it's a brand new device, there is no remote data to fetch.
     if is_newly_created:

@@ -13,7 +13,7 @@ from database.query_database import (
     upsert_connector_status,
 )
 from enumerations import ChargePointStatus, ChargingSessionStep
-from schemas import ChargePointData, ChargePointUpdate, ChargingSessionUpdate
+from schemas.ocpp_csms import ChargePointData, ChargePointUpdate, ChargingSessionUpdate
 from tagoio.data_parsing import (
     update_charge_point_status,
     update_management_dashboard_charging_session,

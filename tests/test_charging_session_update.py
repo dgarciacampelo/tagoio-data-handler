@@ -2,7 +2,7 @@ import httpx
 
 from config import test_pool_code, port, version, app_default_user, app_default_token
 from enumerations import ChargingSessionStep
-from schemas import ChargingSessionUpdate
+from schemas.ocpp_csms import ChargingSessionUpdate
 
 """
 # ! NOTE: When testing charging session updates, remember the following index:
@@ -42,6 +42,14 @@ update = ChargingSessionUpdate(
     has_public_dashboard=True,
     stop_motive="CAR",
     time_band="09:43 - 09:45",
+    current_tariff_band="Off-Peak",
+    rate_off_peak=0.4,
+    rate_flat=0.5,
+    rate_peak=0.6,
+    energy_off_peak=48,
+    energy_flat=0,
+    energy_peak=0,
+    last_meter_ts="2024-02-27T09:45:00Z",
 )
 
 
