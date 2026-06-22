@@ -34,8 +34,9 @@ async def check_all_devices_data_amount(check_only: Optional[set[int]] = None) -
     amounts_by_pool_code: dict[int, tuple[str, int]] = {}
 
     account_headers = {"content-type": "application/json", "Account-Token": tago_account_token}
+    timeout = httpx.Timeout(15.0)  # Extended read timeout window to accommodate remote API latency
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         for pool_code, device_id in pool_code_and_device_id_generator():
             if check_only is not None and pool_code not in check_only:
                 continue
@@ -43,10 +44,17 @@ async def check_all_devices_data_amount(check_only: Optional[set[int]] = None) -
             await asyncio.sleep(1)
 
             url = f"{tago_api_endpoint}/device/{device_id}/data_amount"
-            response = await client.get(url, headers=account_headers)
 
-            result = handle_response(response, "Bucket can't be found")
-            amount = int(result) if result is not None else -1
+            try:
+                response = await client.get(url, headers=account_headers)
+                result = handle_response(response, "Bucket can't be found")
+                amount = int(result) if result is not None else -1
+            except httpx.RequestError as e:  # Intercept network blips, drops, and ReadTimeouts safely
+                logger.warning(f"Network or timeout error checking data amount for pool {pool_code}: {repr(e)}")
+                amount = -1
+            except Exception as e:  # Catch-all defensive guard against parsing issues or unexpected structural shifts
+                logger.error(f"Unexpected error handling data amount for pool {pool_code}: {e}")
+                amount = -1
 
             message_prefix = f"Data amount in TagoIO device for pool {pool_code}:"
             logger.info(f"{message_prefix} {amount}")
@@ -54,6 +62,7 @@ async def check_all_devices_data_amount(check_only: Optional[set[int]] = None) -
             if amount > warning_amount_threshold:
                 send_notification_flag = True
 
+            # Register the fallback amount (-1) so downstream cleanups skip this Pool instead of blowing up the loop
             amounts_by_pool_code[pool_code] = (device_id, amount)
 
     if send_notification_flag:

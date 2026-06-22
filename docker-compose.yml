@@ -19,7 +19,7 @@ services:
     volumes:
       - ./database_files:/src/database_files:rw
       - ./templates:/src/templates:ro # Mount templates as read-only
-    restart: on-failure:1
+    restart: on-failure:5
 
 networks:
   tagoio-data-network:
