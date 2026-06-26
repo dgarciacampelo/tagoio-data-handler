@@ -28,6 +28,8 @@ class BaseSSEEvent(BaseModel):
 # endregion
 # region Pool Mgmt.
 
+"""Events related to Charging Pool management, by the CPO through the Management Dashboard."""
+
 
 class LoadBalancingEvent(BaseSSEEvent):
     event_type: Literal[SSEEventType.LOAD_BALANCING] = SSEEventType.LOAD_BALANCING
@@ -74,6 +76,8 @@ class PowerUpdateEvent(BaseSSEEvent):
 
 # endregion
 # region Station Mgmt.
+
+"""Events that replicate OCPP commands, used by the developers to test the OCPP routines through the Debug Tab."""
 
 
 class ChangeAvailabilityEvent(BaseSSEEvent):
@@ -132,6 +136,11 @@ class OCPPRequestEvent(BaseSSEEvent):
 
 # endregion
 # region Virtual POS Events
+
+"""
+Events related to EV users requesting to start or stop a charging session
+through the public dashboard, linked to payments via virtual POS.
+"""
 
 
 class VPOSStartEvent(BaseSSEEvent):

@@ -1,4 +1,5 @@
 import asyncio
+import json
 from fastapi import APIRouter, Request, Depends
 from sse_starlette.sse import EventSourceResponse
 
@@ -6,7 +7,6 @@ from sse_broker import event_broker
 from security import check_credentials
 
 router = APIRouter()
-
 
 @router.get("/api/stream", dependencies=[Depends(check_credentials)])
 async def sse_event_stream(request: Request):
@@ -26,9 +26,11 @@ async def sse_event_stream(request: Request):
                 # 2. Wait for a new event from the broker (with a timeout to allow disconnection checks)
                 try:
                     message = await asyncio.wait_for(queue.get(), timeout=2.0)
-                    yield message
-                except asyncio.TimeoutError:
-                    # Timeout reached, loop restarts and checks `is_disconnected()` again
+                    
+                    # 3. Serialize the Python dict to a strict JSON string
+                    yield {"data": json.dumps(message)}
+                    
+                except asyncio.TimeoutError:  # Timeout reached, loop restarts and checks `is_disconnected()` again
                     continue
 
         except asyncio.CancelledError:
