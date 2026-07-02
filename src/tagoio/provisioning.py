@@ -8,13 +8,13 @@ import secrets
 import string
 from datetime import datetime
 
-import httpx
 from loguru import logger
 
 from config import tago_api_endpoint
 from schemas.google_forms import GoogleFormPayload
 from tagoio.data_parsing import handle_variable_insert
 from tagoio.device_management import _get_account_headers, get_device_list
+from utils.http_client import GlobalHTTPClient
 
 
 def generate_secure_password(length: int = 16) -> str:
@@ -32,9 +32,9 @@ async def resolve_new_pool_code() -> int:
     prefix = "MASTER-BUSINESS-"
     max_sequence = 1000  # Base sequence before the first increment
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        # Utilizing the existing account-level fetcher
-        devices = await get_device_list(client)
+    client = GlobalHTTPClient.get_client()
+    # Utilizing the existing account-level fetcher
+    devices = await get_device_list(client)
 
     for device in devices:
         name = device.get("name", "")
@@ -85,17 +85,17 @@ async def create_tagoio_user(payload: GoogleFormPayload, pool_code: int, passwor
         "tags": tag_list,
     }
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            response = await client.post(url, headers=_get_account_headers(), json=new_user)
-            result = response.json()
+    client = GlobalHTTPClient.get_client()
+    try:
+        response = await client.post(url, headers=_get_account_headers(), json=new_user)
+        result = response.json()
 
-            logger.info(f"Result after creating new {payload.user_email} TagoIO user: {result}")
-            return result.get("status", False)
+        logger.info(f"Result after creating new {payload.user_email} TagoIO user: {result}")
+        return result.get("status", False)
 
-        except Exception as e:
-            logger.error(f"Error creating TagoIO user {payload.user_email}: {e}")
-            return False
+    except Exception as e:
+        logger.error(f"Error creating TagoIO user {payload.user_email}: {e}")
+        return False
 
 
 async def setup_default_device_variables(pool_code: int, payload: GoogleFormPayload):

@@ -9,6 +9,7 @@ from tagoio.aux_functions import AMOUNT, handle_response
 from tagoio.data_deletion import delete_variable_in_cloud
 from tagoio.token_fetching import get_headers_by_pool_code, pool_code_and_device_id_generator
 from telegram_utils import send_telegram_notification
+from utils.http_client import GlobalHTTPClient
 
 # Thresholds to setup different actions for each pool/TagoIO device:
 individual_variable_threshold = 250  # Value to capture variables across pagination chunks
@@ -34,36 +35,36 @@ async def check_all_devices_data_amount(check_only: Optional[set[int]] = None) -
     amounts_by_pool_code: dict[int, tuple[str, int]] = {}
 
     account_headers = {"content-type": "application/json", "Account-Token": tago_account_token}
-    timeout = httpx.Timeout(15.0)  # Extended read timeout window to accommodate remote API latency
+    extended_timeout = httpx.Timeout(15.0)  # Extended read timeout window to accommodate remote API latency
 
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        for pool_code, device_id in pool_code_and_device_id_generator():
-            if check_only is not None and pool_code not in check_only:
-                continue
+    client = GlobalHTTPClient.get_client()
+    for pool_code, device_id in pool_code_and_device_id_generator():
+        if check_only is not None and pool_code not in check_only:
+            continue
 
-            await asyncio.sleep(1)
+        await asyncio.sleep(1)
 
-            url = f"{tago_api_endpoint}/device/{device_id}/data_amount"
+        url = f"{tago_api_endpoint}/device/{device_id}/data_amount"
 
-            try:
-                response = await client.get(url, headers=account_headers)
-                result = handle_response(response, "Bucket can't be found")
-                amount = int(result) if result is not None else -1
-            except httpx.RequestError as e:  # Intercept network blips, drops, and ReadTimeouts safely
-                logger.warning(f"Network or timeout error checking data amount for pool {pool_code}: {repr(e)}")
-                amount = -1
-            except Exception as e:  # Catch-all defensive guard against parsing issues or unexpected structural shifts
-                logger.error(f"Unexpected error handling data amount for pool {pool_code}: {e}")
-                amount = -1
+        try:
+            response = await client.get(url, headers=account_headers, timeout=extended_timeout)
+            result = handle_response(response, "Bucket can't be found")
+            amount = int(result) if result is not None else -1
+        except httpx.RequestError as e:  # Intercept network blips, drops, and ReadTimeouts safely
+            logger.warning(f"Network or timeout error checking data amount for pool {pool_code}: {repr(e)}")
+            amount = -1
+        except Exception as e:  # Catch-all defensive guard against parsing issues or unexpected structural shifts
+            logger.error(f"Unexpected error handling data amount for pool {pool_code}: {e}")
+            amount = -1
 
-            message_prefix = f"Data amount in TagoIO device for pool {pool_code}:"
-            logger.info(f"{message_prefix} {amount}")
+        message_prefix = f"Data amount in TagoIO device for pool {pool_code}:"
+        logger.info(f"{message_prefix} {amount}")
 
-            if amount > warning_amount_threshold:
-                send_notification_flag = True
+        if amount > warning_amount_threshold:
+            send_notification_flag = True
 
-            # Register the fallback amount (-1) so downstream cleanups skip this Pool instead of blowing up the loop
-            amounts_by_pool_code[pool_code] = (device_id, amount)
+        # Register the fallback amount (-1) so downstream cleanups skip this Pool instead of blowing up the loop
+        amounts_by_pool_code[pool_code] = (device_id, amount)
 
     if send_notification_flag:
         await send_telegram_notification("Some TagoIO devices are reaching the data limit.")
@@ -81,30 +82,30 @@ async def fetch_pool_variables_info(pool_code: int, device_id: str, data_amount:
     headers = get_headers_by_pool_code(pool_code)
 
     # Increase chunk request performance up to the data amount limit
-    async with httpx.AsyncClient() as client:
-        # Step through the historical logs by 10k steps
-        for page_step in range(0, data_amount, AMOUNT):
-            params = {
-                "amount": AMOUNT,
-                "skip": page_step,
-                "fields": ["variable"],  # Performance fix: tells TagoIO only to return string variables
-            }
-            try:
-                response = await client.get(url, headers=headers, params=params)
-                result = handle_response(response, "Bucket can't be found")
-                if not result or not isinstance(result, list):
-                    continue
-
-                for data_dict in result:
-                    variable = data_dict.get("variable")
-                    if variable:
-                        amounts_by_variable[variable] = amounts_by_variable.get(variable, 0) + 1
-            except Exception as e:
-                logger.error(f"Error fetching data chunk at skip {page_step} for pool {pool_code}: {e}")
+    client = GlobalHTTPClient.get_client()
+    # Step through the historical logs by 10k steps
+    for page_step in range(0, data_amount, AMOUNT):
+        params = {
+            "amount": AMOUNT,
+            "skip": page_step,
+            "fields": ["variable"],  # Performance fix: tells TagoIO only to return string variables
+        }
+        try:
+            response = await client.get(url, headers=headers, params=params)
+            result = handle_response(response, "Bucket can't be found")
+            if not result or not isinstance(result, list):
                 continue
 
-            # Short breath to prevent API rate limiting issues, but fast enough to loop cleanly
-            await asyncio.sleep(1)
+            for data_dict in result:
+                variable = data_dict.get("variable")
+                if variable:
+                    amounts_by_variable[variable] = amounts_by_variable.get(variable, 0) + 1
+        except Exception as e:
+            logger.error(f"Error fetching data chunk at skip {page_step} for pool {pool_code}: {e}")
+            continue
+
+        # Short breath to prevent API rate limiting issues, but fast enough to loop cleanly
+        await asyncio.sleep(1)
 
     logger.info(f"Pool {pool_code} breakdown: {amounts_by_variable}")
     return amounts_by_variable

@@ -1,5 +1,6 @@
 from asyncio import sleep as asyncio_sleep
 from datetime import datetime, timedelta
+from typing import Optional
 
 import httpx
 from loguru import logger
@@ -7,6 +8,7 @@ from loguru import logger
 from charge_points import known_charge_points
 from config import app_default_token, app_default_user, port, tago_api_endpoint, version
 from tagoio.token_fetching import get_all_devices_data, get_headers_by_pool_code
+from utils.http_client import GlobalHTTPClient
 
 # from telegram_utils import send_telegram_notification
 
@@ -18,7 +20,9 @@ limit is reached, following requests will error and no new data will be stored.
 base_url: str = f"{tago_api_endpoint}/data?variable="
 
 
-async def delete_variable_in_cloud(pool_code: int, variable: str, keep_weeks: int = 14) -> dict:
+async def delete_variable_in_cloud(
+    pool_code: int, variable: str, keep_weeks: int = 14, group: Optional[str] = None
+) -> dict:
     """
     Uses TagoIO API for variable deletion, keeping the remain weeks of data
     Returns: {'status': True, 'result': 'X Data Removed'} with X: integer
@@ -31,14 +35,16 @@ async def delete_variable_in_cloud(pool_code: int, variable: str, keep_weeks: in
     qty = 1000  # ? Otherwise the default is 15
 
     headers = get_headers_by_pool_code(pool_code)
+    if group:
+        variable = f"{variable}&group={group}"
     url = f"{base_url}{variable}&start_date={start_date}&end_date={end_date}&qty={qty}"
     if keep_weeks == 0:
         url = f"{base_url}{variable}&qty=5000"
 
-    # ! To avoid error:  Cannot open a client instance more than once.
-    async with httpx.AsyncClient() as client:
-        response = await client.delete(url, headers=headers)
-        return response.json()
+    client = GlobalHTTPClient.get_client()
+    response = await client.delete(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
 
 
 def handle_delete_response(pool_code: int, result: dict):

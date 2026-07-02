@@ -6,6 +6,7 @@ from loguru import logger
 from pytz import timezone as pytz_timezone
 
 from config import tago_account_token, tago_api_endpoint
+from utils.http_client import GlobalHTTPClient
 
 SERVER_ALIAS: str = "Neos"
 
@@ -72,28 +73,24 @@ async def find_tago_device(name: str) -> tuple[Optional[str], Optional[str], boo
     """
     Scans the account for a device matching the specified name.
     Returns (device_id, device_token, advanced_plan).
+    Raises httpx.HTTPError if the TagoIO API is unreachable.
     """
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            # Optimize by asking TagoIO to filter the list directly
-            devices = await get_device_list(client, name_filter=name)
+    client = GlobalHTTPClient.get_client()  # Let httpx.HTTPError bubble up.
+    devices = await get_device_list(client, name_filter=name)
 
-            for device in devices:
-                if device.get("name") == name:
-                    tags = device.get("tags", [])
-                    advanced_plan = any(t.get("key") == "plan" and t.get("value") == "ADVANCED" for t in tags)
+    for device in devices:
+        if device.get("name") == name:
+            tags = device.get("tags", [])
+            advanced_plan = any(t.get("key") == "plan" and t.get("value") == "ADVANCED" for t in tags)
 
-                    dev_id = device["id"]
-                    dev_token = await get_device_token(client, dev_id)
+            dev_id = device["id"]
+            dev_token = await get_device_token(client, dev_id)
 
-                    plan_label = "ADV. PLAN" if advanced_plan else "BASIC"
-                    logger.info(f"·TagoIO· Found device {dev_id}: {name} ({plan_label}).")
-                    return dev_id, dev_token, advanced_plan
+            plan_label = "ADV. PLAN" if advanced_plan else "BASIC"
+            logger.info(f"·TagoIO· Found device {dev_id}: {name} ({plan_label}).")
+            return dev_id, dev_token, advanced_plan
 
-        except httpx.HTTPError as e:
-            logger.error(f"HTTP error while searching for device '{name}': {e}")
-
-    logger.warning(f"·TagoIO· Device with name: {name} not found.")
+    logger.info(f"·TagoIO· Device with name '{name}' does not exist yet.")
     return None, None, False
 
 
@@ -132,22 +129,21 @@ async def create_new_tago_device(
 
     url = f"{tago_api_endpoint}/device"
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            # await send_telegram(f"New TagoIO {device_type} device created: {name} ({server_alias})")
-            response = await client.post(url, headers=_get_account_headers(), json=new_device_payload)
-            response.raise_for_status()
-            data = response.json()
+    client = GlobalHTTPClient.get_client()
+    try:
+        response = await client.post(url, headers=_get_account_headers(), json=new_device_payload)
+        response.raise_for_status()
+        data = response.json()
 
-            if data.get("status"):
-                dev_id = data["result"]["device_id"]
-                token = data["result"]["token"]
-                return dev_id, token
-            else:
-                logger.error(f"·TagoIO· API rejected device creation. Message: {data.get('message')}")
+        if data.get("status"):
+            dev_id = data["result"]["device_id"]
+            token = data["result"]["token"]
+            return dev_id, token
+        else:
+            logger.error(f"·TagoIO· API rejected device creation. Message: {data.get('message')}")
 
-        except httpx.HTTPError as e:
-            logger.error(f"·TagoIO· HTTP error creating device '{name}': {e}")
+    except httpx.HTTPError as e:
+        logger.error(f"·TagoIO· HTTP error creating device '{name}': {e}")
 
     return None, None
 
@@ -163,9 +159,13 @@ async def find_or_ensure_device(
     High-level orchestration routine. Looks up an existing device by name,
     or transparently provisions it if missing.
     """
-    dev_id, token, found_advanced_plan = await find_tago_device(name)
+    try:
+        dev_id, token, found_advanced_plan = await find_tago_device(name)
+    except httpx.HTTPError as e:  # Halt execution. Do not attempt to create a device if the API is down.
+        logger.error(f"Cannot verify existence of device '{name}' due to API failure: {e}")
+        raise RuntimeError(f"TagoIO API unreachable during device lookup for {name}") from e
 
-    if dev_id is None:
+    if dev_id is None:  # The API is up, but the device doesn't exist.
         dev_id, token = await create_new_tago_device(
             name=name,
             device_type=device_type,
@@ -180,7 +180,7 @@ async def find_or_ensure_device(
         final_plan = found_advanced_plan
 
     if not dev_id or not token:
-        raise RuntimeError(f"Failed to find or provision TagoIO device: {name}")
+        raise RuntimeError(f"Failed to provision TagoIO device: {name}")
 
     return TagoDeviceContext(
         device_id=dev_id,

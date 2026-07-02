@@ -11,8 +11,12 @@ window.chargingFormState = window.chargingFormState || {
 function initFormLogic() {
     const form = document.getElementById('charging-form');
     // If the station isn't in PREPARING, the form doesn't exist, so we abort.
-    // Note: We intentionally removed the dataset.initialized check so this re-runs after every OOB swap.
     if (!form) return;
+
+    // Prevent attaching multiple event listeners to the same DOM element.
+    // If HTMX swaps the form with a new one, this flag will be gone and it will re-initialize safely.
+    if (form.dataset.eventsBound === 'true') return;
+    form.dataset.eventsBound = 'true';
 
     const receiptToggle = document.getElementById('need-receipt');
     const receiptFieldsContainer = document.getElementById('receipt-fields');
@@ -99,6 +103,13 @@ function initFormLogic() {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
+        // LOCK: Instantly reject any subsequent events if we are already processing
+        if (form.dataset.isSubmitting === 'true') {
+            console.warn('Submission already in progress. Dropping duplicate event.');
+            return;
+        }
+        form.dataset.isSubmitting = 'true';
+
         submitBtn.disabled = true;
         btnIcon.textContent = 'hourglass_empty';
         btnIcon.classList.add('animate-spin');
@@ -140,6 +151,9 @@ function initFormLogic() {
             btnIcon.textContent = 'payments';
             btnIcon.classList.remove('animate-spin');
             btnText.textContent = 'ENVIAR ENLACE DE PAGO';
+
+            // UNLOCK: Only release the lock if the request failed, so they can try again
+            form.dataset.isSubmitting = 'false';
         }
     });
 }

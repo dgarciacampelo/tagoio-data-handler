@@ -20,6 +20,8 @@ from schemas.analysis import (
 )
 from database.query_database import get_database_pool_code_by_device_id
 from sse_broker import event_broker
+from tagoio.data_deletion import delete_variable_in_cloud
+from tagoio.data_parsing import handle_variable_insert, show_validation_feedback
 from tagoio.setup_devices import feed_and_return_all_devices_tokens
 from tagoio.token_fetching import get_device_data_by_pool_code
 
@@ -77,7 +79,7 @@ async def change_availability(context, scope):
 
 
 async def manage_rfid(context, scope):
-    """Translates a TagoIO RFID scope into an SSE event."""
+    """Translates a TagoIO RFID scope into an SSE event and updates Cloud UI."""
     try:
         device_id = scope[0]["device"]
         pool_code = get_pool_code_by_device_id(device_id)
@@ -96,12 +98,35 @@ async def manage_rfid(context, scope):
 
             event = RFIDManagementEvent(
                 pool_code=pool_code,
-                card_id=card_id,
+                card_id=card_id.lower(),
                 action="create",
                 linked_cps=[cp.strip() for cp in linked_cps_str.split(",") if cp.strip()],
-                alias=alias,
+                alias=alias.upper() if alias else card_id.upper(),
                 email=email,
             )
+
+            # * 1. Broadcast to CSMS
+            logger.info(f"Broadcasting RFID {event.action} for Pool {pool_code}")
+            await event_broker.broadcast(event_name=event.event_type.value, payload=event.model_dump(mode="json"))
+
+            # * 2. Update TagoIO Device Data
+            rfid_data = {
+                "variable": "card_id",
+                "value": card_id.lower(),
+                "group": card_id.upper(),
+                "metadata": {
+                    "alias": alias.upper() if alias else card_id.upper(),
+                    "email": email if email else "",
+                    "cps": linked_cps_str,
+                },
+            }
+            # Remove old variable before insert to simulate remove_and_insert_variable
+            await delete_variable_in_cloud(pool_code, "card_id", keep_weeks=0, group=card_id)
+            await handle_variable_insert(pool_code, rfid_data)
+
+            # * 3. UI Feedback
+            await show_validation_feedback(pool_code, "validation_rfid", "OK", True)
+
         else:
             linked_cps_str = str(scope[0]["metadata"].get("cps", ""))
             event = RFIDManagementEvent(
@@ -111,11 +136,20 @@ async def manage_rfid(context, scope):
                 linked_cps=[cp.strip() for cp in linked_cps_str.split(",") if cp.strip()],
             )
 
-        logger.info(f"Broadcasting RFID {event.action} for Pool {pool_code}")
-        await event_broker.broadcast(event_name=event.event_type.value, payload=event.model_dump(mode="json"))
+            # * 1. Broadcast to CSMS
+            logger.info(f"Broadcasting RFID {event.action} for Pool {pool_code}")
+            await event_broker.broadcast(event_name=event.event_type.value, payload=event.model_dump(mode="json"))
+
+            # * 2. Clean TagoIO Device Data
+            await delete_variable_in_cloud(pool_code, "card_id", keep_weeks=0, group=card_id)
+
+            # * 3. UI Feedback
+            await show_validation_feedback(pool_code, "validation_rfid", "OK", True)
 
     except Exception as e:
         logger.error(f"Failed to parse manage_rfid payload: {e}")
+        # Optionally, try to show an ERROR feedback if pool_code is known
+        # await show_validation_feedback(pool_code, "validation_rfid", "ERROR", False)
 
 
 async def change_max_grid_power(context, scope):

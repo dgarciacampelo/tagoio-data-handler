@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from config import tago_api_endpoint
 from schemas.ocpp_csms import PoolConfigUpdate, PoolDeviceSetupResponse, RFIDCard
 from tagoio.token_fetching import delete_device_data_by_pool_code, get_headers_by_pool_code
+from utils.http_client import GlobalHTTPClient
 
 
 class PoolConfig(BaseModel):
@@ -48,46 +49,36 @@ async def fetch_variable_last_value(
     url = f"{tago_api_endpoint}/data"
     params = {"variable": variable, "qty": 1}
     headers = get_headers_by_pool_code(pool_code)
-
-    # Explicit timeout prevents hanging requests
     timeout = httpx.Timeout(10.0)
 
-    async def _perform_request(http_client: httpx.AsyncClient) -> Optional[dict[str, Any]]:
-        for att in range(1, max_retries + 1):
-            msg: str = f"'{variable}' for pool {pool_code}"
-            try:
-                response = await http_client.get(url, headers=headers, params=params, timeout=timeout)
-                response.raise_for_status()
+    http_client = client or GlobalHTTPClient.get_client()
 
-                data = response.json()
-                if data.get("status") and data.get("result"):
-                    return data["result"][0]
+    for att in range(1, max_retries + 1):
+        msg: str = f"'{variable}' for pool {pool_code}"
+        try:
+            response = await http_client.get(url, headers=headers, params=params, timeout=timeout)
+            response.raise_for_status()
 
-                return None  # The variable just doesn't exist in TagoIO yet
+            data = response.json()
+            if data.get("status") and data.get("result"):
+                return data["result"][0]
 
-            except httpx.HTTPStatusError as e:  # Re-raise HTTP errors (4xx, 5xx), leave for parent to handle
-                logger.warning(f"HTTP {e.response.status_code} fetching {msg}.")
-                raise
+            return None
 
-            except httpx.RequestError as e:  # Network errors (timeouts, disconnected)
-                if att < max_retries:
-                    logger.debug(f"Attempt {att}/{max_retries} failed for {msg}. Retrying...")
-                    await asyncio.sleep(1 * att)  # Exponential backoff
-                else:
-                    logger.warning(f"Network error fetching {msg} after {max_retries} attempts: {repr(e)}")
+        except httpx.HTTPStatusError as e:
+            logger.warning(f"HTTP {e.response.status_code} fetching {msg}.")
+            raise
+        except httpx.RequestError as e:
+            if att < max_retries:
+                logger.debug(f"Attempt {att}/{max_retries} failed for {msg}. Retrying...")
+                await asyncio.sleep(1 * att)
+            else:
+                logger.warning(f"Network error fetching {msg} after {max_retries} attempts: {repr(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error parsing {msg}: {repr(e)}")
+            return None
 
-            except Exception as e:  # Catch-all for parsing errors (e.g., JSONDecodeError)
-                logger.error(f"Unexpected error parsing {msg}: {repr(e)}")
-                return None
-
-        return None
-
-    # Use the injected client (Best Practice) or spawn a temporary one
-    if client:
-        return await _perform_request(client)
-    else:
-        async with httpx.AsyncClient() as temp_client:
-            return await _perform_request(temp_client)
+    return None
 
 
 async def fetch_variable_list(
@@ -98,21 +89,16 @@ async def fetch_variable_list(
     params = {"variable": variable, "qty": qty}
     headers = get_headers_by_pool_code(pool_code)
 
-    async def _perform(http_client: httpx.AsyncClient):
-        try:
-            response = await http_client.get(url, headers=headers, params=params, timeout=10.0)
-            response.raise_for_status()
-            data = response.json()
-            if data.get("status") and data.get("result"):
-                return data["result"]
-        except Exception as e:
-            logger.error(f"Error fetching list for {variable} at pool {pool_code}: {e}")
-        return []
+    http_client = client or GlobalHTTPClient.get_client()
 
-    if client:
-        return await _perform(client)
-    async with httpx.AsyncClient() as temp_client:
-        return await _perform(temp_client)
+    try:
+        response = await http_client.get(url, headers=headers, params=params, timeout=10.0)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("result", []) if data.get("status") and data.get("result") else []
+    except Exception as e:
+        logger.error(f"Error fetching list for {variable} at pool {pool_code}: {e}")
+        return []
 
 
 async def init_pool_configs(known_pools: list[int]):
@@ -248,16 +234,18 @@ async def fetch_full_pool_config(pool_code: int, is_newly_created: bool) -> Pool
     if is_newly_created:
         return response_data
 
-    async with httpx.AsyncClient() as client:  # Launch all HTTP requests concurrently
-        results = await asyncio.gather(
-            fetch_variable_list(pool_code, "card_id", qty=100, client=client),
-            fetch_variable_last_value(pool_code, "operator_info", client=client),
-            fetch_variable_last_value(pool_code, "max_installation_power", client=client),
-            fetch_variable_last_value(pool_code, "load_balancing_mode", client=client),
-            fetch_variable_last_value(pool_code, "rate_costs", client=client),
-            fetch_variable_last_value(pool_code, "withholding_amount", client=client),  # <-- Added task
-            return_exceptions=True,
-        )
+    client = GlobalHTTPClient.get_client()
+
+    # Launch all HTTP requests concurrently using the shared connection pool
+    results = await asyncio.gather(
+        fetch_variable_list(pool_code, "card_id", qty=100, client=client),
+        fetch_variable_last_value(pool_code, "operator_info", client=client),
+        fetch_variable_last_value(pool_code, "max_installation_power", client=client),
+        fetch_variable_last_value(pool_code, "load_balancing_mode", client=client),
+        fetch_variable_last_value(pool_code, "rate_costs", client=client),
+        fetch_variable_last_value(pool_code, "withholding_amount", client=client),
+        return_exceptions=True,
+    )
 
     # 1. Unpack the tuple directly to preserve unique positional types
     res_cards, res_cpo, res_power, res_lbm, res_rates, res_withholding = results

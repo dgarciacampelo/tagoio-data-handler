@@ -1,14 +1,15 @@
+import asyncio
 from typing import Any
 
-import httpx
 from loguru import logger
 
 from config import tago_api_endpoint
-from enumerations import AvailabilityType, ChargingSessionStep, ConnectionStatus, ChargePointStatus
+from enumerations import AvailabilityType, ChargingSessionStep, ConnectionStatus, ChargePointStatus, ValidationAlert
 from schemas.ocpp_csms import ChargePointUpdate, ChargingSessionUpdate, FeedbackMessage
-from tagoio.data_deletion import pool_variable_cleanup
+from tagoio.data_deletion import delete_variable_in_cloud, pool_variable_cleanup
 from tagoio.token_fetching import get_headers_by_pool_code
 from user_interface import translate_status
+from utils.http_client import GlobalHTTPClient
 
 # from tagoio.check_data_amount import device_data_amount_check
 
@@ -26,10 +27,10 @@ translated_statuses: dict[int, dict[int, str]] = {}
 async def insert_data_in_cloud(pool_code: int, data: dict = {}):
     url: str = f"{tago_api_endpoint}/data"
     headers = get_headers_by_pool_code(pool_code)
-    # ! To avoid error: Cannot reopen a client instance, once it has been closed.
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, headers=headers, json=data)
-        return response.json()
+    client = GlobalHTTPClient.get_client()
+    response = await client.post(url, headers=headers, json=data)
+    response.raise_for_status()
+    return response.json()
 
 
 async def handle_variable_insert(pool_code: int, data: dict = {}):
@@ -103,11 +104,12 @@ async def update_management_dashboard_status(update: ChargePointUpdate):
         "variable": "state",
         "value": update.station_name,
         "group": update.station_name,
-        "metadata": metadata,
+        "metadata": metadata,  # ConnectionStatus enum used for the connection status icon
         "unit": None,
         "time": None,
     }
 
+    logger.debug(f"Updating Management Dashboard for {update.pool_code}/{update.station_name} status: {data}")
     return await handle_variable_insert(update.pool_code, data)
 
 
@@ -240,3 +242,23 @@ async def add_charging_session_to_history(update: ChargingSessionUpdate):
     }
     # logger.info(f"Adding charging session to history: {data}")
     return await handle_variable_insert(update.pool_code, data)
+
+
+async def show_validation_feedback(pool_code: int, variable: str, message: str, result_ok: bool = True):
+    """
+    Triggers a form validation toast in the TagoIO dashboard.
+    Inserts the variable with the alert metadata, then immediately deletes it.
+    """
+    alert_type = ValidationAlert.ACCEPT if result_ok else ValidationAlert.REJECT
+
+    # Construct the data payload matching TagoIO's expectation
+    data_payload = {
+        "variable": variable,
+        "value": message,
+        "group": "validation_feedback",
+        "metadata": {"type": alert_type.value},
+    }
+
+    await handle_variable_insert(pool_code, data_payload)
+    await asyncio.sleep(10)
+    await delete_variable_in_cloud(pool_code, variable, keep_weeks=0)

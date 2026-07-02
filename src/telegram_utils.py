@@ -1,6 +1,6 @@
 import asyncio
-import httpx
 from pathlib import Path
+import httpx
 from loguru import logger
 from telegram import Bot
 from telegram.error import NetworkError
@@ -11,6 +11,7 @@ from config import (
     telegram_backups_chat_id as chat_id,
     telegram_notices_chat_id as notification_chat_id,
 )
+from utils.http_client import GlobalHTTPClient
 
 TELEGRAM_BASE_URL: str = "https://api.telegram.org/bot"
 
@@ -18,9 +19,7 @@ TELEGRAM_BASE_URL: str = "https://api.telegram.org/bot"
 pending_documents: list[tuple[str, str, int]] = list()
 
 
-async def upload_document(
-    file_to_send: str, bot_token: str = bot_token, chat_id: int = chat_id
-):
+async def upload_document(file_to_send: str, bot_token: str = bot_token, chat_id: int = chat_id):
     "Sends a file to a Telegram chat, providing the bot_token and chat_id"
     result_ok: bool = False
     if not bot_token or not chat_id:
@@ -44,9 +43,7 @@ async def upload_document(
             return result_ok
 
 
-def append_doc_tuple(
-    file_to_send: str, bot_token: str = bot_token, chat_id: int = chat_id
-) -> bool:
+def append_doc_tuple(file_to_send: str, bot_token: str = bot_token, chat_id: int = chat_id) -> bool:
     "Appends the parameters of a document to be uploaded to Telegram later."
     try:
         pending_documents.append((file_to_send, bot_token, chat_id))
@@ -76,10 +73,17 @@ async def send_telegram_notification(
 
     headers = {"content-type": "application/json"}
     data = {"chat_id": chat_id, "text": message}
-    url: str = base_url + bot_id + "/sendMessage"
+    url = f"{base_url}{bot_id}/sendMessage"
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=headers, json=data)
-            return response.json()
+        client = GlobalHTTPClient.get_client()
+        response = await client.post(url, headers=headers, json=data)
+        response.raise_for_status()
+        return response.json()
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Telegram API rejected the request: {e.response.status_code} - {e.response.text}")
+    except httpx.RequestError as e:
+        logger.error(f"Network error while reaching Telegram API: {e}")
     except Exception as e:
-        logger.error(f"Exception sending telegram notification: {e}")
+        logger.error(f"Unexpected exception sending telegram notification: {e}")
+
+    return None

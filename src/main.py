@@ -28,6 +28,7 @@ from routes.station_management import router as station_management_router
 from routes.trigger_task import router as trigger_task_router
 from security import check_credentials
 from tagoio_analysis.lifecycle import application_lifespan
+from utils.http_client import GlobalHTTPClient
 
 # ? https://loguru.readthedocs.io/en/stable/api/logger.html#sink
 logger.remove()
@@ -79,7 +80,16 @@ async def main():
     managed by the FastAPI lifespan handler in lifecycle.py. We only need to start
     the REST server here.
     """
-    await setup_rest_api_server()
+    try:
+        GlobalHTTPClient.get_client()
+        await setup_rest_api_server()
+
+    except KeyboardInterrupt:
+        logger.warning("Shutting down Service due to manual shutdown...")
+    except Exception as e:
+        logger.critical(f"Main app server-side error: {e}")
+    finally:  # Safely close the global HTTP client when shutting down
+        await GlobalHTTPClient.close()
 
 
 if __name__ == "__main__":
