@@ -4,6 +4,7 @@ These functions parse the raw TagoIO scope into strict Pydantic events
 and broadcast them to the SSE stream.
 """
 
+import asyncio
 import json
 from typing import Optional
 
@@ -80,15 +81,16 @@ async def change_availability(context, scope):
 
 async def manage_rfid(context, scope):
     """Translates a TagoIO RFID scope into an SSE event and updates Cloud UI."""
+
+    device_id = scope[0]["device"]
+    pool_code = get_pool_code_by_device_id(device_id)
+    if pool_code is None:
+        logger.error(f"Cannot process RFID Event: Unknown Pool code for device {device_id}")
+        return
+
     try:
-        device_id = scope[0]["device"]
-        pool_code = get_pool_code_by_device_id(device_id)
-
-        if pool_code is None:
-            logger.error(f"Cannot process RFID Event: Unknown Pool code for device {device_id}")
-            return
-
         card_id = str(scope[0]["value"])
+        value, group = card_id.lower(), card_id.upper()
         is_create = len(scope) > 1 and scope[4].get("value") == "create"
 
         if is_create:
@@ -112,16 +114,17 @@ async def manage_rfid(context, scope):
             # * 2. Update TagoIO Device Data
             rfid_data = {
                 "variable": "card_id",
-                "value": card_id.lower(),
-                "group": card_id.upper(),
+                "value": value,
+                "group": group,
                 "metadata": {
-                    "alias": alias.upper() if alias else card_id.upper(),
+                    "alias": alias.upper() if alias else group,
                     "email": email if email else "",
                     "cps": linked_cps_str,
                 },
             }
             # Remove old variable before insert to simulate remove_and_insert_variable
-            await delete_variable_in_cloud(pool_code, "card_id", keep_weeks=0, group=card_id)
+            await delete_variable_in_cloud(pool_code, "card_id", keep_weeks=0, group=group)
+            await asyncio.sleep(1.0)
             await handle_variable_insert(pool_code, rfid_data)
 
             # * 3. UI Feedback
@@ -131,7 +134,7 @@ async def manage_rfid(context, scope):
             linked_cps_str = str(scope[0]["metadata"].get("cps", ""))
             event = RFIDManagementEvent(
                 pool_code=pool_code,
-                card_id=card_id,
+                card_id=value,
                 action="delete",
                 linked_cps=[cp.strip() for cp in linked_cps_str.split(",") if cp.strip()],
             )
@@ -141,15 +144,14 @@ async def manage_rfid(context, scope):
             await event_broker.broadcast(event_name=event.event_type.value, payload=event.model_dump(mode="json"))
 
             # * 2. Clean TagoIO Device Data
-            await delete_variable_in_cloud(pool_code, "card_id", keep_weeks=0, group=card_id)
+            await delete_variable_in_cloud(pool_code, "card_id", keep_weeks=0, group=group)
 
             # * 3. UI Feedback
             await show_validation_feedback(pool_code, "validation_rfid", "OK", True)
 
     except Exception as e:
         logger.error(f"Failed to parse manage_rfid payload: {e}")
-        # Optionally, try to show an ERROR feedback if pool_code is known
-        # await show_validation_feedback(pool_code, "validation_rfid", "ERROR", False)
+        await show_validation_feedback(pool_code, "validation_rfid", "ERROR", False)
 
 
 async def change_max_grid_power(context, scope):
