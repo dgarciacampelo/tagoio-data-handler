@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any
+from typing import Any, Optional
 
 from loguru import logger
 
@@ -33,30 +33,53 @@ async def insert_data_in_cloud(pool_code: int, data: dict = {}):
     return response.json()
 
 
-async def handle_variable_insert(pool_code: int, data: dict = {}):
+async def handle_variable_insert(pool_code: int, data: Optional[dict] = None):
     """
     Handles the data insertion using the insert_data_in_cloud function
     # * Positive result: {"status": true, "result": 20700}
     # ! Negative result: {"status": false, "message": "Authorization denied"}
     """
+    if data is None:  # To avoid mutable default argument issues
+        data = {}
+
     try:
         result = await insert_data_in_cloud(pool_code, data)
-        if "status" in result and result["status"]:
+
+        # * Use .get() to safely access dictionary keys
+        if result.get("status"):
             return result
 
-        # ? Clean device variables and retry, when the capacity limit is reached:
-        if "message" in result:
+        # ? Clean device variables and retry when the capacity limit is reached
+        error_message = result.get("message")
+        if error_message:
             logger.warning(f"Result of cloud variable insertion ({pool_code}): {result}")
-            if result["message"] == device_full_message:
+
+            if error_message == device_full_message:
+                logger.info(f"Capacity limit reached for pool {pool_code}. Executing cleanup and retrying...")
                 # ! Disabled (long background task): await device_data_amount_check()
                 # Fast, targeted cleanup for this specific pool
                 await pool_variable_cleanup(pool_code)
+
+                # Retry the insertion. If this fails, it will trigger the except block below.
                 return await insert_data_in_cloud(pool_code, data)
 
         else:
-            logger.error(f"Result of cloud variable insertion ({pool_code}): {result}")
+            logger.error(f"Failed cloud variable insertion ({pool_code}) - Unknown format: {result}")
+
     except Exception as e:
-        logger.error(f"Exception during cloud variable insertion ({pool_code}): {e}")
+        # Extract HTTP response, then use getattr() to safely access the response text if available
+        error_details = str(e)
+        response = getattr(e, "response", None)
+        if response is not None:
+            try:  # Safely extract text, accounting for HTTPX (.text) or similar clients
+                response_text = getattr(response, "text", "")
+                if response_text:
+                    error_details += f" | Response Body: {response_text}"
+            except Exception:
+                pass
+
+        # ? logger.exception automatically appends the full stack trace to the log output
+        logger.exception(f"Exception during cloud variable insertion ({pool_code}): {error_details}")
 
 
 async def send_feedback_message(feedback: FeedbackMessage):
