@@ -121,9 +121,20 @@ class RemoteStopPayload(BaseModel):
     transaction_id: int
 
 
+class UnlockConnectorPayload(BaseModel):
+    request: Literal["unlock_connector"]
+    station_names: list[str] = Field(..., description="Target charge points")
+    connector_id: int
+
+
 # Pydantic will route the validation to the correct subclass based on the 'request' field
 OCPPActionPayload = Union[
-    StatusNotificationPayload, ChangeAvailabilityPayload, ResetPayload, RemoteStartPayload, RemoteStopPayload
+    StatusNotificationPayload,
+    ChangeAvailabilityPayload,
+    ResetPayload,
+    RemoteStartPayload,
+    RemoteStopPayload,
+    UnlockConnectorPayload,
 ]
 
 

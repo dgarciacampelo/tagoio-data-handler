@@ -1,6 +1,7 @@
 import asyncio
 from typing import Any, Optional
 
+import httpx
 from loguru import logger
 
 from config import tago_api_endpoint
@@ -53,9 +54,9 @@ async def handle_variable_insert(pool_code: int, data: Optional[dict] = None):
             logger.warning(f"Result of cloud variable insertion ({pool_code}): {result}")
 
             if error_message == device_full_message:
-                logger.info(f"Capacity limit reached for pool {pool_code}. Executing cleanup and retrying...")
+                logger.info(f"Capacity limit reached for Pool {pool_code}. Executing cleanup and retrying...")
                 # ! Disabled (long background task): await device_data_amount_check()
-                # Fast, targeted cleanup for this specific pool
+                # Fast, targeted cleanup for this specific Pool
                 await pool_variable_cleanup(pool_code)
 
                 # Retry the insertion. If this fails, it will trigger the except block below.
@@ -64,24 +65,20 @@ async def handle_variable_insert(pool_code: int, data: Optional[dict] = None):
         else:
             logger.error(f"Failed cloud variable insertion ({pool_code}) - Unknown format: {result}")
 
-    except Exception as e:
-        # Extract HTTP response, then use getattr() to safely access the response text if available
-        error_details = str(e)
-        response = getattr(e, "response", None)
-        if response is not None:
-            try:  # Safely extract text, accounting for HTTPX (.text) or similar clients
-                response_text = getattr(response, "text", "")
-                if response_text:
-                    error_details += f" | Response Body: {response_text}"
-            except Exception:
-                pass
+    except httpx.TimeoutException as e:  # Expected behavior when TagoIO platform is not behaving properly.
+        logger.warning(f"TagoIO timeout dropping payload for Pool {pool_code}: {e}")
 
-        # ? logger.exception automatically appends the full stack trace to the log output
-        logger.exception(f"Exception during cloud variable insertion ({pool_code}): {error_details}")
+    except httpx.HTTPStatusError as e:  # E.g., 401 Unauthorized, 500 Internal Server Error
+        response_text = getattr(e.response, "text", "")
+        logger.error(f"TagoIO HTTP error ({e.response.status_code}) for Pool {pool_code} | Body: {response_text}")
+
+    except Exception as e:  # Truly unexpected exceptions (e.g., TypeError, KeyError)
+        error_details = str(e)  # ? logger.exception appends the full stack trace to the log output.
+        logger.exception(f"Unexpected exception during cloud variable insertion ({pool_code}): {error_details}")
 
 
 async def send_feedback_message(feedback: FeedbackMessage):
-    "Inserts a feedback message to be shown in a dashboard linkend to the pool"
+    "Inserts a feedback message to be shown in a dashboard linkend to the Pool"
     data = {
         "variable": feedback.variable,
         "value": feedback.message,

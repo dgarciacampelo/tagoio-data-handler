@@ -9,6 +9,7 @@ from schemas.analysis import (
     RemoteStopPayload,
     ResetPayload,
     StatusNotificationPayload,
+    UnlockConnectorPayload,
 )
 from sse_broker import event_broker
 from tagoio_analysis.analysis_callable import get_pool_code_by_device_id
@@ -66,8 +67,13 @@ async def ocpp_requests(context, scope):
         elif request_type == "remote_stop_transaction":
             payload_model = RemoteStopPayload(request="remote_stop_transaction", transaction_id=int(scope[2]["value"]))
 
+        elif request_type == "unlock_connector":
+            payload_model = UnlockConnectorPayload(
+                request="unlock_connector", station_names=station_names, connector_id=int(scope[2]["value"])
+            )
+
         if payload_model is None:
-            logger.warning(f"Ignored unsupported or deprecated OCPP request: {request_type}")
+            logger.warning(f"Ignored unsupported OCPP request: '{request_type}'. Raw payload: {scope}")
             return
 
         event = OCPPRequestEvent(pool_code=pool_code, payload=payload_model)
