@@ -18,7 +18,7 @@ class GlobalHTTPClient:
         """Returns the shared httpx.AsyncClient instance. Initializes it if needed."""
         if cls._async_client is None:  # Setting default limits, timeouts, and standard headers...
             limits = httpx.Limits(max_keepalive_connections=50, max_connections=100)
-            timeout = httpx.Timeout(timeout=10.0, connect=5.0)
+            timeout = httpx.Timeout(timeout=15.0, connect=5.0)
             cls._async_client = httpx.AsyncClient(limits=limits, timeout=timeout)
             logger.info("Global HTTPX AsyncClient initialized.")
         return cls._async_client
@@ -28,7 +28,7 @@ class GlobalHTTPClient:
         """Returns the shared httpx.Client instance. Initializes it if needed."""
         if cls._sync_client is None:  # Setting default limits, timeouts, and standard headers...
             limits = httpx.Limits(max_keepalive_connections=50, max_connections=100)
-            timeout = httpx.Timeout(timeout=10.0, connect=5.0)
+            timeout = httpx.Timeout(timeout=15.0, connect=5.0)
             cls._sync_client = httpx.Client(limits=limits, timeout=timeout)
             logger.info("Global HTTPX Client initialized.")
         return cls._sync_client

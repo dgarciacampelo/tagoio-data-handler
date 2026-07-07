@@ -1,9 +1,10 @@
 import json
-from fastapi import APIRouter, Depends, status, HTTPException
+from typing import Annotated
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.security import HTTPBasic
 from loguru import logger
 from pydantic import ValidationError
-from typing import Annotated
 
 from config import version  # noqa: F401
 from data_handling import manage_charging_session_update
@@ -29,6 +30,7 @@ async def charging_session_update(
     station_name: str,
     connector_id: int,
     update: ChargingSessionUpdate,
+    background_tasks: BackgroundTasks,
     username: Annotated[str, Depends(check_credentials)],
 ):
     """Manages the notification of a charging session update"""
@@ -37,7 +39,10 @@ async def charging_session_update(
         update.pool_code = pool_code
         update.station_name = station_name
         update.connector_id = connector_id
-        await manage_charging_session_update(update)
+
+        # ! await manage_charging_session_update(update)
+        # ? Instead of awaiting the function, it can be offloaded to a background task to avoid blocking the response.
+        background_tasks.add_task(manage_charging_session_update, update)
 
         return {"status": "success"}
 

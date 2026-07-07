@@ -4,14 +4,12 @@ from typing import Any, Optional
 from loguru import logger
 
 from config import tago_api_endpoint
-from enumerations import AvailabilityType, ChargingSessionStep, ConnectionStatus, ChargePointStatus, ValidationAlert
+from enumerations import AvailabilityType, ChargePointStatus, ChargingSessionStep, ConnectionStatus, ValidationAlert
 from schemas.ocpp_csms import ChargePointUpdate, ChargingSessionUpdate, FeedbackMessage
 from tagoio.data_deletion import delete_variable_in_cloud, pool_variable_cleanup
 from tagoio.token_fetching import get_headers_by_pool_code
 from user_interface import translate_status
 from utils.http_client import GlobalHTTPClient
-
-# from tagoio.check_data_amount import device_data_amount_check
 
 device_full_message: str = "The device has reached the limit of 50000 data registers"
 

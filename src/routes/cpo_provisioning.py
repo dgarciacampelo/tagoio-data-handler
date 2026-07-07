@@ -1,11 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from loguru import logger
 
-
-from security import check_credentials
 from database.query_database import insert_database_tagoio_device
-
-from schemas.google_forms import GoogleFormPayload, CPOProvisioningResponse
+from schemas.google_forms import CPOProvisioningResponse, GoogleFormPayload
+from security import check_credentials
 from tagoio.device_management import create_new_tago_device
 from tagoio.provisioning import (
     create_tagoio_user,
@@ -18,7 +16,7 @@ router = APIRouter()
 
 
 @router.post("/api/provision-cpo", response_model=CPOProvisioningResponse, dependencies=[Depends(check_credentials)])
-async def provision_new_cpo(payload: GoogleFormPayload):
+async def provision_new_cpo(payload: GoogleFormPayload, background_tasks: BackgroundTasks):
     """
     Receives CPO data, provisions the user and device in TagoIO,
     and returns the status and generated credentials.
@@ -57,7 +55,8 @@ async def provision_new_cpo(payload: GoogleFormPayload):
         insert_database_tagoio_device(pool_code, device_id, device_token)
 
         # 5. Apply default variables
-        await setup_default_device_variables(pool_code, payload)
+        # ! await setup_default_device_variables(pool_code, payload)
+        background_tasks.add_task(setup_default_device_variables, pool_code, payload)
         logger.info(f"Successfully provisioned CPO {payload.company_name} at Pool {pool_code}")
     else:
         response.error_message = "User created, but device provisioning failed."
