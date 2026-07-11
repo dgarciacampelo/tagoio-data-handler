@@ -229,7 +229,7 @@ async def change_rate_list(context, scope):
         rate_off_peak = float(scope[0]["value"])
         rate_flat = float(scope[1]["value"])
         rate_peak = float(scope[2]["value"])
-        vat = float(scope[3]["value"])
+        vat = float(scope[3]["value"])  # 10.0 for 10% VAT
 
         try:
             withholding_amount = float(scope[4]["value"])
@@ -246,8 +246,20 @@ async def change_rate_list(context, scope):
             withholding_amount=withholding_amount,
         )
 
+        metadata = {"valle": rate_off_peak, "llanas": rate_flat, "punta": rate_peak, "IVA": vat / 100}
+        rates_data = {"variable": "rate_costs", "value": "0", "group": "1", "metadata": metadata}
+
+        # * 1. Broadcast to CSMS
         logger.info(f"Broadcasting Rate List Event for Pool {pool_code} (Withholding: {withholding_amount}€)")
         await event_broker.broadcast(event_name=event.event_type.value, payload=event.model_dump(mode="json"))
+
+        # * 2. Clean TagoIO Device Data
+        await delete_variable_in_cloud(pool_code, "rate_costs", keep_weeks=0)
+        await asyncio.sleep(1.0)
+        await handle_variable_insert(pool_code, rates_data)
+
+        # * 3. UI Feedback
+        await show_validation_feedback(pool_code, "validation_rate", "OK", True)
 
     except Exception as e:
         logger.error(f"Failed to parse change_rate_list payload: {e}")

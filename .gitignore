@@ -167,3 +167,5 @@ database_files/
 
 # Tailwind CSS Windows executable
 tailwindcss-windows-x64.exe
+
+*.code-workspace
