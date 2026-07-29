@@ -10,6 +10,8 @@ from schemas.ocpp_csms import PoolConfigUpdate, PoolDeviceSetupResponse, RFIDCar
 from tagoio.token_fetching import delete_device_data_by_pool_code, get_headers_by_pool_code
 from utils.http_client import GlobalHTTPClient
 
+# ruff: noqa: UP045 # ? non-pep604-annotation-optional: Remain using Optional for clarity in this context
+
 
 class PoolConfig(BaseModel):
     is_loaded: bool = False  # Track the loading status of the pool configuration
@@ -73,9 +75,9 @@ async def fetch_variable_last_value(
                 logger.debug(f"Attempt {att}/{max_retries} failed for {msg}. Retrying...")
                 await asyncio.sleep(1 * att)
             else:
-                logger.warning(f"Network error fetching {msg} after {max_retries} attempts: {repr(e)}")
-        except Exception as e:
-            logger.error(f"Unexpected error parsing {msg}: {repr(e)}")
+                logger.warning(f"Network error fetching {msg} after {max_retries} attempts: {e!r}")
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"Unexpected error parsing {msg}: {e!r}")
             return None
 
     return None
@@ -96,7 +98,7 @@ async def fetch_variable_list(
         response.raise_for_status()
         data = response.json()
         return data.get("result", []) if data.get("status") and data.get("result") else []
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error fetching list for {variable} at pool {pool_code}: {e}")
         return []
 
@@ -173,7 +175,7 @@ async def _process_single_pool(pool_code: int, semaphore: asyncio.Semaphore):
                 delete_device_data_by_pool_code(pool_code)
             else:
                 logger.error(f"Unexpected HTTP error for pool {pool_code}: {e}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Unexpected error initializing config for pool {pool_code}: {e}")
 
         finally:  # Whether it succeeded or failed, mark as loaded so the UI drops the spinner

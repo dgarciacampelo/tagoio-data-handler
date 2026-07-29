@@ -86,7 +86,7 @@ async def main():
 
     except KeyboardInterrupt:
         logger.warning("Shutting down Service due to manual shutdown...")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.critical(f"Main app server-side error: {e}")
     finally:  # Safely close the global HTTP client when shutting down
         await GlobalHTTPClient.close()
@@ -97,5 +97,5 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         pass
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error in main function: {e}")

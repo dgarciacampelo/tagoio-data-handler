@@ -1,10 +1,12 @@
-from pydantic import BaseModel, EmailStr, Field, model_validator
 from datetime import datetime
 from typing import Optional
+
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 from enumerations import ChargePointStatus, ValidationAlert
 
 
+# ruff: noqa: UP045 # ? non-pep604-annotation-optional: Remain using Optional for clarity in this context
 class ChargePointUpdateBody(BaseModel):
     "Contains the HTTP request body data for a charge point status update"
 
@@ -129,9 +131,10 @@ class PaymentAuthRequest(BaseModel):
 
     @model_validator(mode="after")
     def check_invoice_fields(self):
-        if self.requires_invoice:
-            if not all([self.receipt_fiscal_id, self.receipt_name, self.receipt_address, self.receipt_email]):
-                raise ValueError("All invoice fields are mandatory when requires_invoice is true")
+        if self.requires_invoice and not all(
+            [self.receipt_fiscal_id, self.receipt_name, self.receipt_address, self.receipt_email]
+        ):
+            raise ValueError("All invoice fields are mandatory when requires_invoice is true")
         return self
 
 

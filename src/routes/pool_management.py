@@ -15,7 +15,6 @@ async def get_pool_configuration(pool_code: int):
     Resolves or registers the underlying TagoIO device before fetching configuration data.
     """
     logger.info(f"API request to fetch configuration for Pool: {pool_code}")
-
     device_name = f"MASTER-BUSINESS-{pool_code}"
 
     try:
@@ -39,7 +38,7 @@ async def get_pool_configuration(pool_code: int):
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Unexpected error retrieving configuration for Pool {pool_code}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

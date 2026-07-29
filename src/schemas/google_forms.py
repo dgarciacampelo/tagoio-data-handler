@@ -2,6 +2,8 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+# ruff: noqa: UP045 # ? non-pep604-annotation-optional: Remain using Optional for clarity in this context
+
 
 class GoogleFormPayload(BaseModel):
     """
