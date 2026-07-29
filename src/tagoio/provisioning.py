@@ -7,10 +7,12 @@ validated Google Forms data.
 import secrets
 import string
 from datetime import datetime
+from typing import Optional
 
 from loguru import logger
 
 from config import tago_api_endpoint
+from database.query_database import get_max_pool_code
 from schemas.google_forms import GoogleFormPayload
 from tagoio.data_parsing import handle_variable_insert
 from tagoio.device_management import _get_account_headers, get_device_list
@@ -25,31 +27,43 @@ def generate_secure_password(length: int = 16) -> str:
 
 async def resolve_new_pool_code() -> int:
     """
-    Calculates the next available pool code based on existing TagoIO devices.
-    Format: YYXXXX (e.g., 261001, 261002, 271001).
+    Calculates the next available pool code based on local database records
+    and remote TagoIO devices. Format: YYXXXX (e.g., 261001, 261002, 271001).
+    Resets sequence to 1001 automatically when entering a new calendar year.
     """
-    current_year = datetime.now().strftime("%y")
+    current_year = datetime.now().strftime("%y")  # noqa: DTZ005
     prefix = "MASTER-BUSINESS-"
-    max_sequence = 1000  # Base sequence before the first increment
+    max_sequence = 1000  # Base sequence before the first increment (1001)
 
+    # 1. Check local database max existing pool code
+    local_max_code: Optional[int] = get_max_pool_code()
+    if local_max_code is not None:
+        local_code_str = str(local_max_code)
+
+        # 2. Apply calendar year validation
+        if local_code_str.startswith(current_year) and len(local_code_str) == 6:
+            max_sequence = max(max_sequence, int(local_code_str[2:]))
+        # If local_max_code belongs to a past year (e.g. 26XXXX in 2027),
+        # max_sequence remains 1000, forcing the sequence to jump to YY1001 (e.g. 271001).
+
+    # 3. Check against remote device pool codes on TagoIO platform
     client = GlobalHTTPClient.get_client()
-    # Utilizing the existing account-level fetcher
     devices = await get_device_list(client)
 
     for device in devices:
         name = device.get("name", "")
         if name.startswith(prefix):
             try:
-                code_str = name.replace(prefix, "")
+                code_str = name.replace(prefix, "").strip()
 
-                # Only evaluate sequences belonging to the current year
+                # Only evaluate 6-digit codes belonging to the current year
                 if code_str.startswith(current_year) and len(code_str) == 6:
                     sequence = int(code_str[2:])
-                    if sequence > max_sequence:
-                        max_sequence = sequence
+                    max_sequence = max(max_sequence, sequence)
             except ValueError:
                 continue
 
+    # 4. Final sequence increment and pool code generation
     next_sequence = max_sequence + 1
     return int(f"{current_year}{next_sequence}")
 
@@ -93,7 +107,7 @@ async def create_tagoio_user(payload: GoogleFormPayload, pool_code: int, passwor
         logger.info(f"Result after creating new {payload.user_email} TagoIO user: {result}")
         return result.get("status", False)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error creating TagoIO user {payload.user_email}: {e}")
         return False
 

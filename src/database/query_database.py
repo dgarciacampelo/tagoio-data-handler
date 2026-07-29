@@ -7,7 +7,6 @@ from database import database_file
 from schemas.ocpp_csms import ChargingSessionUpdate
 
 # ruff: noqa: BLE001
-# ruff: noqa: UP045
 
 
 def get_modified_rows_count(table_name: str, db_file: str = database_file) -> Optional[int]:
@@ -434,3 +433,14 @@ def delete_station_from_db(pool_code: int, station_name: str, db_file: str = dat
     except Exception as e:
         logger.error(f"Error deleting station {station_name} from database: {e}")
         return False
+
+
+def get_max_pool_code(db_file: str = database_file) -> Optional[int]:
+    """Retrieves the highest existing pool_code in the local database, or None if empty."""
+    query = "SELECT MAX(pool_code) FROM tagoio_device;"
+    try:
+        with sqlite3.connect(db_file) as conn:
+            return conn.execute(query).fetchone()[0]
+    except Exception as e:
+        logger.error(f"Exception fetching max pool code: {e}")
+        return None

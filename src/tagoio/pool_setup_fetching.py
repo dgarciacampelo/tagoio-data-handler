@@ -10,8 +10,6 @@ from schemas.ocpp_csms import PoolConfigUpdate, PoolDeviceSetupResponse, RFIDCar
 from tagoio.token_fetching import delete_device_data_by_pool_code, get_headers_by_pool_code
 from utils.http_client import GlobalHTTPClient
 
-# ruff: noqa: UP045 # ? non-pep604-annotation-optional: Remain using Optional for clarity in this context
-
 
 class PoolConfig(BaseModel):
     is_loaded: bool = False  # Track the loading status of the pool configuration

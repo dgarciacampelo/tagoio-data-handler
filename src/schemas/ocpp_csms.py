@@ -6,7 +6,6 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 from enumerations import ChargePointStatus, ValidationAlert
 
 
-# ruff: noqa: UP045 # ? non-pep604-annotation-optional: Remain using Optional for clarity in this context
 class ChargePointUpdateBody(BaseModel):
     "Contains the HTTP request body data for a charge point status update"
 
