@@ -1,8 +1,10 @@
 import sqlite3
+
 from loguru import logger
 
 from database import database_file
-# from decorators import benchmark
+
+# ruff: noqa: BLE001
 
 
 def insert_modified_column(table_name: str, db_file: str = database_file) -> bool:

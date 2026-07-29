@@ -1,9 +1,13 @@
 import sqlite3
-from loguru import logger
 from typing import Optional
+
+from loguru import logger
 
 from database import database_file
 from schemas.ocpp_csms import ChargingSessionUpdate
+
+# ruff: noqa: BLE001
+# ruff: noqa: UP045
 
 
 def get_modified_rows_count(table_name: str, db_file: str = database_file) -> Optional[int]:
@@ -77,8 +81,15 @@ def get_database_pool_code_by_device_id(device_id: str, db_file: str = database_
 
 
 def insert_database_tagoio_device(pool_code: int, device_id: str, device_token: str, db_file: str = database_file):
-    "Inserts a new tagoio_device into the database table."
-    query = "INSERT INTO tagoio_device (pool_code, device_id, device_token) VALUES (?, ?, ?);"
+    """Inserts or updates a tagoio_device into the database table on conflict."""
+    query = """
+        INSERT INTO tagoio_device (pool_code, device_id, device_token, is_modified)
+        VALUES (?, ?, ?, 1)
+        ON CONFLICT(pool_code) DO UPDATE SET
+            device_id = excluded.device_id,
+            device_token = excluded.device_token,
+            is_modified = 1;
+    """
     try:
         with sqlite3.connect(db_file) as conn:
             conn.execute(query, (pool_code, device_id, device_token))
