@@ -74,7 +74,7 @@ async def fetch_variable_last_value(
                 await asyncio.sleep(1 * att)
             else:
                 logger.warning(f"Network error fetching {msg} after {max_retries} attempts: {e!r}")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"Unexpected error parsing {msg}: {e!r}")
             return None
 
@@ -96,7 +96,7 @@ async def fetch_variable_list(
         response.raise_for_status()
         data = response.json()
         return data.get("result", []) if data.get("status") and data.get("result") else []
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Error fetching list for {variable} at pool {pool_code}: {e}")
         return []
 
@@ -173,7 +173,7 @@ async def _process_single_pool(pool_code: int, semaphore: asyncio.Semaphore):
                 delete_device_data_by_pool_code(pool_code)
             else:
                 logger.error(f"Unexpected HTTP error for pool {pool_code}: {e}")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.error(f"Unexpected error initializing config for pool {pool_code}: {e}")
 
         finally:  # Whether it succeeded or failed, mark as loaded so the UI drops the spinner

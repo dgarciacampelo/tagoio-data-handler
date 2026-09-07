@@ -19,7 +19,7 @@ def feed_and_return_all_devices_tokens():
         for pool_code, (device_id, device_token) in devices.items():
             insert_database_tagoio_device(pool_code, device_id, device_token)
         return devices
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Exception during fetch_all_devices_tokens: {e}")
         return {}
 
@@ -33,7 +33,7 @@ def setup_all_devices_tokens():
     logger.info("Preparing devices data...")
     try:
         local_device_rows = get_all_database_tagoio_devices()
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Exception during get_all_database_tagoio_devices: {e}")
         return {}
 
@@ -67,7 +67,7 @@ def fetch_all_devices_tokens() -> dict[int, tuple[str, str]]:
             if device_token is None:
                 continue
             devices[pool_code] = device_id, device_token
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Exception during fetch_all_devices_tokens: {e}")
 
     return devices

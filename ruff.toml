@@ -1,2 +1,2 @@
 # Ignore 'UP045' rule globally
-ignore = ["UP045"]
+ignore = ["UP045", "BLE001"]

@@ -38,7 +38,7 @@ async def get_pool_configuration(pool_code: int):
 
     except HTTPException:
         raise
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Unexpected error retrieving configuration for Pool {pool_code}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

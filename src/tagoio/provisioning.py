@@ -107,7 +107,7 @@ async def create_tagoio_user(payload: GoogleFormPayload, pool_code: int, passwor
         logger.info(f"Result after creating new {payload.user_email} TagoIO user: {result}")
         return result.get("status", False)
 
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.error(f"Error creating TagoIO user {payload.user_email}: {e}")
         return False
 
