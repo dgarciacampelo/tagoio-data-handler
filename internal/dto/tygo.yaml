@@ -1,0 +1,7 @@
+# tygo: generates the frontend TypeScript contract from this package (go generate ./internal/dto).
+packages:
+  - path: "github.com/dgarciacampelo/tagoio-handler/internal/dto"
+    output_path: "../../frontend/src/lib/contract.gen.ts"
+    enum_style: "union" # Go const groups become TS union types (exhaustive mappings)
+    frontmatter: |
+      // Source of truth: internal/dto (Go). Regenerate with `go generate ./internal/dto`.

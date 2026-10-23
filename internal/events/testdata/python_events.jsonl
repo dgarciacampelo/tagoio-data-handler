@@ -1,0 +1,12 @@
+{"event": "change_availability", "data": {"pool_code": 261001, "event_type": "change_availability", "station_name": "22HBS0442HBS23"}}
+{"event": "change_max_grid_power", "data": {"pool_code": 261001, "event_type": "change_max_grid_power", "max_power_watts": 7400.0}}
+{"event": "manage_rfid", "data": {"pool_code": 261001, "event_type": "manage_rfid", "card_id": "abc123", "action": "create", "linked_cps": ["ST1", "ST2"], "alias": "ABC123", "email": "a@b.es"}}
+{"event": "manage_rfid", "data": {"pool_code": 261001, "event_type": "manage_rfid", "card_id": "abc123", "action": "delete", "linked_cps": [], "alias": null, "email": null}}
+{"event": "change_cpo_info", "data": {"pool_code": 261001, "event_type": "change_cpo_info", "name": "ACME", "fiscal_id": "B12345678", "address": "C/ Mayor 1", "phone": "985000000", "email": "info@acme.es", "web": ""}}
+{"event": "change_rate_list", "data": {"pool_code": 261001, "event_type": "change_rate_list", "rate_off_peak": 0.15, "rate_flat": 0.25, "rate_peak": 0.35, "vat": 21.0, "withholding_amount": 40.0}}
+{"event": "change_load_balancing_mode", "data": {"pool_code": 261001, "event_type": "change_load_balancing_mode", "selected_mode": "Ninguno"}}
+{"event": "power_consumption_update", "data": {"pool_code": 261001, "event_type": "power_consumption_update", "meter_watts": 1234.5}}
+{"event": "ocpp_request", "data": {"pool_code": 261001, "event_type": "ocpp_request", "payload": {"request": "change_availability", "station_names": ["ST1"], "connector_id": 1, "availability_type": "Operative"}}}
+{"event": "ocpp_request", "data": {"pool_code": 261001, "event_type": "ocpp_request", "payload": {"request": "remote_stop_transaction", "transaction_id": 99}}}
+{"event": "virtual_POS_start_transaction", "data": {"pool_code": 261001, "event_type": "virtual_POS_start_transaction", "station_name": "ST1", "connector_id": 1, "email": "d@x.es", "amount": 40.0, "currency": "EUR", "requires_invoice": false, "receipt_email": null, "receipt_name": null, "receipt_fiscal_id": null, "receipt_address": null}}
+{"event": "virtual_POS_stop_transaction", "data": {"pool_code": 261001, "event_type": "virtual_POS_stop_transaction", "station_name": "ST1", "connector_id": 1}}

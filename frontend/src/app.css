@@ -1,0 +1,119 @@
+/*
+ * Design system of the pages: the Velo Energy theme of the former Jinja templates (Material 3 palette around the
+ * brand's forest green, Inter, compact spacing), ported from tailwind.config.js to Tailwind CSS 4 theme variables.
+ * The class names stay the same, so a template's classes keep their look.
+ *
+ * Colors are theme tokens only (bg-primary, text-on-surface-variant, bg-status-charging…): no hex values in the
+ * components.
+ */
+@import 'tailwindcss';
+@source not '../vendor';
+@source './lib'; /* Scanned explicitly: class names built in TypeScript ($lib/status.ts) must never be missed */
+
+@theme {
+	/* region Colors */
+	--color-background: #f7f9fb;
+	--color-on-background: #191c1e;
+	--color-primary: #00571b;
+	--color-on-primary: #ffffff;
+	--color-primary-fixed: #9ef6b1;
+	--color-on-primary-fixed: #002106;
+	--color-on-primary-fixed-variant: #004e17;
+	--color-secondary: #006c49;
+	--color-secondary-fixed-dim: #4edea3;
+	--color-error: #ba1a1a;
+	--color-error-container: #ffdad6;
+	--color-surface: #f7f9fb;
+	--color-on-surface: #191c1e;
+	--color-surface-variant: #dee5df;
+	--color-on-surface-variant: #414942;
+	--color-outline: #717972;
+	--color-outline-variant: #c1c9c1;
+	--color-surface-container-lowest: #ffffff;
+	--color-surface-container-low: #f2f4f6;
+	--color-surface-container: #eceef0;
+	--color-surface-container-high: #e6e8ea; /* Used by the templates but never defined there */
+	--color-surface-container-highest: #e0e3e5;
+
+	/* Connector statuses (badges and status cards, with black text) */
+	--color-status-available: #15ff00;
+	--color-status-preparing: #00ffff;
+	--color-status-charging: #fad000;
+	--color-status-suspended: #aeaeae;
+	--color-status-finishing: #ee88ff;
+	--color-status-error: #ff0000;
+	--color-status-unavailable: #949494;
+
+	/* Tariff bands of the audits */
+	--color-band-off-peak: #e8f5e9;
+	--color-on-band-off-peak: #1b5e20;
+	--color-band-flat: #fff3e0;
+	--color-on-band-flat: #e65100;
+	--color-band-peak: #ffebee;
+	--color-on-band-peak: #b71c1c;
+	/* endregion */
+
+	/* region Spacing
+	   ! These names also apply to w-*, h-*, max-w-*…: max-w-md is 16px here, not a container width. Use
+	   arbitrary widths (max-w-[28rem]) or the 2xl+ container names. */
+	--spacing-xs: 8px;
+	--spacing-sm: 12px;
+	--spacing-md: 16px;
+	--spacing-lg: 24px;
+	--spacing-xl: 32px;
+	--spacing-grid-gutter: 16px;
+	--spacing-base: 4px;
+	/* endregion */
+
+	/* region Typography */
+	--font-headline-md: 'Inter Variable', Inter, sans-serif;
+	--font-label-sm: 'Inter Variable', Inter, sans-serif;
+	--font-label-caps: 'Inter Variable', Inter, sans-serif;
+	--font-display-metrics: 'Inter Variable', Inter, sans-serif;
+	--font-body-md: 'Inter Variable', Inter, sans-serif;
+	--font-sans: 'Inter Variable', Inter, sans-serif;
+
+	--text-headline-md: 20px;
+	--text-headline-md--line-height: 28px;
+	--text-headline-md--font-weight: 600;
+	--text-label-sm: 12px;
+	--text-label-sm--line-height: 16px;
+	--text-label-sm--font-weight: 500;
+	--text-label-caps: 12px;
+	--text-label-caps--line-height: 16px;
+	--text-label-caps--letter-spacing: 0.05em;
+	--text-label-caps--font-weight: 700;
+	--text-display-metrics: 48px;
+	--text-display-metrics--line-height: 56px;
+	--text-display-metrics--letter-spacing: -0.02em;
+	--text-display-metrics--font-weight: 700;
+	--text-body-md: 14px;
+	--text-body-md--line-height: 20px;
+	--text-body-md--font-weight: 400;
+	/* Section titles (used by the templates but never defined there) */
+	--text-title-md: 16px;
+	--text-title-md--line-height: 24px;
+	--text-title-lg: 18px;
+	--text-title-lg--line-height: 26px;
+	/* endregion */
+}
+
+/* Horizontal lists that scroll without showing a scrollbar (connector selector). */
+@utility scrollbar-hide {
+	scrollbar-width: none;
+	&::-webkit-scrollbar {
+		display: none;
+	}
+}
+
+/* Bottom padding for the home indicator of phones without a home button. */
+@utility pb-safe {
+	padding-bottom: env(safe-area-inset-bottom);
+}
+
+@layer base {
+	html,
+	body {
+		@apply bg-background text-on-background font-body-md antialiased;
+	}
+}

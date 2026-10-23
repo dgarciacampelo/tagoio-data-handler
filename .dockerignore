@@ -2,24 +2,24 @@
 .git
 .gitignore
 
-# Python Virtual Environments
+# Secrets and data (mounted at runtime, never baked into an image)
+.env
+database_files/
+
+# Build outputs (rebuilt inside the image)
+frontend/node_modules/
+frontend/src/lib/paraglide/
+internal/webui/dist/
+*.exe
+
+# Python service (removed at the cutover)
 venv/
 .venv/
+test_venv/
 env/
-.env_python/
-
-# Python Cache & Bytecode
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-.Python
-
-# Environment Variables
-.env
-
-# Tailwind / Node (Since we use the Standalone CLI)
-tailwindcss.exe
+.pytest_cache/
 tailwindcss-linux-x64
 tailwindcss-windows-x64.exe
 node_modules/
@@ -27,4 +27,5 @@ node_modules/
 # IDEs and OS files
 .vscode/
 .idea/
+.claude/
 .DS_Store
