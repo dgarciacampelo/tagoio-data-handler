@@ -23,4 +23,6 @@ services:
 
 networks:
   tagoio-data-network:
+    # * Shared with neos-ocpp and created once per host: docker network create tagoio_data_network
     name: tagoio_data_network
+    external: true

@@ -1,0 +1,45 @@
+[
+    {
+        "variable": "ocpp_cp",
+        "time": "2022-12-23T20:00:04.786Z",
+        "created_at": "2022-12-23T20:00:04.787Z",
+        "value": "22HBS0442HBS23",
+        "metadata": {
+            "sentValues": [
+                {
+                    "label": "22HBS0442HBS23",
+                    "metadata": {
+                        "state0": "Disponible",
+                        "state1": "Disponible",
+                        "connection_state": "Online"
+                    },
+                    "value": "22HBS0442HBS23"
+                }
+            ]
+        },
+        "id": "63a608c46b0686000a7a532d",
+        "group": "1671825604580",
+        "device": "637f4de7e7223300208aa890"
+    },
+    {
+        "variable": "ocpp_request",
+        "time": "2022-12-23T20:00:04.789Z",
+        "created_at": "2022-12-23T20:00:04.789Z",
+        "value": "status_notification",
+        "metadata": {
+            "label": "Status Notification"
+        },
+        "id": "63a608c46b0686000a7a532e",
+        "group": "1671825604580",
+        "device": "637f4de7e7223300208aa890"
+    },
+    {
+        "variable": "params_connector",
+        "time": "2022-12-23T20:00:04.791Z",
+        "created_at": "2022-12-23T20:00:04.791Z",
+        "value": 1,
+        "id": "63a608c46b0686000a7a532f",
+        "group": "1671825604580",
+        "device": "637f4de7e7223300208aa890"
+    }
+]

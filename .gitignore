@@ -169,3 +169,10 @@ database_files/
 tailwindcss-windows-x64.exe
 
 *.code-workspace
+
+# Go + Svelte service
+!frontend/src/lib/
+frontend/node_modules/
+internal/webui/dist/
+*.exe
+.claude/launch.json
