@@ -80,8 +80,39 @@ npm --prefix frontend run check
 go generate ./internal/dto      # After changing internal/dto: regenerates the TypeScript contract
 ```
 
+The race detector needs cgo. Without a C compiler on Windows, run it in a container that reuses the local module cache
+(`GOPROXY=off`: nothing is downloaded):
+
+```bash
+MSYS_NO_PATHCONV=1 docker run --rm -v "$(cygpath -w "$PWD")":/src -v "$(cygpath -w "$(go env GOMODCACHE)")":/go/pkg/mod:ro \
+  -w /src -e GOPROXY=off -e CGO_ENABLED=1 golang:1.27 go test -race -count=1 ./...
+```
+
 The production image (`golang.Dockerfile`) builds the pages, embeds them in the binary and runs it as a non-root user
 with the database in `/data`.
+
+### Tests of known bugs
+
+A test of a bug that isn't fixed yet asserts the correct behaviour and ends with `testutil.KnownBug(t, ok, reason)`
+(`internal/testutil`): it is skipped as `known bug: <reason>` while the bug is present, and fails once it is fixed, so
+the call is replaced by a plain assertion in the same change as the fix. `go test -v ./... | grep "known bug"` lists
+them. Their setup still fails with `t.Fatal`, so a broken test never hides as a skip.
+
+`internal/testutil.FakeTagoIO` is an in-memory TagoIO API (devices, tokens, buckets, failures on demand) for the
+tests of the registry, the buckets and the provisioning.
+
+| Test | Bug |
+|---|---|
+| `realtime.TestWorkerAcceptsTriggerWrappedInPayload` | Triggers wrapped in `{"payload": ...}` are dropped (format unverified until the dry-run capture) |
+| `realtime.TestWorkerWarnsAboutEventsWithoutTriggerData` | An event without trigger data is only logged at DEBUG |
+| `realtime.TestWorkerBacksOffWhenTheStreamClosesAtOnce` | The reconnect backoff resets on every 200 |
+| `handlers.TestStationPageOfAnUnknownPoolDoesNotReadTagoIO` | The public station page reaches TagoIO (and rescans the account) for any pool code |
+| `handlers.TestWindowLimiterStaysBoundedWithManyClients` | The rate limiter has no upper bound per window |
+| `devices.TestUnknownDeviceIsLookedUpAgainAfterAFailedRescan` | A device stays "unknown" for 10 minutes after a failed rescan |
+| `bucket.TestReplaceKeepsTheOldValueWhenTheInsertFails` | `Replace` deletes before inserting |
+| `bucket.TestARevokedDeviceTokenIsRefreshed` | A revoked device token is never fetched again |
+| `provisioning.TestConcurrentFirstSetupsCreateOneDevice` | Two first-time setups of a pool create two MASTER devices |
+| `provisioning.TestFormAcceptsANullDescription` | A null description, allowed by neos-notification-mgmt, fails the provisioning |
 
 ## Cutover from the Python service (by 2026-11-19)
 
