@@ -114,6 +114,16 @@ tests of the registry, the buckets and the provisioning.
 | `provisioning.TestConcurrentFirstSetupsCreateOneDevice` | Two first-time setups of a pool create two MASTER devices |
 | `provisioning.TestFormAcceptsANullDescription` | A null description, allowed by neos-notification-mgmt, fails the provisioning |
 
+The frontend tests (`npm --prefix frontend test`, vitest with happy-dom, `frontend/vitest.config.ts`) follow the same
+rule with `knownBug(context, reason, assertion)` from `frontend/src/test/knownBug.ts`: only assertion errors count as
+"bug still present", and the components are mounted with Svelte's own `mount` (`frontend/src/test/render.ts`).
+
+| Test | Bug |
+|---|---|
+| `AuditsApp > shows both sessions that share a transaction id` | The audits list is keyed by `transaction_id`, which repeats: the page doesn't render |
+| `StationApp polling > shows the polled status when the answer is slower than the poll interval` | Each 5 s tick aborts the poll in flight |
+| `StatusCard stop button > is enabled again for the next paid session` | The stop button stays "sent" for later sessions |
+
 ## Cutover from the Python service (by 2026-11-19)
 
 TagoIO turns off the Socket.IO realtime connection the Python service uses on **2026-11-19**.
