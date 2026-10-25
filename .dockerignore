@@ -12,7 +12,7 @@ frontend/src/lib/paraglide/
 internal/webui/dist/
 *.exe
 
-# Python service (removed at the cutover)
+# Local leftovers of the removed Python service (virtual environments, caches)
 venv/
 .venv/
 test_venv/

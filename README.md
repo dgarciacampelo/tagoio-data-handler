@@ -88,7 +88,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$(cygpath -w "$PWD")":/src -v "$(cygpath 
   -w /src -e GOPROXY=off -e CGO_ENABLED=1 golang:1.27 go test -race -count=1 ./...
 ```
 
-The production image (`golang.Dockerfile`) builds the pages, embeds them in the binary and runs it as a non-root user
+The production image (`Dockerfile`) builds the pages, embeds them in the binary and runs it as a non-root user
 with the database in `/data`.
 
 ### Tests of known bugs
@@ -122,24 +122,32 @@ rule with `knownBug(context, reason, assertion)` from `frontend/src/test/knownBu
 | `StationApp polling > shows the polled status when the answer is slower than the poll interval` | Each 5 s tick aborts the poll in flight |
 | `StatusCard stop button > is enabled again for the next paid session` | The stop button stays "sent" for later sessions |
 
-## Cutover from the Python service (by 2026-11-19)
+## Deploy
 
-TagoIO turns off the Socket.IO realtime connection the Python service uses on **2026-11-19**.
+On the server, from the repository folder:
 
-1. **Capture the analysis payloads** (dry run): run the Go service with the production `.env`, `DRY_RUN=true` and
-   `LOG_LEVEL=info`, trigger each dashboard action once, and turn the logged scopes (`Analysis: trigger received`,
-   with the variable names) into tests in `internal/analysis/testdata`. Then replace the positional fields in
-   `internal/analysis/handlers.go` with the variable names. Only the OCPP request names are confirmed so far.
-2. **Staging soak**: at least 24 h with `DRY_RUN=true` against a copy of `database_files/`, and neos-ocpp
-   (staging) pointed at it.
-3. **Cutover commit**: delete `src/`, `templates/`, `static/`, `tests/`, `requirements.txt`, `pytest.ini`,
-   `ruff.toml`, `tailwind.config.js` and the Python `Dockerfile`/`docker-compose.yml`. Rename `golang.Dockerfile` to `Dockerfile` and
-   `docker-compose.go.yml` (pointing it at `Dockerfile`).
-4. **Deploy**: stop the Python container, `docker compose up -d
-   --build`. neos-ocpp reconnects to `/api/stream` by itself. Check the 21:15 backup reaches Telegram.
-5. Delete the unused `pay_start_transaction` / `pay_stop_transaction` analyses in TagoIO. The `.env` variables
-   `API_VERSION`, `PAYMENTS_GW_DEVICE_TOKEN`, `TAGO_DATA_AMOUNT_*`, `TAGOIO_HANDLER_URL` and `TEST_*` are no longer
-   read and can go.
+```bash
+git pull --ff-only && docker compose up -d --build
+```
 
-Rollback until 2026-11-19: restart the previous Python image. After that date the Python service can no longer
-receive analysis triggers.
+neos-ocpp reconnects to `/api/stream` by itself. After a deploy, `docker logs -f tagoio-data-handler` should show
+`TagoIO realtime: analysis connected` for the 8 analyses, then `Analysis: trigger received` for each dashboard action
+(and about every 90 s for each MQTT meter).
+
+## History: migration from the Python service
+
+The Python/FastAPI service (Jinja + HTMX pages, Socket.IO realtime) was replaced by this one in production on
+2026-10-24, and its code was removed afterwards; it stays in the git history (last commit with it: `1b67d28`). TagoIO
+turns off its Socket.IO realtime connection on 2026-11-19.
+
+TagoIO's realtime SSE events carry the trigger in `{"channel", "payload": {...}}`; the captures are in
+`internal/tagoio/realtime/testdata/` (decoded by `realtime.DecodeEvent`).
+
+Still open:
+
+- Capture each dashboard action once and replace the positional fields in `internal/analysis/handlers.go` with the
+  variable names (only the OCPP request names and the captured `change_availability` and meter values are confirmed).
+- Delete the unused `pay_start_transaction` / `pay_stop_transaction` analyses in TagoIO. The `.env` variables
+  `API_VERSION`, `PAYMENTS_GW_DEVICE_TOKEN`, `TAGO_DATA_AMOUNT_*`, `TAGOIO_HANDLER_URL` and `TEST_*` are no longer
+  read and can go.
+- On the server, delete the image of the Python service (`docker image rm tagoio-data-handler`).
