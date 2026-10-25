@@ -5,7 +5,8 @@
 //
 //	GET {sse}/events?channel=analysis_trigger&token=<analysis token>   (Accept: text/event-stream)
 //
-// Every SSE event's data is a JSON trigger, {"analysis_id", "environment", "data": [records]}. TagoIO sends a
+// Every SSE event's data is {"channel", "payload"}, the payload being a JSON trigger, {"analysis_id", "environment",
+// "data": [records], "session_id", "token"} (captured on 2026-10-25, testdata/sse_*.json). TagoIO sends a
 // keep-alive about every 5 seconds, so a minute without any line means the connection is dead.
 package realtime
 
@@ -196,17 +197,39 @@ func (w *Worker) stream(ctx context.Context, log *slog.Logger) (connected bool, 
 	return true, errors.New("stream ended by the server")
 }
 
-// dispatch decodes one event and queues it for the handler.
-func (w *Worker) dispatch(log *slog.Logger, raw []byte) {
+// event is the data of a TagoIO realtime SSE event: the trigger travels in "payload", next to the channel
+// (captured from production on 2026-10-25, testdata/sse_*.json). The payload also carries the analysis token.
+type event struct {
+	Channel string          `json:"channel"`
+	Payload json.RawMessage `json:"payload"`
+}
+
+// DecodeEvent decodes the data of an SSE event into a trigger. It unwraps TagoIO's {"channel", "payload"} envelope
+// and also accepts a bare trigger. Numbers stay json.Number, as written by TagoIO.
+func DecodeEvent(raw []byte) (Trigger, error) {
+	var e event
+	if err := json.Unmarshal(raw, &e); err == nil && len(e.Payload) > 0 && !bytes.Equal(e.Payload, []byte("null")) {
+		raw = e.Payload
+	}
 	var trigger Trigger
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.UseNumber()
-	if err := decoder.Decode(&trigger); err != nil {
-		log.Warn("TagoIO realtime: ignoring event that is not a trigger", "error", err, "data", truncate(raw, 300))
+	err := decoder.Decode(&trigger)
+	return trigger, err
+}
+
+// dispatch decodes one event and queues it for the handler.
+func (w *Worker) dispatch(log *slog.Logger, raw []byte) {
+	trigger, err := DecodeEvent(raw)
+	if err != nil {
+		log.Warn("TagoIO realtime: ignoring event that is not a trigger", "error", err,
+			"data", w.redacted(raw))
 		return
 	}
 	if len(trigger.Data) == 0 {
-		log.Debug("TagoIO realtime: trigger without data ignored")
+		// A trigger always carries records: an empty one means the event format is not the expected one.
+		log.Warn("TagoIO realtime: event without trigger data ignored", "analysis_id", trigger.AnalysisID,
+			"data", w.redacted(raw))
 		return
 	}
 
@@ -237,6 +260,15 @@ func (w *Worker) run(ctx context.Context, log *slog.Logger, trigger Trigger) {
 		}
 	}()
 	w.Handle(ctx, trigger)
+}
+
+// redacted returns the start of an event's data for the logs, without the analysis token it carries.
+func (w *Worker) redacted(raw []byte) string {
+	text := string(raw)
+	if w.Token != "" {
+		text = strings.ReplaceAll(text, w.Token, "REDACTED")
+	}
+	return truncate([]byte(text), 300)
 }
 
 // redactToken removes the analysis token from an error (url.Error includes the request URL).

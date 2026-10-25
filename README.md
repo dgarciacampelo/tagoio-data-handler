@@ -103,8 +103,6 @@ tests of the registry, the buckets and the provisioning.
 
 | Test | Bug |
 |---|---|
-| `realtime.TestWorkerAcceptsTriggerWrappedInPayload` | Triggers wrapped in `{"payload": ...}` are dropped (format unverified until the dry-run capture) |
-| `realtime.TestWorkerWarnsAboutEventsWithoutTriggerData` | An event without trigger data is only logged at DEBUG |
 | `realtime.TestWorkerBacksOffWhenTheStreamClosesAtOnce` | The reconnect backoff resets on every 200 |
 | `handlers.TestStationPageOfAnUnknownPoolDoesNotReadTagoIO` | The public station page reaches TagoIO (and rescans the account) for any pool code |
 | `handlers.TestWindowLimiterStaysBoundedWithManyClients` | The rate limiter has no upper bound per window |

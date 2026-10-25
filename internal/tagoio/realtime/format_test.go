@@ -1,15 +1,18 @@
 package realtime
 
-// Tests of the trigger format and the reconnect behaviour, the cutover risks of the realtime connection: the SSE
-// trigger format has not been checked against a real TagoIO capture yet (README, cutover step 1).
+// Tests of the trigger format and the reconnect behaviour of the realtime connection. The SSE trigger format was
+// captured from production on 2026-10-25: testdata/sse_*.json.
 
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -97,26 +100,85 @@ func TestWorkerDecodesTheEnvironment(t *testing.T) {
 }
 
 func TestWorkerAcceptsTriggerWrappedInPayload(t *testing.T) {
-	// TagoIO's own SDKs read the trigger from a "payload" field of the SSE event (JSON.parse(event.data).payload).
-	// If the real events are wrapped like that, the worker decodes an empty trigger and drops every one of them.
-	server := streamOnce(t, `data: {"payload":`+triggerJSON+"}\n\n")
+	// TagoIO sends {"channel", "payload": trigger} (testdata/sse_*.json). Before the fix of 2026-10-25 the worker
+	// decoded the top level and dropped every trigger in production.
+	server := streamOnce(t, `data: {"channel":"analysis_trigger.a1","payload":`+triggerJSON+"}\n\n")
 
-	tr, ok := waitTrigger(runWorker(t, server.URL, quietLogger()), 2*time.Second)
-	testutil.KnownBug(t, ok && len(tr.Data) == 1,
-		`triggers wrapped in {"payload": ...} are decoded as empty and dropped (format unverified until the dry-run capture)`)
+	tr, ok := waitTrigger(runWorker(t, server.URL, quietLogger()), 3*time.Second)
+	if !ok || tr.AnalysisID != "a1" || len(tr.Data) != 1 || tr.Data[0].Device != "d1" {
+		t.Fatalf("trigger = %+v (received: %v)", tr, ok)
+	}
 }
 
 func TestWorkerWarnsAboutEventsWithoutTriggerData(t *testing.T) {
-	// An event that decodes without data means the format is not the expected one: it must be visible at the
-	// default log level, or the dry-run capture just looks like "no triggers arrived".
+	// An event that decodes without data means the format changed: it must be visible at the default log level,
+	// without the analysis token the payload carries.
 	var logs syncBuffer
 	log := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	server := streamOnce(t, `data: {"payload":`+triggerJSON+"}\n\n")
+	server := streamOnce(t, `data: {"channel":"analysis_trigger.a1","body":{"data":[{"value":1}]},"token":"tok"}`+"\n\n")
 
 	runWorker(t, server.URL, log)
 	time.Sleep(500 * time.Millisecond)
-	testutil.KnownBug(t, strings.Contains(logs.String(), "level=WARN"),
-		"an event without trigger data is logged at DEBUG, invisible with LOG_LEVEL=info")
+	got := logs.String()
+	if !strings.Contains(got, "level=WARN") || !strings.Contains(got, "without trigger data") {
+		t.Fatalf("no warning for an event without trigger data: %q", got)
+	}
+	if strings.Contains(got, `"token":"tok"`) || !strings.Contains(got, "REDACTED") {
+		t.Errorf("the warning leaks the analysis token: %q", got)
+	}
+}
+
+// capturedEvent reads an SSE event captured from production (tokens and IDs redacted).
+func capturedEvent(t *testing.T, name string) []byte {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("testdata", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return bytes.TrimSpace(raw)
+}
+
+func TestDecodeCapturedEvents(t *testing.T) {
+	t.Run("change_availability", func(t *testing.T) {
+		tr, err := DecodeEvent(capturedEvent(t, "sse_change_availability.json"))
+		if err != nil || tr.AnalysisID == "" || len(tr.Data) != 4 {
+			t.Fatalf("trigger = %+v, %v", tr, err)
+		}
+		first := tr.Data[0]
+		if first.Variable != "state" || first.Value != "22HBS0452HBS22" || first.Group != "22HBS0452HBS22" || first.Device == "" {
+			t.Errorf("first record = %+v", first)
+		}
+		if len(tr.Environment) != 2 || tr.Environment[0].Key != "_dashboard_id" {
+			t.Errorf("environment = %+v", tr.Environment)
+		}
+	})
+
+	t.Run("power_consumption_update", func(t *testing.T) {
+		tr, err := DecodeEvent(capturedEvent(t, "sse_power_consumption_update.json"))
+		if err != nil || len(tr.Data) != 1 {
+			t.Fatalf("trigger = %+v, %v", tr, err)
+		}
+		r := tr.Data[0]
+		if r.Params["P"] != json.Number("29.88") || r.Metadata["mqtt_topic"] != "Bivocom/MASTER-BUSINESS-221006" || r.Device != "" {
+			t.Errorf("record = %+v", r)
+		}
+	})
+
+	t.Run("bare trigger", func(t *testing.T) {
+		tr, err := DecodeEvent([]byte(triggerJSON))
+		if err != nil || tr.AnalysisID != "a1" || len(tr.Data) != 1 {
+			t.Fatalf("trigger = %+v, %v", tr, err)
+		}
+	})
+}
+
+func TestWorkerDeliversACapturedEvent(t *testing.T) {
+	server := streamOnce(t, "data: "+string(capturedEvent(t, "sse_change_availability.json"))+"\n\n")
+
+	tr, ok := waitTrigger(runWorker(t, server.URL, quietLogger()), 3*time.Second)
+	if !ok || len(tr.Data) != 4 || tr.Data[0].Variable != "state" {
+		t.Fatalf("trigger = %+v (received: %v)", tr, ok)
+	}
 }
 
 func TestWorkerBacksOffWhenTheStreamClosesAtOnce(t *testing.T) {

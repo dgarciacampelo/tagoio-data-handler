@@ -394,3 +394,41 @@ func TestPowerConsumptionShapes(t *testing.T) {
 		})
 	}
 }
+
+// capturedTrigger decodes an SSE event captured from production, as the realtime worker does.
+func capturedTrigger(t *testing.T, name string) realtime.Trigger {
+	t.Helper()
+	raw, err := os.ReadFile("../tagoio/realtime/testdata/" + name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trigger, err := realtime.DecodeEvent(bytes.TrimSpace(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return trigger
+}
+
+func TestCapturedChangeAvailability(t *testing.T) {
+	trigger := capturedTrigger(t, "sse_change_availability.json")
+	for i := range trigger.Data {
+		trigger.Data[i].Device = testDevice // The capture's device ID is redacted
+	}
+
+	h := newHarness()
+	h.trigger(t, config.AnalysisChangeAvailability, trigger.Data)
+	assertEvents(t, h.publisher.events, events.ChangeAvailability{
+		Header: events.NewHeader(events.TypeChangeAvailability, testPool), StationName: "22HBS0452HBS22",
+	})
+}
+
+func TestCapturedPowerConsumptionUpdate(t *testing.T) {
+	// The MQTT integration forwards the meter's parsed message without a device: the pool comes from the topic.
+	trigger := capturedTrigger(t, "sse_power_consumption_update.json")
+
+	h := newHarness()
+	h.trigger(t, config.AnalysisPowerConsumptionUpdate, trigger.Data)
+	assertEvents(t, h.publisher.events, events.PowerUpdate{
+		Header: events.NewHeader(events.TypePowerConsumptionUpdate, 221006), MeterWatts: 29.88,
+	})
+}
