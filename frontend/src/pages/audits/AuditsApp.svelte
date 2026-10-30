@@ -54,7 +54,9 @@ tariff band, and the XLSX export of every meter value.
 								<td colspan="6" class="p-10 text-center text-error">{m.audits_unavailable()}</td>
 							</tr>
 						{:else}
-							{#each view.sessions as session (session.transaction_id)}
+							<!-- Unkeyed: no session field is unique (transaction ids repeat across charge points, and the history
+							     can hold two rows of one session), and the list never changes after the page loads. -->
+							{#each view.sessions as session}
 								<tr class="hover:bg-surface-container-low transition-colors">
 									<td class="p-4 font-mono text-sm font-bold">{session.transaction_id}</td>
 									<td class="p-4">

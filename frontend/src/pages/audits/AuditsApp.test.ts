@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AuditsPage } from '$lib/contract.gen';
 import { setPageData } from '../../test/bootstrap';
 import { auditSession } from '../../test/fixtures';
-import { knownBug } from '../../test/knownBug';
 import { cleanup, render, textOf } from '../../test/render';
 import AuditsApp from './AuditsApp.svelte';
 
@@ -35,7 +34,7 @@ describe('AuditsApp', () => {
 		]);
 	});
 
-	it('shows both sessions that share a transaction id', async (context) => {
+	it('shows both sessions that share a transaction id', () => {
 		// Transaction ids are only unique per charge point: the local database already has transaction 7783 twice.
 		setPageData({
 			pool_code: 0,
@@ -45,25 +44,30 @@ describe('AuditsApp', () => {
 			]
 		} satisfies AuditsPage);
 
-		let mountError: unknown;
-		try {
-			render(AuditsApp, {});
-		} catch (error) {
-			// Any other failure is not this bug: let it fail the test.
-			if (!String(error).includes('each_key_duplicate')) throw error;
-			mountError = error;
-		}
+		render(AuditsApp, {});
 
-		await knownBug(
-			context,
-			'AuditsApp keys its {#each} by transaction_id, which is not unique: Svelte throws each_key_duplicate and the page does not render',
-			() => {
-				expect(mountError, 'rendering must not throw').toBeUndefined();
-				expect(sessionRows()).toEqual([
-					{ transaction: '7783', station: '12 / EVC01' },
-					{ transaction: '7783', station: '15 / EVC07' }
-				]);
-			}
-		);
+		expect(sessionRows()).toEqual([
+			{ transaction: '7783', station: '12 / EVC01' },
+			{ transaction: '7783', station: '15 / EVC07' }
+		]);
+	});
+
+	it('shows two history rows of the same session', () => {
+		// The history's unique index includes last_meter_value, so a repeated final update with another reading
+		// stores the session twice: both rows have the same pool, station, connector and transaction.
+		setPageData({
+			pool_code: 12,
+			sessions: [
+				auditSession({ transaction_id: 7783, pool_code: 12, station_name: 'EVC01' }),
+				auditSession({ transaction_id: 7783, pool_code: 12, station_name: 'EVC01' })
+			]
+		} satisfies AuditsPage);
+
+		render(AuditsApp, {});
+
+		expect(sessionRows()).toEqual([
+			{ transaction: '7783', station: '12 / EVC01' },
+			{ transaction: '7783', station: '12 / EVC01' }
+		]);
 	});
 });
