@@ -94,3 +94,56 @@ func TestBrokerDryRunDeliversNothing(t *testing.T) {
 		t.Fatalf("dry-run broker delivered an event")
 	}
 }
+
+func TestBrokerSummarizesMeterEvents(t *testing.T) {
+	var logs strings.Builder
+	broker := NewBroker(slog.New(slog.NewTextHandler(&logs, nil)), false)
+	lines := func() []string {
+		defer logs.Reset()
+		var out []string
+		for _, line := range strings.Split(strings.TrimSpace(logs.String()), "\n") {
+			if line != "" {
+				out = append(out, line)
+			}
+		}
+		return out
+	}
+
+	broker.Publish(PowerUpdate{Header: NewHeader(TypePowerConsumptionUpdate, 221006), MeterWatts: 10}) // No subscriber yet
+	ch, unsubscribe := broker.Subscribe()
+	defer unsubscribe()
+	lines()
+	for range 3 {
+		broker.Publish(PowerUpdate{Header: NewHeader(TypePowerConsumptionUpdate, 221006), MeterWatts: 10})
+		<-ch
+	}
+	broker.Publish(VPOSStop{Header: NewHeader(TypeVPOSStopTransaction, 221013)})
+	<-ch
+	if got := lines(); len(got) != 1 || !strings.Contains(got[0], "event_type=virtual_POS_stop_transaction") {
+		t.Fatalf("logs while publishing = %q; want only the line of the virtual POS event", got)
+	}
+
+	broker.LogSummary()
+	got := lines()
+	if len(got) != 1 || !strings.Contains(got[0], "level=WARN") || !strings.Contains(got[0], "pool_code=221006") ||
+		!strings.Contains(got[0], "published=3 dropped=1 slow_drops=0") {
+		t.Fatalf("first summary = %q; want one WARN line for 221006 with 3 published and 1 dropped", got)
+	}
+
+	broker.Publish(PowerUpdate{Header: NewHeader(TypePowerConsumptionUpdate, 221006), MeterWatts: 10})
+	<-ch
+	broker.LogSummary()
+	if got := lines(); len(got) != 1 || !strings.Contains(got[0], "level=INFO") || !strings.Contains(got[0], "published=1 dropped=0") {
+		t.Fatalf("second summary = %q; want one INFO line with 1 published", got)
+	}
+
+	// The meter stops: one WARN line without events, then nothing.
+	broker.LogSummary()
+	if got := lines(); len(got) != 1 || !strings.Contains(got[0], "level=WARN") || !strings.Contains(got[0], "published=0 dropped=0") {
+		t.Fatalf("summary after the meter stopped = %q; want one WARN line with nothing published", got)
+	}
+	broker.LogSummary()
+	if got := lines(); len(got) != 0 {
+		t.Fatalf("later summary = %q; want no line for a pool already reported as stopped", got)
+	}
+}

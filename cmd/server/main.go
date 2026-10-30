@@ -148,6 +148,7 @@ func run(logger *slog.Logger) error {
 	}
 
 	startWorker(stations.Run)
+	startWorker(broker.RunSummaries)
 	startWorker(func(ctx context.Context) { poolConfigs.LoadAll(ctx, registry.PoolCodes()) })
 
 	for analysisName, token := range cfg.AnalysisTokens {

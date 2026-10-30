@@ -131,8 +131,9 @@ git pull --ff-only && docker compose up -d --build
 ```
 
 neos-ocpp reconnects to `/api/stream` by itself. After a deploy, `docker logs -f tagoio-data-handler` should show
-`TagoIO realtime: analysis connected` for the 8 analyses, then `Analysis: trigger received` for each dashboard action
-(and about every 90 s for each MQTT meter).
+`TagoIO realtime: analysis connected` for the 8 analyses, then `Analysis: trigger received` for each dashboard action.
+The MQTT meters (about every 90 s each) are only counted: an `Events: summary` line per pool at the top of every
+hour, a warning when events were dropped or a meter sent none.
 
 ## History: migration from the Python service
 
