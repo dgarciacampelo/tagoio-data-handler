@@ -220,7 +220,7 @@ func TestSessionLifecycle(t *testing.T) {
 		t.Fatalf("a repeated end must be ignored without dashboard writes (err %v)", err)
 	}
 
-	telemetry, _ := db.SessionTelemetry(ctx, 42)
+	telemetry, _ := db.SessionTelemetry(ctx, 261001, "ST1", 1, 42)
 	sessions, _ := db.RecentSessions(ctx, 261001, 10)
 	if len(telemetry) != 1 || len(sessions) != 1 || sessions[0].RateFlat != 0.2 {
 		t.Fatalf("telemetry %d rows, sessions %+v; want 1 telemetry row (same timestamp) and the session with its rates", len(telemetry), sessions)

@@ -100,13 +100,60 @@ func TestInsertSessionRejectsDuplicates(t *testing.T) {
 		t.Fatalf("repeated InsertSession = %v, %v; want ignored without error", inserted, err)
 	}
 
-	summary, err := s.Session(ctx, 42)
-	if err != nil || summary.TotalEnergyKWh != 5 {
-		t.Fatalf("Session = %+v, %v; want 5 kWh", summary, err)
+	recent, err := s.RecentSessions(ctx, 261001, 10)
+	if err != nil || len(recent) != 1 {
+		t.Fatalf("RecentSessions = %+v, %v; want the session once", recent, err)
 	}
-	recent, err := s.RecentSessions(ctx, 261002, 10)
+	summary, err := s.Session(ctx, recent[0].ID)
+	if err != nil || summary.TransactionID != 42 || summary.TotalEnergyKWh != 5 {
+		t.Fatalf("Session = %+v, %v; want transaction 42 with 5 kWh", summary, err)
+	}
+	if _, err := s.Session(ctx, recent[0].ID+1); err != ErrNotFound {
+		t.Fatalf("Session(missing) error = %v; want ErrNotFound", err)
+	}
+	recent, err = s.RecentSessions(ctx, 261002, 10)
 	if err != nil || len(recent) != 0 {
 		t.Fatalf("RecentSessions(other pool) = %+v, %v; want none", recent, err)
+	}
+}
+
+func TestSessionsSharingATransactionIDStayApart(t *testing.T) {
+	ctx := context.Background()
+	s := openTestStore(t)
+
+	// Two charge points (of two pools, as with two Central Systems) that both reach transaction 7783.
+	points := []SessionRecord{
+		{PoolCode: 261001, StationName: "ST1", ConnectorID: 1, StartMeterValue: 1000, LastMeterValue: 2000},
+		{PoolCode: 261002, StationName: "ST7", ConnectorID: 2, StartMeterValue: 5000, LastMeterValue: 9000},
+	}
+	for _, p := range points {
+		p.TransactionID, p.CardAlias, p.StartDate, p.TimeBand = 7783, "CARD", "22/10/2026", "10:00 - 11:00"
+		if _, err := s.InsertSession(ctx, p); err != nil {
+			t.Fatal(err)
+		}
+		for _, ts := range []string{"2026-10-22T10:00:00Z", "2026-10-22T10:01:00Z"} {
+			err := s.InsertTelemetry(ctx, TelemetryRecord{PoolCode: p.PoolCode, StationName: p.StationName,
+				ConnectorID: p.ConnectorID, TransactionID: 7783, Timestamp: ts, MeterValue: p.LastMeterValue, CurrentTariffBand: "Flat"})
+			if err != nil {
+				t.Fatalf("InsertTelemetry: %v", err)
+			}
+		}
+	}
+
+	sessions, err := s.RecentSessions(ctx, 0, 10)
+	if err != nil || len(sessions) != 2 || sessions[0].ID == sessions[1].ID {
+		t.Fatalf("RecentSessions = %+v, %v; want two sessions with distinct ids", sessions, err)
+	}
+	for _, p := range points {
+		telemetry, err := s.SessionTelemetry(ctx, p.PoolCode, p.StationName, p.ConnectorID, 7783)
+		if err != nil || len(telemetry) != 2 {
+			t.Fatalf("SessionTelemetry(%s) = %d rows, %v; want its own 2 rows", p.StationName, len(telemetry), err)
+		}
+		for _, row := range telemetry {
+			if row.MeterValue != p.LastMeterValue {
+				t.Fatalf("SessionTelemetry(%s) has a meter value of the other charge point: %+v", p.StationName, row)
+			}
+		}
 	}
 }
 
@@ -192,6 +239,67 @@ func TestBaselineMigrationKeepsHistoryAndRemovesDuplicates(t *testing.T) {
 	sessions, err := s.RecentSessions(ctx, 0, 10)
 	if err != nil || len(sessions) != 2 {
 		t.Fatalf("sessions after migration = %d, %v; want 2 (the duplicate removed, the rest kept)", len(sessions), err)
+	}
+}
+
+func TestTelemetryMigrationTakesTheChargePointOfTheHistory(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "v1.sqlite3")
+
+	// A version 1 database: telemetry without charge point. Transaction 1 belongs to one charge point, 2 to two of
+	// them, and 3 is a session still in progress (no history yet).
+	s, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = s.Close()
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`DROP TABLE charging_session_telemetry;
+		CREATE TABLE charging_session_telemetry(transaction_id INTEGER NOT NULL, timestamp TEXT NOT NULL,
+			meter_value INTEGER NOT NULL, power INTEGER NOT NULL, cost REAL NOT NULL, current_tariff_band TEXT NOT NULL,
+			energy_off_peak INTEGER NOT NULL DEFAULT 0, energy_flat INTEGER NOT NULL DEFAULT 0,
+			energy_peak INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (transaction_id, timestamp));
+		INSERT INTO charging_session_telemetry (transaction_id, timestamp, meter_value, power, cost, current_tariff_band)
+		VALUES (1, 't1', 0, 0, 0, 'Flat'), (2, 't1', 0, 0, 0, 'Flat'), (3, 't1', 0, 0, 0, 'Flat');
+		INSERT INTO charging_session_history (pool_code, station_name, connector_id, transaction_id, card_alias,
+			start_date, time_band, start_meter_value, last_meter_value, cost)
+		VALUES (1, 'ST1', 1, 1, 'A', 'd', 't', 0, 10, 1), (1, 'ST1', 1, 2, 'A', 'd', 't', 10, 20, 1),
+			(2, 'ST2', 1, 2, 'A', 'd', 't', 0, 10, 1);
+		PRAGMA user_version = 1;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = db.Close()
+
+	s, err = Open(ctx, path)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer s.Close()
+
+	var unknown int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM charging_session_telemetry WHERE pool_code IS NULL`).Scan(&unknown); err != nil {
+		t.Fatal(err)
+	}
+	if unknown != 2 {
+		t.Fatalf("meter values without charge point = %d; want 2 (the shared transaction and the one in progress)", unknown)
+	}
+	if rows, _ := s.SessionTelemetry(ctx, 1, "ST1", 1, 1); len(rows) != 1 {
+		t.Fatalf("telemetry of transaction 1 = %d rows; want 1 (charge point taken from the history)", len(rows))
+	}
+	if rows, _ := s.SessionTelemetry(ctx, 9, "OTHER", 1, 1); len(rows) != 0 {
+		t.Fatalf("telemetry of transaction 1 on another charge point = %d rows; want none", len(rows))
+	}
+	// The session in progress goes on after the migration: its old and new meter values are exported together.
+	if err := s.InsertTelemetry(ctx, TelemetryRecord{PoolCode: 3, StationName: "ST3", ConnectorID: 1, TransactionID: 3,
+		Timestamp: "t2", CurrentTariffBand: "Flat"}); err != nil {
+		t.Fatalf("InsertTelemetry: %v", err)
+	}
+	if rows, _ := s.SessionTelemetry(ctx, 3, "ST3", 1, 3); len(rows) != 2 {
+		t.Fatalf("telemetry of the session in progress = %d rows; want 2 (before and after the migration)", len(rows))
 	}
 }
 

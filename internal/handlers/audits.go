@@ -41,7 +41,7 @@ func (a *App) AuditsPage(w http.ResponseWriter, r *http.Request) {
 			TransactionID: s.TransactionID, PoolCode: s.PoolCode, StationName: s.StationName, ConnectorID: s.ConnectorID,
 			CardAlias: s.CardAlias, StartDate: s.StartDate, TimeBand: s.TimeBand,
 			TotalEnergyKWh: s.TotalEnergyKWh, Cost: s.Cost,
-			ExportURL: fmt.Sprintf("/api/admin/audits/%d/export", s.TransactionID),
+			ExportURL: fmt.Sprintf("/api/admin/audits/%d/export", s.ID),
 			OffPeakWh: s.EnergyOffPeak, FlatWh: s.EnergyFlat, PeakWh: s.EnergyPeak,
 			RateOffPeak: s.RateOffPeak, RateFlat: s.RateFlat, RatePeak: s.RatePeak,
 		})
@@ -49,24 +49,26 @@ func (a *App) AuditsPage(w http.ResponseWriter, r *http.Request) {
 	a.page(w, "audits", "Velo Energy - Auditoría de Sesiones", view)
 }
 
-// AuditExport downloads the audit workbook of a session (GET /api/admin/audits/{transaction_id}/export).
+// AuditExport downloads the audit workbook of a session (GET /api/admin/audits/{session_id}/export). The session is
+// the history row (SessionSummary.ID), since transaction ids are only unique per charge point.
 func (a *App) AuditExport(w http.ResponseWriter, r *http.Request) {
-	transactionID, err := strconv.ParseInt(r.PathValue("transaction_id"), 10, 64)
+	sessionID, err := strconv.ParseInt(r.PathValue("session_id"), 10, 64)
 	if err != nil {
-		writeAPIError(w, http.StatusBadRequest, dto.ErrorCodeInvalidRequest, "transaction_id must be an integer")
+		writeAPIError(w, http.StatusBadRequest, dto.ErrorCodeInvalidRequest, "session_id must be an integer")
 		return
 	}
-	session, err := a.Store.Session(r.Context(), transactionID)
+	session, err := a.Store.Session(r.Context(), sessionID)
 	if errors.Is(err, store.ErrNotFound) {
 		writeAPIError(w, http.StatusNotFound, dto.ErrorCodeNotFound, "Session not found")
 		return
 	}
 	if err != nil {
-		a.Log.Error("Audit export: reading session failed", "transaction_id", transactionID, "error", err)
+		a.Log.Error("Audit export: reading session failed", "session_id", sessionID, "error", err)
 		writeAPIError(w, http.StatusInternalServerError, dto.ErrorCodeInternalError, "Session unavailable")
 		return
 	}
-	telemetry, err := a.Store.SessionTelemetry(r.Context(), transactionID)
+	transactionID := session.TransactionID
+	telemetry, err := a.Store.SessionTelemetry(r.Context(), session.PoolCode, session.StationName, session.ConnectorID, transactionID)
 	if err != nil {
 		a.Log.Error("Audit export: reading telemetry failed", "transaction_id", transactionID, "error", err)
 		writeAPIError(w, http.StatusInternalServerError, dto.ErrorCodeInternalError, "Telemetry unavailable")

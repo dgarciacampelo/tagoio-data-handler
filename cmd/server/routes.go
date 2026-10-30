@@ -44,7 +44,7 @@ func (app *application) routes() http.Handler {
 	mux.Handle("GET /api/admin/station-link", adminAPI(h.StationLinkAPI))
 	mux.Handle("GET /api/admin/qr/{pool_code}/{station_name}", adminAPI(h.QRImage))
 	mux.Handle("DELETE /api/admin/stations/{pool_code}/{station_name}", adminAPI(h.DeleteStationAPI))
-	mux.Handle("GET /api/admin/audits/{transaction_id}/export", adminAPI(h.AuditExport))
+	mux.Handle("GET /api/admin/audits/{session_id}/export", adminAPI(h.AuditExport))
 	// endregion
 
 	mux.HandleFunc("/", h.Fallback)

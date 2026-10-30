@@ -280,6 +280,7 @@ func (s *Service) UpdateSession(ctx context.Context, u SessionUpdate) error {
 
 	if u.Step == StepInProgress || u.Step == StepCompleted {
 		err := s.store.InsertTelemetry(ctx, store.TelemetryRecord{
+			PoolCode: key.PoolCode, StationName: key.StationName, ConnectorID: key.ConnectorID,
 			TransactionID: int64(u.TransactionID), Timestamp: u.LastMeterTS, MeterValue: int64(u.LastMeterValue),
 			Power: int64(u.Power), Cost: float64(u.Cost), CurrentTariffBand: u.CurrentTariffBand,
 			EnergyOffPeak: int64(u.EnergyOffPeak), EnergyFlat: int64(u.EnergyFlat), EnergyPeak: int64(u.EnergyPeak),

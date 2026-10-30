@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -328,6 +329,52 @@ func TestStopRequestNeedsAPaidSession(t *testing.T) {
 	app.StopRequest(rec, httptest.NewRequest(http.MethodPost, "/api/stop-request", strings.NewReader(`{"pool_code":261001,"station_name":"ST1","connector_id":1}`)))
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("status = %d; want 409 without a paid session", rec.Code)
+	}
+}
+
+func TestAuditExportIsPerHistoryRow(t *testing.T) {
+	ctx := context.Background()
+	app := newTestApp(t)
+
+	// Two charge points that both reach transaction 7783; only the first one has meter values.
+	for _, station := range []string{"ST1", "ST2"} {
+		_, err := app.Store.InsertSession(ctx, store.SessionRecord{PoolCode: 261001, StationName: station, ConnectorID: 1,
+			TransactionID: 7783, CardAlias: "CARD", StartDate: "22/10/2026", TimeBand: "10:00 - 11:00", LastMeterValue: 1000})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	err := app.Store.InsertTelemetry(ctx, store.TelemetryRecord{PoolCode: 261001, StationName: "ST1", ConnectorID: 1,
+		TransactionID: 7783, Timestamp: "2026-10-22T10:00:00Z", MeterValue: 1000, CurrentTariffBand: "Flat"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions, err := app.Store.RecentSessions(ctx, 261001, 10)
+	if err != nil || len(sessions) != 2 {
+		t.Fatalf("RecentSessions = %+v, %v", sessions, err)
+	}
+
+	export := func(id string) int {
+		rec := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/api/admin/audits/"+id+"/export", nil)
+		r.SetPathValue("session_id", id)
+		app.AuditExport(rec, r)
+		return rec.Code
+	}
+	for _, s := range sessions {
+		want := http.StatusOK
+		if s.StationName == "ST2" {
+			want = http.StatusNotFound // The meter values of ST1 are not ST2's
+		}
+		if got := export(strconv.FormatInt(s.ID, 10)); got != want {
+			t.Errorf("export of %s = %d; want %d", s.StationName, got, want)
+		}
+	}
+	if got := export("999"); got != http.StatusNotFound {
+		t.Errorf("export of a missing session = %d; want 404", got)
+	}
+	if got := export("abc"); got != http.StatusBadRequest {
+		t.Errorf("export of a non-integer id = %d; want 400", got)
 	}
 }
 

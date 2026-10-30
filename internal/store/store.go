@@ -55,6 +55,7 @@ func (s *Store) Close() error {
 // migrations are applied in order; migrations[i] moves the schema from version i to version i+1.
 var migrations = []func(ctx context.Context, tx *sql.Tx) error{
 	migrateBaseline,
+	migrateTelemetryChargePoint,
 }
 
 func (s *Store) migrate(ctx context.Context) error {
@@ -182,6 +183,47 @@ func migrateBaseline(ctx context.Context, tx *sql.Tx) error {
 		index := `CREATE UNIQUE INDEX idx_charging_session_history ON charging_session_history
 			(pool_code, station_name, connector_id, start_meter_value, last_meter_value)`
 		if _, err := tx.ExecContext(ctx, index); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// migrateTelemetryChargePoint adds the charge point to the session telemetry: transaction ids are only unique per
+// charge point, so the meter values of two sessions with the same id were mixed in their audit exports. The existing
+// meter values take the charge point of the history when exactly one charge point has that transaction id; the rest
+// (sessions still in progress, or ids shared by several charge points) keep it NULL and are matched by the id alone.
+func migrateTelemetryChargePoint(ctx context.Context, tx *sql.Tx) error {
+	statements := []string{
+		`CREATE TABLE charging_session_telemetry_new(
+			pool_code INTEGER,
+			station_name TEXT,
+			connector_id INTEGER,
+			transaction_id INTEGER NOT NULL,
+			timestamp TEXT NOT NULL,
+			meter_value INTEGER NOT NULL,
+			power INTEGER NOT NULL,
+			cost REAL NOT NULL,
+			current_tariff_band TEXT NOT NULL,
+			energy_off_peak INTEGER NOT NULL DEFAULT 0,
+			energy_flat INTEGER NOT NULL DEFAULT 0,
+			energy_peak INTEGER NOT NULL DEFAULT 0,
+			UNIQUE (pool_code, station_name, connector_id, transaction_id, timestamp))`,
+		`INSERT INTO charging_session_telemetry_new
+		SELECT h.pool_code, h.station_name, h.connector_id, t.transaction_id, t.timestamp, t.meter_value, t.power, t.cost,
+			t.current_tariff_band, t.energy_off_peak, t.energy_flat, t.energy_peak
+		FROM charging_session_telemetry t LEFT JOIN (
+			SELECT transaction_id, MIN(pool_code) AS pool_code, MIN(station_name) AS station_name,
+				MIN(connector_id) AS connector_id
+			FROM charging_session_history GROUP BY transaction_id
+			HAVING COUNT(DISTINCT pool_code || '/' || station_name || '/' || connector_id) = 1
+		) h ON h.transaction_id = t.transaction_id`,
+		`DROP TABLE charging_session_telemetry`,
+		`ALTER TABLE charging_session_telemetry_new RENAME TO charging_session_telemetry`,
+		`CREATE INDEX idx_charging_session_telemetry_transaction ON charging_session_telemetry (transaction_id)`,
+	}
+	for _, statement := range statements {
+		if _, err := tx.ExecContext(ctx, statement); err != nil {
 			return err
 		}
 	}
