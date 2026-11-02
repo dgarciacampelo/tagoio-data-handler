@@ -21,6 +21,7 @@ const (
 	TypePowerConsumptionUpdate  Type = "power_consumption_update"
 	TypeVPOSStartTransaction    Type = "virtual_POS_start_transaction"
 	TypeVPOSStopTransaction     Type = "virtual_POS_stop_transaction"
+	TypeManagePayterTerminal    Type = "manage_payter_terminal"
 )
 
 // Event is any event of this package.
@@ -185,6 +186,26 @@ type VPOSStop struct {
 	Header
 	StationName string `json:"station_name"`
 	ConnectorID int    `json:"connector_id"`
+}
+
+// endregion
+
+// region Payter terminals (eMSP dashboard)
+
+// Payter terminal actions.
+const (
+	PayterTerminalCreate = "create" // Creates or updates the terminal
+	PayterTerminalDelete = "delete" // Deactivates it: the CSMS keeps the payments made on it
+)
+
+// PayterTerminalManagement carries the full state of a Payter terminal. Only the Payter CSMS (USES_PAYTER) applies
+// it; it also reads the whole list at startup (GET /api/payter-terminals), as events sent while it was down are lost.
+type PayterTerminalManagement struct {
+	Header
+	SerialNumber   string   `json:"serial_number"`   // Upper case
+	Action         string   `json:"action"`          // PayterTerminalCreate or PayterTerminalDelete
+	IsPoolShared   bool     `json:"is_pool_shared"`  // Serves every station of the pool
+	LinkedStations []string `json:"linked_stations"` // Station serials (never null; empty when IsPoolShared)
 }
 
 // endregion

@@ -57,6 +57,16 @@ of a station that has not reported yet), the link to the station's public page, 
 	<AdminHeader title={m.emsp_title()} icon="adminPanelSettings" />
 
 	<main class="max-w-[1440px] mx-auto p-4 md:p-8 space-y-lg w-full">
+		<div class="flex justify-end mb-4">
+			<a
+				href="/emsp-dashboard/payter"
+				class="border border-outline hover:bg-surface-container-low text-primary font-label-caps text-label-caps py-1.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+			>
+				<Icon name="creditCard" size={18} />
+				{m.emsp_payter_terminals()}
+			</a>
+		</div>
+
 		<section class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-4 mb-8">
 			<h2 class="text-title-md font-bold text-on-surface mb-4 flex items-center gap-2">
 				<Icon name="addCircle" class="text-primary" />

@@ -67,6 +67,7 @@ var (
 		{"POST", "/v1/charge-point-update/261001/ST1/1"},
 		{"POST", "/v1/charging-session-update/261001/ST1/1"},
 		{"GET", "/api/pools/261001"},
+		{"GET", "/api/payter-terminals"},
 		{"POST", "/api/provision-cpo"},
 		{"POST", "/v1/trigger-task/pool-variable-cleanup"},
 		{"POST", "/v1/trigger-task/backup-to-telegram"},
@@ -77,12 +78,15 @@ var (
 		{"GET", "/api/admin/qr/261001/ST1"},
 		{"DELETE", "/api/admin/stations/261001/ST1"},
 		{"GET", "/api/admin/audits/4321/export"},
+		{"PUT", "/api/admin/payter-terminals/P6X20222101349"},
+		{"DELETE", "/api/admin/payter-terminals/P6X20222101349"},
 	}
 	adminPages = []route{
 		{"GET", "/emsp-dashboard"},
 		{"GET", "/emsp-dashboard/audits"},
 		{"GET", "/emsp-dashboard/audits/261001"},
 		{"GET", "/emsp-dashboard/poster/261001/ST1"},
+		{"GET", "/emsp-dashboard/payter"},
 	}
 	publicRoutes = []route{
 		{"GET", "/healthz"},

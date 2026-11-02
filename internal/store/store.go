@@ -56,6 +56,7 @@ func (s *Store) Close() error {
 var migrations = []func(ctx context.Context, tx *sql.Tx) error{
 	migrateBaseline,
 	migrateTelemetryChargePoint,
+	migratePayterTerminals,
 }
 
 func (s *Store) migrate(ctx context.Context) error {

@@ -21,6 +21,7 @@ func (app *application) routes() http.Handler {
 	mux.Handle("POST /v1/charge-point-update/{pool_code}/{station_name}/{connector_id}", service(h.ChargePointUpdate))
 	mux.Handle("POST /v1/charging-session-update/{pool_code}/{station_name}/{connector_id}", service(h.ChargingSessionUpdate))
 	mux.Handle("GET /api/pools/{pool_code}", service(h.PoolSetup))
+	mux.Handle("GET /api/payter-terminals", service(h.PayterTerminalsAPI))
 	mux.Handle("POST /api/provision-cpo", service(h.ProvisionCPO))
 	mux.Handle("POST /v1/trigger-task/pool-variable-cleanup", service(h.CleanupAllPools))
 	mux.Handle("POST /v1/trigger-task/backup-to-telegram", service(h.BackupNow))
@@ -41,10 +42,13 @@ func (app *application) routes() http.Handler {
 	mux.Handle("GET /emsp-dashboard/audits", adminPage(h.AuditsPage))
 	mux.Handle("GET /emsp-dashboard/audits/{pool_code}", adminPage(h.AuditsPage))
 	mux.Handle("GET /emsp-dashboard/poster/{pool_code}/{station_name}", adminPage(h.PosterPage))
+	mux.Handle("GET /emsp-dashboard/payter", adminPage(h.PayterPage))
 	mux.Handle("GET /api/admin/station-link", adminAPI(h.StationLinkAPI))
 	mux.Handle("GET /api/admin/qr/{pool_code}/{station_name}", adminAPI(h.QRImage))
 	mux.Handle("DELETE /api/admin/stations/{pool_code}/{station_name}", adminAPI(h.DeleteStationAPI))
 	mux.Handle("GET /api/admin/audits/{session_id}/export", adminAPI(h.AuditExport))
+	mux.Handle("PUT /api/admin/payter-terminals/{serial_number}", adminAPI(h.SavePayterTerminalAPI))
+	mux.Handle("DELETE /api/admin/payter-terminals/{serial_number}", adminAPI(h.DeactivatePayterTerminalAPI))
 	// endregion
 
 	mux.HandleFunc("/", h.Fallback)
