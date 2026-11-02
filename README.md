@@ -10,8 +10,8 @@ Go with Svelte 5 pages.
 - **CSMS → TagoIO.** The CSMS reports connector statuses and charging sessions; the service keeps the live state,
   stores the session history (for the audits), and writes the pool dashboards in each pool's TagoIO bucket.
 - **Pages.** The public station page drivers open from the QR code of a station (status, payment link form, rates,
-  instructions, terms), and the admin pages: eMSP dashboard with the QR posters, and the session audits with their
-  XLSX export.
+  instructions, terms), and the admin pages: eMSP dashboard with the QR posters, the session audits with their
+  XLSX export, and the Payter terminals (sent to the Payter CSMS as `manage_payter_terminal` events).
 - **Housekeeping.** Keeps the TagoIO buckets below their record limit, purges old telemetry and backs the database
   up to Telegram.
 
@@ -48,6 +48,7 @@ frontend/                Svelte 5 pages (Vite, Tailwind CSS 4, Paraglide JS), on
 | `POST /v1/charge-point-update/{pool_code}/{station_name}/{connector_id}` | neos-ocpp | Connector status. |
 | `POST /v1/charging-session-update/{pool_code}/{station_name}/{connector_id}` | neos-ocpp | Session start, meter values and end. |
 | `GET /api/pools/{pool_code}` | neos-ocpp | Pool setup (creates the TagoIO device when missing). |
+| `GET /api/payter-terminals` | neos-ocpp | Every Payter terminal, active or not: the Payter CSMS applies the list at startup, since the events sent while it was down are lost. |
 | `POST /api/provision-cpo` | neos-notification-mgmt | CPO sign-up form (snake_case or the Google Form titles). |
 | `POST /v1/trigger-task/pool-variable-cleanup`, `POST /v1/trigger-task/backup-to-telegram`, `DELETE /v1/trigger-task/single-variable/{pool_code}/{variable}` | Operators (curl) | Background jobs answer 202. |
 

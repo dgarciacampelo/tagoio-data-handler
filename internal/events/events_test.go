@@ -30,6 +30,8 @@ func TestEventsMatchPythonContract(t *testing.T) {
 		OCPPRequest{Header: header(TypeOCPPRequest), Payload: RemoteStopPayload{Request: RequestRemoteStopTransaction, TransactionID: 99}},
 		VPOSStart{Header: header(TypeVPOSStartTransaction), StationName: "ST1", ConnectorID: 1, Email: "d@x.es", Amount: 40, Currency: "EUR"},
 		VPOSStop{Header: header(TypeVPOSStopTransaction), StationName: "ST1", ConnectorID: 1},
+		PayterTerminalManagement{Header: header(TypeManagePayterTerminal), SerialNumber: "P6X20222101349", Action: PayterTerminalCreate, LinkedStations: []string{"ST1", "ST2"}},
+		PayterTerminalManagement{Header: header(TypeManagePayterTerminal), SerialNumber: "P6X20231300653", Action: PayterTerminalDelete, IsPoolShared: true, LinkedStations: []string{}},
 	}
 
 	file, err := os.Open("testdata/python_events.jsonl")

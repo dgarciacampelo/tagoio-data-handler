@@ -148,6 +148,46 @@ export interface AuditSession {
 }
 
 //////////
+// source: payter.go
+
+/**
+ * PayterPage is the view model of the Payter terminals page.
+ */
+export interface PayterPage {
+  terminals: PayterTerminal[];
+  pools: PayterPool[]; // The pools of the terminals and of the stations that reported
+}
+/**
+ * PayterPool is a pool a terminal can be set up in, with the stations the service knows (station picker).
+ */
+export interface PayterPool {
+  pool_code: number /* int */;
+  cpo_name: string;
+  stations: string[];
+}
+/**
+ * PayterTerminal is a Payter terminal and the stations it serves.
+ * ! Wire contract: neos-ocpp reads the list from GET /api/payter-terminals (PayterTerminalSetup there) at startup.
+ */
+export interface PayterTerminal {
+  serial_number: string;
+  pool_code: number /* int */;
+  is_pool_shared: boolean; // Serves every station of the pool
+  linked_stations: string[]; // Empty when IsPoolShared
+  is_active: boolean; // A deactivated terminal is kept: the CSMS keeps its payments
+  updated_at: string; // UTC, "2006-01-02 15:04:05"
+}
+/**
+ * PayterTerminalInput is the body of PUT /api/admin/payter-terminals/{serial_number}, which answers with every
+ * terminal ([]PayterTerminal), as DELETE does.
+ */
+export interface PayterTerminalInput {
+  pool_code: number /* int */;
+  is_pool_shared: boolean;
+  linked_stations: string[];
+}
+
+//////////
 // source: station.go
 
 /**

@@ -257,7 +257,8 @@ func TestTelemetryMigrationTakesTheChargePointOfTheHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.Exec(`DROP TABLE charging_session_telemetry;
+	_, err = db.Exec(`DROP TABLE payter_terminal_station; DROP TABLE payter_terminal; -- Added by later migrations
+		DROP TABLE charging_session_telemetry;
 		CREATE TABLE charging_session_telemetry(transaction_id INTEGER NOT NULL, timestamp TEXT NOT NULL,
 			meter_value INTEGER NOT NULL, power INTEGER NOT NULL, cost REAL NOT NULL, current_tariff_band TEXT NOT NULL,
 			energy_off_peak INTEGER NOT NULL DEFAULT 0, energy_flat INTEGER NOT NULL DEFAULT 0,

@@ -1,6 +1,19 @@
 // View models of the page tests, shaped like the Go server's (internal/handlers, internal/dto).
 
-import type { AuditSession, StationLive, StationPage } from '$lib/contract.gen';
+import type { AuditSession, PayterTerminal, StationLive, StationPage } from '$lib/contract.gen';
+
+/** An active Payter terminal of pool 221006 without stations, unless overridden. */
+export function payterTerminal(overrides: Partial<PayterTerminal> = {}): PayterTerminal {
+	return {
+		serial_number: 'P6X0000000001',
+		pool_code: 221006,
+		is_pool_shared: false,
+		linked_stations: [],
+		is_active: true,
+		updated_at: '2026-11-02 18:00:00',
+		...overrides
+	};
+}
 
 /** The live part of a station page: an available connector of a loaded pool, unless overridden. */
 export function stationLive(overrides: Partial<StationLive> = {}): StationLive {
