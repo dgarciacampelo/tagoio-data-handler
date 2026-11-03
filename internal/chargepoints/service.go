@@ -350,7 +350,7 @@ func (s *Service) pushSession(u SessionUpdate) {
 	if ended && float64(u.Cost) != 0 {
 		// The group is the transaction, so the dashboard table shows one row per session.
 		s.enqueue(key.PoolCode, tagoio.DataInput{
-			Variable: "charging_session_data", Value: int64(u.TransactionID), Group: strconv.FormatInt(int64(u.TransactionID), 10),
+			Variable: HistoryVariable, Value: int64(u.TransactionID), Group: strconv.FormatInt(int64(u.TransactionID), 10),
 			Metadata: map[string]any{
 				"card_alias": u.CardAlias, "card_code": u.CardCode, "display_id": u.DisplayID, "start_date": u.StartDate,
 				"step": u.Step, "energy": float64(u.Energy), "energy_unit": u.EnergyUnit, "cost": float64(u.Cost),

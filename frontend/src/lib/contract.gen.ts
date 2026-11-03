@@ -146,6 +146,23 @@ export interface AuditSession {
   rate_flat: number /* float64 */;
   rate_peak: number /* float64 */;
 }
+/**
+ * AuditCardAliasInput is the body of PUT /api/admin/audits/{session_id}/card-alias, which corrects the card alias
+ * of a finished session in the audits and in its pool's TagoIO history, and answers with AuditCardAliasResult.
+ */
+export interface AuditCardAliasInput {
+  card_alias: string;
+}
+/**
+ * AuditCardAliasResult is a corrected session.
+ */
+export interface AuditCardAliasResult {
+  session_id: number /* int64 */; // History row (SessionSummary.ID)
+  transaction_id: number /* int64 */;
+  pool_code: number /* int */;
+  card_alias: string;
+  tagoio_records: number /* int */; // History records changed in TagoIO (0: none stored, e.g. a free session)
+}
 
 //////////
 // source: payter.go

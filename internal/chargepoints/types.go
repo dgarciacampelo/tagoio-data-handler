@@ -61,6 +61,10 @@ const (
 	StepCompleted  = "COMPLETED"
 )
 
+// HistoryVariable is the TagoIO variable of the finished (paid) sessions of a pool's history, one group per
+// transaction id.
+const HistoryVariable = "charging_session_data"
+
 // spanishStatus are the status texts of the TagoIO dashboards.
 var spanishStatus = map[string]string{
 	"Available":     "Disponible",

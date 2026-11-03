@@ -67,6 +67,28 @@ func (c *Client) GetData(ctx context.Context, deviceToken, variable string, qty,
 	return records, nil
 }
 
+// GroupData returns the latest records of a variable in a group (newest first), up to qty.
+func (c *Client) GroupData(ctx context.Context, deviceToken, variable, group string, qty int) ([]DataRecord, error) {
+	query := url.Values{"variables": {strings.ToLower(variable)}, "groups": {group}, "qty": {strconv.Itoa(qty)}}
+	var records []DataRecord
+	if err := c.do(ctx, http.MethodGet, "/data", query, device(deviceToken), nil, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+// DataEdit changes a record of a device bucket, chosen by its ID. TagoIO doesn't document whether an edit merges
+// the metadata or replaces it, so an edit carries the record's whole metadata.
+type DataEdit struct {
+	ID       string         `json:"id"`
+	Metadata map[string]any `json:"metadata,omitempty"`
+}
+
+// EditData changes records of a device bucket in place. Only mutable devices accept it.
+func (c *Client) EditData(ctx context.Context, deviceToken string, edits ...DataEdit) error {
+	return c.do(ctx, http.MethodPut, "/data", nil, device(deviceToken), edits, nil)
+}
+
 // LastValue returns the latest record of a variable, or nil when the variable has none.
 func (c *Client) LastValue(ctx context.Context, deviceToken, variable string) (*DataRecord, error) {
 	records, err := c.GetData(ctx, deviceToken, variable, 1, 0)

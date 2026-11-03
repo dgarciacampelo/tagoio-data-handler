@@ -79,3 +79,18 @@ type AuditSession struct {
 	RateFlat       float64 `json:"rate_flat"`
 	RatePeak       float64 `json:"rate_peak"`
 }
+
+// AuditCardAliasInput is the body of PUT /api/admin/audits/{session_id}/card-alias, which corrects the card alias
+// of a finished session in the audits and in its pool's TagoIO history, and answers with AuditCardAliasResult.
+type AuditCardAliasInput struct {
+	CardAlias string `json:"card_alias"`
+}
+
+// AuditCardAliasResult is a corrected session.
+type AuditCardAliasResult struct {
+	SessionID     int64  `json:"session_id"` // History row (SessionSummary.ID)
+	TransactionID int64  `json:"transaction_id"`
+	PoolCode      int    `json:"pool_code"`
+	CardAlias     string `json:"card_alias"`
+	TagoIORecords int    `json:"tagoio_records"` // History records changed in TagoIO (0: none stored, e.g. a free session)
+}

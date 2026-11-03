@@ -47,6 +47,7 @@ func (app *application) routes() http.Handler {
 	mux.Handle("GET /api/admin/qr/{pool_code}/{station_name}", adminAPI(h.QRImage))
 	mux.Handle("DELETE /api/admin/stations/{pool_code}/{station_name}", adminAPI(h.DeleteStationAPI))
 	mux.Handle("GET /api/admin/audits/{session_id}/export", adminAPI(h.AuditExport))
+	mux.Handle("PUT /api/admin/audits/{session_id}/card-alias", adminAPI(h.CorrectAuditCardAliasAPI))
 	mux.Handle("PUT /api/admin/payter-terminals/{serial_number}", adminAPI(h.SavePayterTerminalAPI))
 	mux.Handle("DELETE /api/admin/payter-terminals/{serial_number}", adminAPI(h.DeactivatePayterTerminalAPI))
 	// endregion

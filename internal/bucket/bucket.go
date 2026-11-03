@@ -9,6 +9,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
+	"strings"
 	"time"
 
 	"github.com/dgarciacampelo/tagoio-handler/internal/devices"
@@ -130,6 +132,45 @@ func (s *Service) List(ctx context.Context, poolCode int, variable string, qty i
 		return nil, fmt.Errorf("bucket: listing %s of pool %d: %w", variable, poolCode, err)
 	}
 	return records, nil
+}
+
+// groupEditQty is how many records of a group EditGroupMetadata reads: a group holds one record per write.
+const groupEditQty = 20
+
+// EditGroupMetadata changes in place the metadata of the records of a variable in a group, in a pool's bucket.
+// edit receives a copy of each record's metadata and reports whether to store it; EditGroupMetadata returns how
+// many records it changed.
+func (s *Service) EditGroupMetadata(ctx context.Context, poolCode int, variable, group string, edit func(metadata map[string]any) bool) (int, error) {
+	token, err := s.token(ctx, poolCode)
+	if err != nil {
+		return 0, err
+	}
+	records, err := s.tago.GroupData(ctx, token, variable, group, groupEditQty)
+	if err != nil {
+		return 0, fmt.Errorf("bucket: reading %s/%s of pool %d: %w", variable, group, poolCode, err)
+	}
+
+	var edits []tagoio.DataEdit
+	for _, r := range records {
+		// The filter is checked again here, so a query parameter TagoIO ignored can't edit another record
+		if !strings.EqualFold(r.Variable, variable) || r.Group != group || r.ID == "" {
+			continue
+		}
+		metadata := maps.Clone(r.Metadata)
+		if metadata == nil {
+			metadata = map[string]any{}
+		}
+		if edit(metadata) {
+			edits = append(edits, tagoio.DataEdit{ID: r.ID, Metadata: metadata})
+		}
+	}
+	if len(edits) == 0 {
+		return 0, nil
+	}
+	if err := s.tago.EditData(ctx, token, edits...); err != nil {
+		return 0, fmt.Errorf("bucket: editing %s/%s of pool %d: %w", variable, group, poolCode, err)
+	}
+	return len(edits), nil
 }
 
 // Validation toast types understood by the TagoIO dashboard forms.

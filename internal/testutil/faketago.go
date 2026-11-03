@@ -194,11 +194,12 @@ func (f *FakeTagoIO) serveData(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		qty, _ := strconv.Atoi(query.Get("qty"))
 		skip, _ := strconv.Atoi(query.Get("skip"))
-		variable := query.Get("variable")
+		variable := query.Get("variable") + query.Get("variables")
+		group := query.Get("groups")
 		var newestFirst []tagoio.DataRecord
 		records := f.data[token]
 		for i := len(records) - 1; i >= 0; i-- {
-			if variable == "" || records[i].Variable == variable {
+			if (variable == "" || records[i].Variable == variable) && (group == "" || records[i].Group == group) {
 				newestFirst = append(newestFirst, records[i])
 			}
 		}
@@ -224,6 +225,23 @@ func (f *FakeTagoIO) serveData(w http.ResponseWriter, r *http.Request) {
 		}
 		f.data[token] = kept
 		writeEnvelope(w, http.StatusOK, true, fmt.Sprintf("%d Data Removed", removed), "")
+
+	case http.MethodPut: // The edit replaces the metadata it carries
+		var edits []tagoio.DataEdit
+		if err := json.NewDecoder(r.Body).Decode(&edits); err != nil {
+			writeEnvelope(w, http.StatusBadRequest, false, nil, err.Error())
+			return
+		}
+		updated := 0
+		for _, edit := range edits {
+			for i := range f.data[token] {
+				if f.data[token][i].ID == edit.ID {
+					f.data[token][i].Metadata = edit.Metadata
+					updated++
+				}
+			}
+		}
+		writeEnvelope(w, http.StatusOK, true, fmt.Sprintf("%d item(s) updated", updated), "")
 	}
 }
 

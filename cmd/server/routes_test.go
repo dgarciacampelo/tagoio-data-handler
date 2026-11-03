@@ -78,6 +78,7 @@ var (
 		{"GET", "/api/admin/qr/261001/ST1"},
 		{"DELETE", "/api/admin/stations/261001/ST1"},
 		{"GET", "/api/admin/audits/4321/export"},
+		{"PUT", "/api/admin/audits/4321/card-alias"},
 		{"PUT", "/api/admin/payter-terminals/P6X20222101349"},
 		{"DELETE", "/api/admin/payter-terminals/P6X20222101349"},
 	}

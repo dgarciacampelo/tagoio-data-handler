@@ -90,6 +90,19 @@ func (s *Store) InsertSession(ctx context.Context, r SessionRecord) (bool, error
 	return true, nil
 }
 
+// UpdateSessionCardAlias corrects the card alias of a history row (SessionSummary.ID), or reports ErrNotFound.
+func (s *Store) UpdateSessionCardAlias(ctx context.Context, id int64, cardAlias string) error {
+	result, err := s.db.ExecContext(ctx,
+		"UPDATE charging_session_history SET card_alias = ?, is_modified = 1 WHERE rowid = ?", cardAlias, id)
+	if err != nil {
+		return fmt.Errorf("store: updating the card alias of history row %d: %w", id, err)
+	}
+	if n, _ := result.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // InsertTelemetry stores a meter value of a session; a repeated timestamp is ignored.
 func (s *Store) InsertTelemetry(ctx context.Context, t TelemetryRecord) error {
 	_, err := s.db.ExecContext(ctx, `INSERT OR IGNORE INTO charging_session_telemetry (
