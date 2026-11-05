@@ -11,6 +11,7 @@ import (
 	"github.com/dgarciacampelo/tagoio-handler/internal/bucket"
 	"github.com/dgarciacampelo/tagoio-handler/internal/chargepoints"
 	"github.com/dgarciacampelo/tagoio-handler/internal/config"
+	"github.com/dgarciacampelo/tagoio-handler/internal/csms"
 	"github.com/dgarciacampelo/tagoio-handler/internal/devices"
 	"github.com/dgarciacampelo/tagoio-handler/internal/events"
 	"github.com/dgarciacampelo/tagoio-handler/internal/maintenance"
@@ -32,6 +33,7 @@ type Deps struct {
 	Bucket       *bucket.Service
 	Provisioning *provisioning.Service
 	Maintenance  *maintenance.Service
+	CSMS         *csms.Client // Payment history; never nil in production, may be unconfigured
 	UI           *webui.Renderer
 
 	// Jobs is the context of the background jobs the handlers start; it ends at shutdown.

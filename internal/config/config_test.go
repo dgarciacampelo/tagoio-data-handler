@@ -61,3 +61,21 @@ func TestLoadReportsEveryMissingVariable(t *testing.T) {
 		}
 	}
 }
+
+func TestCSMSURLs(t *testing.T) {
+	r := &reader{}
+	t.Setenv("CSMS_URLS", " http://neos-ocpp-main:8080/ , ,http://neos-ocpp-payter:8081")
+	if got := r.optionalURLList("CSMS_URLS"); strings.Join(got, "|") != "http://neos-ocpp-main:8080|http://neos-ocpp-payter:8081" || r.errs != nil {
+		t.Fatalf("got %q, errors %v", got, r.errs)
+	}
+
+	t.Setenv("CSMS_URLS", "")
+	if got := r.optionalURLList("CSMS_URLS"); got != nil || r.errs != nil {
+		t.Fatalf("unset: got %q, errors %v", got, r.errs)
+	}
+
+	t.Setenv("CSMS_URLS", "neos-ocpp-main:8080,ftp://csms")
+	if got := r.optionalURLList("CSMS_URLS"); got != nil || len(r.errs) != 2 {
+		t.Fatalf("invalid: got %q, errors %v", got, r.errs)
+	}
+}

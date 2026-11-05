@@ -1,6 +1,6 @@
 // View models of the page tests, shaped like the Go server's (internal/handlers, internal/dto).
 
-import type { AuditSession, PayterTerminal, StationLive, StationPage } from '$lib/contract.gen';
+import type { AuditSession, PaymentRecord, PayterTerminal, StationLive, StationPage } from '$lib/contract.gen';
 
 /** An active Payter terminal of pool 221006 without stations, unless overridden. */
 export function payterTerminal(overrides: Partial<PayterTerminal> = {}): PayterTerminal {
@@ -71,6 +71,36 @@ export function auditSession(overrides: Partial<AuditSession> = {}): AuditSessio
 		rate_off_peak: 0.25,
 		rate_flat: 0.35,
 		rate_peak: 0.45,
+		...overrides
+	};
+}
+
+/** A payment of the payments page: a committed LIVE Paycomet payment, with its session. */
+export function paymentRecord(overrides: Partial<PaymentRecord> = {}): PaymentRecord {
+	return {
+		id: 1,
+		created_at: '2026-11-05T10:00:00+00:00',
+		updated_at: '2026-11-05T10:00:00+00:00',
+		pool_code: 221006,
+		cpo_name: 'Residencia',
+		station_name: '22V20537CCPOS',
+		connector_id: 1,
+		platform: 'PAYCOMET',
+		category: 'LIVE',
+		status: 'COMMITTED',
+		limit: 4000,
+		amount: 1234,
+		currency: 'EUR',
+		transaction_id: 4321,
+		session_energy: 9870,
+		session_cost: '12.34',
+		order: '1221006ABCDEF0000SNA',
+		card_brand: 'VISA',
+		terminal: null,
+		error_stage: null,
+		error_code: null,
+		error_message: null,
+		error_at: null,
 		...overrides
 	};
 }

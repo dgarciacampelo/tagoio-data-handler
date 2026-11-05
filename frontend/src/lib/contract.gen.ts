@@ -165,6 +165,62 @@ export interface AuditCardAliasResult {
 }
 
 //////////
+// source: payments.go
+
+/**
+ * PaymentsPage is the view model of the payments page.
+ */
+export interface PaymentsPage {
+  configured: boolean; // CSMS_URLS is set
+  today: string; // Europe/Madrid, "2006-01-02": the default range ends today
+  pools: PaymentsPool[]; // Pool filter: the pools whose stations reported
+}
+/**
+ * PaymentsPool is an option of the pool filter.
+ */
+export interface PaymentsPool {
+  pool_code: number /* int */;
+  cpo_name: string;
+}
+/**
+ * PaymentsResult is the answer of GET /api/admin/payments?from=2006-01-02&to=2006-01-02[&pool_code=221006]: the
+ * payments created on those days (Europe/Madrid), newest first.
+ */
+export interface PaymentsResult {
+  payments: PaymentRecord[];
+  truncated: boolean; // More payments matched than the CSMS serves at once
+  source: string; // Host of the CSMS that answered
+}
+/**
+ * PaymentRecord is a payment of the history. Amounts are in cents.
+ */
+export interface PaymentRecord {
+  id: number /* int64 */;
+  created_at: string; // ISO 8601 with offset
+  updated_at: string;
+  pool_code: number /* int */;
+  cpo_name: string;
+  station_name: string;
+  connector_id: number | null;
+  platform: string; // PAYCOMET or PAYTER
+  category: string; // LIVE or TEST
+  status: string; // PENDING, AUTHORIZED, COMMITTED, CANCELED or ERROR
+  limit: number /* int */; // Preauthorized
+  amount: number | null;
+  currency: string;
+  transaction_id: number | null;
+  session_energy: number | null; // Wh
+  session_cost: string | null; // €, as the session stores it
+  order: string | null; // Paycomet order (back office search)
+  card_brand: string | null;
+  terminal: string | null; // Payter terminal serial number
+  error_stage: string | null;
+  error_code: number | null;
+  error_message: string | null;
+  error_at: string | null;
+}
+
+//////////
 // source: payter.go
 
 /**
