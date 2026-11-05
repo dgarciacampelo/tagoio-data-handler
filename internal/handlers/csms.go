@@ -4,12 +4,17 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
+	"net/url"
+	"strconv"
+	"time"
 
 	"github.com/dgarciacampelo/tagoio-handler/internal/chargepoints"
 	"github.com/dgarciacampelo/tagoio-handler/internal/dto"
 	"github.com/dgarciacampelo/tagoio-handler/internal/jsonx"
 	"github.com/dgarciacampelo/tagoio-handler/internal/provisioning"
+	"github.com/dgarciacampelo/tagoio-handler/internal/series"
 )
 
 // ChargePointUpdate applies a connector status change
@@ -138,4 +143,85 @@ func (a *App) ProvisionCPO(w http.ResponseWriter, r *http.Request) {
 		response.ErrorMessage = &result.ErrorMessage
 	}
 	writeJSON(w, http.StatusOK, response)
+}
+
+// SessionSeries returns the power and energy series of a charging session, which the email of a finished session
+// charts (GET /api/sessions/{pool_code}/{station_name}/{connector_id}/{transaction_id}/series). The CSMS asks for it
+// before it posts the session's last meter value, so it passes the readings the telemetry doesn't hold yet:
+// started_at (the session's start, with nothing delivered), and stopped_at with energy (the final reading, Wh
+// delivered since the start). It answers 404 when the session has nothing to chart: the email then has no chart.
+func (a *App) SessionSeries(w http.ResponseWriter, r *http.Request) {
+	poolCode, ok := pathInt(w, r, "pool_code")
+	if !ok {
+		return
+	}
+	station, ok := pathText(w, r, "station_name")
+	if !ok {
+		return
+	}
+	connectorID, ok := pathInt(w, r, "connector_id")
+	if !ok {
+		return
+	}
+	transactionID, ok := pathInt(w, r, "transaction_id")
+	if !ok {
+		return
+	}
+	added, err := seriesReadings(r.URL.Query())
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, dto.ErrorCodeInvalidRequest, err.Error())
+		return
+	}
+
+	telemetry, err := a.Store.SessionTelemetry(r.Context(), poolCode, station, connectorID, int64(transactionID))
+	if err != nil {
+		a.Log.Error("Session series: reading telemetry failed", "pool_code", poolCode, "transaction_id", transactionID, "error", err)
+		writeAPIError(w, http.StatusInternalServerError, dto.ErrorCodeInternalError, "Telemetry unavailable")
+		return
+	}
+	if len(telemetry) == 0 {
+		writeAPIError(w, http.StatusNotFound, dto.ErrorCodeNotFound, "No telemetry stored for this session")
+		return
+	}
+	s, err := series.Build(append(series.FromTelemetry(telemetry), added...))
+	if errors.Is(err, series.ErrNoSeries) {
+		writeAPIError(w, http.StatusNotFound, dto.ErrorCodeNotFound, "No energy delivery to chart for this session")
+		return
+	}
+	if err != nil {
+		a.Log.Error("Session series failed", "pool_code", poolCode, "transaction_id", transactionID, "error", err)
+		writeAPIError(w, http.StatusInternalServerError, dto.ErrorCodeInternalError, "Series unavailable")
+		return
+	}
+	writeJSON(w, http.StatusOK, s)
+}
+
+// seriesReadings reads the readings the CSMS adds to the stored ones: started_at, with no energy delivered yet, and
+// stopped_at with energy, the final reading. Both are optional; the timestamps are ISO 8601 with their UTC offset.
+func seriesReadings(query url.Values) ([]series.Reading, error) {
+	var readings []series.Reading
+	if value := query.Get("started_at"); value != "" {
+		at, err := time.Parse(time.RFC3339Nano, value)
+		if err != nil {
+			return nil, errors.New("started_at must be an ISO 8601 timestamp with its UTC offset")
+		}
+		readings = append(readings, series.Reading{At: at})
+	}
+
+	stoppedAt, energy := query.Get("stopped_at"), query.Get("energy")
+	if (stoppedAt == "") != (energy == "") {
+		return nil, errors.New("stopped_at and energy go together")
+	}
+	if stoppedAt != "" {
+		at, err := time.Parse(time.RFC3339Nano, stoppedAt)
+		if err != nil {
+			return nil, errors.New("stopped_at must be an ISO 8601 timestamp with its UTC offset")
+		}
+		wh, err := strconv.ParseInt(energy, 10, 64)
+		if err != nil || wh < 0 {
+			return nil, errors.New("energy must be a whole, non-negative number of Wh")
+		}
+		readings = append(readings, series.Reading{At: at, Energy: wh})
+	}
+	return readings, nil
 }
