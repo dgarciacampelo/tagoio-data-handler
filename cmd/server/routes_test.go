@@ -67,6 +67,7 @@ var (
 		{"POST", "/v1/charge-point-update/261001/ST1/1"},
 		{"POST", "/v1/charging-session-update/261001/ST1/1"},
 		{"GET", "/api/pools/261001"},
+		{"GET", "/api/sessions/261001/ST1/1/4321/series"},
 		{"GET", "/api/payter-terminals"},
 		{"POST", "/api/provision-cpo"},
 		{"POST", "/v1/trigger-task/pool-variable-cleanup"},

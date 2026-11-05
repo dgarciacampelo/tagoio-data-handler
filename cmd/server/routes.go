@@ -21,6 +21,7 @@ func (app *application) routes() http.Handler {
 	mux.Handle("POST /v1/charge-point-update/{pool_code}/{station_name}/{connector_id}", service(h.ChargePointUpdate))
 	mux.Handle("POST /v1/charging-session-update/{pool_code}/{station_name}/{connector_id}", service(h.ChargingSessionUpdate))
 	mux.Handle("GET /api/pools/{pool_code}", service(h.PoolSetup))
+	mux.Handle("GET /api/sessions/{pool_code}/{station_name}/{connector_id}/{transaction_id}/series", service(h.SessionSeries))
 	mux.Handle("GET /api/payter-terminals", service(h.PayterTerminalsAPI))
 	mux.Handle("POST /api/provision-cpo", service(h.ProvisionCPO))
 	mux.Handle("POST /v1/trigger-task/pool-variable-cleanup", service(h.CleanupAllPools))
