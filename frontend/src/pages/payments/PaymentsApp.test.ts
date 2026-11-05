@@ -25,7 +25,7 @@ const answer: PaymentsResult = {
 		payment({ id: 11 })
 	],
 	truncated: false,
-	source: 'neos-ocpp-main:8080'
+	source: 'csms-1:8080'
 };
 
 function renderPage(view: PaymentsPage = page): HTMLElement {
