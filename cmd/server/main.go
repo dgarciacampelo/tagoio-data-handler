@@ -23,6 +23,7 @@ import (
 	"github.com/dgarciacampelo/tagoio-handler/internal/bucket"
 	"github.com/dgarciacampelo/tagoio-handler/internal/chargepoints"
 	"github.com/dgarciacampelo/tagoio-handler/internal/config"
+	"github.com/dgarciacampelo/tagoio-handler/internal/csms"
 	"github.com/dgarciacampelo/tagoio-handler/internal/devices"
 	"github.com/dgarciacampelo/tagoio-handler/internal/events"
 	"github.com/dgarciacampelo/tagoio-handler/internal/handlers"
@@ -184,6 +185,7 @@ func run(logger *slog.Logger) error {
 		handlers: handlers.New(handlers.Deps{
 			Log: logger, Config: cfg, Store: db, Broker: broker, ChargePoints: stations, Pools: poolConfigs,
 			Devices: registry, Bucket: buckets, Provisioning: provisioner, Maintenance: upkeep, UI: ui, Jobs: ctx,
+			CSMS: csms.New(cfg.CSMSURLs, cfg.ServiceAPI, nil),
 		}),
 	}
 

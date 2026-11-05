@@ -9,6 +9,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -67,6 +68,10 @@ type Config struct {
 
 	ShortLinkURL string // Base of the QR short links printed on the station posters
 
+	// CSMSURLs are the base URLs of the CSMS instances (neos-ocpp), tried in order for the payment history
+	// (CSMS_URLS, comma separated, optional). Both share one database, so the first that answers is enough.
+	CSMSURLs []string
+
 	ServiceAPI   Credentials // HTTP Basic for the machine endpoints (CSMS, notification service)
 	Admin        Credentials // Admin dashboards login
 	CookieSecret []byte      // HMAC key of the admin session cookie (DASHBOARD_SECRET_TOKEN)
@@ -116,6 +121,7 @@ func Load() (*Config, error) {
 		DatabasePath:  cmp.Or(os.Getenv("DB_PATH"), "database_files/database.sqlite3"),
 		BackupsToKeep: r.optionalInt("BACKUPS_TO_KEEP", 30),
 		ShortLinkURL:  strings.TrimSuffix(r.required("SHORT_LINK_URL"), "/"),
+		CSMSURLs:      r.optionalURLList("CSMS_URLS"),
 		ServiceAPI:    Credentials{User: r.required("APP_DEFAULT_USER"), Secret: r.required("APP_DEFAULT_TOKEN")},
 		Admin:         Credentials{User: r.required("APP_ADMIN_USER"), Secret: r.required("APP_ADMIN_TOKEN")},
 		CookieSecret:  []byte(r.required("DASHBOARD_SECRET_TOKEN")),
@@ -203,6 +209,24 @@ func (r *reader) optionalInt(name string, fallback int) int {
 		r.errs = append(r.errs, fmt.Errorf("%s (%q) is not a valid non-negative integer", name, value))
 	}
 	return n
+}
+
+// optionalURLList reads a comma separated list of http(s) base URLs, without their trailing slash.
+func (r *reader) optionalURLList(name string) []string {
+	var urls []string
+	for item := range strings.SplitSeq(os.Getenv(name), ",") {
+		item = strings.TrimSuffix(strings.TrimSpace(item), "/")
+		if item == "" {
+			continue
+		}
+		u, err := url.Parse(item)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			r.errs = append(r.errs, fmt.Errorf("%s: %q is not an http(s) URL", name, item))
+			continue
+		}
+		urls = append(urls, item)
+	}
+	return urls
 }
 
 func (r *reader) optionalBool(name string) bool {

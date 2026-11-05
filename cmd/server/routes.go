@@ -44,6 +44,7 @@ func (app *application) routes() http.Handler {
 	mux.Handle("GET /emsp-dashboard/audits/{pool_code}", adminPage(h.AuditsPage))
 	mux.Handle("GET /emsp-dashboard/poster/{pool_code}/{station_name}", adminPage(h.PosterPage))
 	mux.Handle("GET /emsp-dashboard/payter", adminPage(h.PayterPage))
+	mux.Handle("GET /emsp-dashboard/payments", adminPage(h.PaymentsPage))
 	mux.Handle("GET /api/admin/station-link", adminAPI(h.StationLinkAPI))
 	mux.Handle("GET /api/admin/qr/{pool_code}/{station_name}", adminAPI(h.QRImage))
 	mux.Handle("DELETE /api/admin/stations/{pool_code}/{station_name}", adminAPI(h.DeleteStationAPI))
@@ -51,6 +52,7 @@ func (app *application) routes() http.Handler {
 	mux.Handle("PUT /api/admin/audits/{session_id}/card-alias", adminAPI(h.CorrectAuditCardAliasAPI))
 	mux.Handle("PUT /api/admin/payter-terminals/{serial_number}", adminAPI(h.SavePayterTerminalAPI))
 	mux.Handle("DELETE /api/admin/payter-terminals/{serial_number}", adminAPI(h.DeactivatePayterTerminalAPI))
+	mux.Handle("GET /api/admin/payments", adminAPI(h.PaymentsAPI))
 	// endregion
 
 	mux.HandleFunc("/", h.Fallback)

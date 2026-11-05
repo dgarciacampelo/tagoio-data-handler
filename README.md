@@ -54,6 +54,12 @@ frontend/                Svelte 5 pages (Vite, Tailwind CSS 4, Paraglide JS), on
 | `POST /api/provision-cpo` | neos-notification-mgmt | CPO sign-up form (snake_case or the Google Form titles). |
 | `POST /v1/trigger-task/pool-variable-cleanup`, `POST /v1/trigger-task/backup-to-telegram`, `DELETE /v1/trigger-task/single-variable/{pool_code}/{variable}` | Operators (curl) | Background jobs answer 202. |
 
+This service also calls the CSMS: the payments page of the eMSP dashboard (`/emsp-dashboard/payments`, API
+`GET /api/admin/payments?from=&to=[&pool_code=]`, Europe/Madrid days) reads `GET /api/payments` from the first CSMS in
+`CSMS_URLS` that answers, with the same Basic pair in reverse. Both production CSMS share one database, so the list is
+the same from either; the second one only covers the first being down. Without `CSMS_URLS` the page says it isn't
+configured. The rows carry no personal data (`internal/csms`, neos-ocpp `payment_history.py`).
+
 All of them use HTTP Basic with `APP_DEFAULT_USER` / `APP_DEFAULT_TOKEN`. The admin pages use a login form and a
 signed session cookie (`APP_ADMIN_USER` / `APP_ADMIN_TOKEN`, `DASHBOARD_SECRET_TOKEN`).
 

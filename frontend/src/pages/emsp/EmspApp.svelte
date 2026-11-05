@@ -57,7 +57,14 @@ of a station that has not reported yet), the link to the station's public page, 
 	<AdminHeader title={m.emsp_title()} icon="adminPanelSettings" />
 
 	<main class="max-w-[1440px] mx-auto p-4 md:p-8 space-y-lg w-full">
-		<div class="flex justify-end mb-4">
+		<div class="flex justify-end gap-3 mb-4">
+			<a
+				href="/emsp-dashboard/payments"
+				class="border border-outline hover:bg-surface-container-low text-primary font-label-caps text-label-caps py-1.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+			>
+				<Icon name="payments" size={18} />
+				{m.emsp_payments()}
+			</a>
 			<a
 				href="/emsp-dashboard/payter"
 				class="border border-outline hover:bg-surface-container-low text-primary font-label-caps text-label-caps py-1.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
