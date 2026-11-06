@@ -65,6 +65,7 @@ export function auditSession(overrides: Partial<AuditSession> = {}): AuditSessio
 		total_energy_kwh: 12.345,
 		cost: 4.32,
 		export_url: `/api/admin/audits/${transactionId}/export`,
+		session_url: `/emsp-dashboard/sessions/12/EVC01/1/${transactionId}`,
 		off_peak_wh: 0,
 		flat_wh: 2345,
 		peak_wh: 10000,

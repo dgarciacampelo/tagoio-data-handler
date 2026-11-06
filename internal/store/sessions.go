@@ -13,6 +13,9 @@ import (
 	sqlite3 "modernc.org/sqlite/lib"
 )
 
+// TelemetryRetentionDays is how long the meter values of a session are kept (the daily purge); its history row stays.
+const TelemetryRetentionDays = 120
+
 // SessionRecord is a finished charging session, as stored in the history.
 type SessionRecord struct {
 	PoolCode        int
@@ -31,6 +34,7 @@ type SessionRecord struct {
 	EnergyOffPeak   int64 // Wh
 	EnergyFlat      int64
 	EnergyPeak      int64
+	StopMotive      string // CAR, COST, CSMS, DISCONNECT, EVSE, RESERVED, USER or OTHER, as sent by the CSMS
 }
 
 // TelemetryRecord is one meter value of a charging session. Transaction ids are only unique per charge point, so
@@ -52,7 +56,8 @@ type TelemetryRecord struct {
 
 // SessionSummary is a history row as the audit dashboard shows it.
 type SessionSummary struct {
-	ID             int64 // rowid of the history row: neither the transaction id nor the charge point identify a row
+	ID             int64  // rowid of the history row: neither the transaction id nor the charge point identify a row
+	CreatedAt      string // UTC, "2006-01-02 15:04:05": when the end of the session was stored
 	TransactionID  int64
 	PoolCode       int
 	StationName    string
@@ -68,6 +73,7 @@ type SessionSummary struct {
 	EnergyOffPeak  int64
 	EnergyFlat     int64
 	EnergyPeak     int64
+	StopMotive     string // "" for the sessions stored before the history kept it
 }
 
 // InsertSession adds a finished session to the history. It reports false, without error, when the session was
@@ -76,11 +82,11 @@ func (s *Store) InsertSession(ctx context.Context, r SessionRecord) (bool, error
 	_, err := s.db.ExecContext(ctx, `INSERT INTO charging_session_history (
 			pool_code, station_name, connector_id, transaction_id, card_alias, start_date, time_band,
 			start_meter_value, last_meter_value, cost, rate_off_peak, rate_flat, rate_peak,
-			energy_off_peak, energy_flat, energy_peak, is_modified)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+			energy_off_peak, energy_flat, energy_peak, stop_motive, is_modified)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
 		r.PoolCode, r.StationName, r.ConnectorID, r.TransactionID, r.CardAlias, r.StartDate, r.TimeBand,
 		r.StartMeterValue, r.LastMeterValue, r.Cost, r.RateOffPeak, r.RateFlat, r.RatePeak,
-		r.EnergyOffPeak, r.EnergyFlat, r.EnergyPeak)
+		r.EnergyOffPeak, r.EnergyFlat, r.EnergyPeak, r.StopMotive)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return false, nil
@@ -144,16 +150,44 @@ func (s *Store) SessionTelemetry(ctx context.Context, poolCode int, stationName 
 }
 
 // summaryColumns are the columns of a SessionSummary, in scan order.
-const summaryColumns = `rowid, transaction_id, pool_code, station_name, connector_id, start_date, time_band, cost, card_alias,
-	(last_meter_value - start_meter_value) / 1000.0, rate_off_peak, rate_flat, rate_peak,
-	energy_off_peak, energy_flat, energy_peak`
+const summaryColumns = `rowid, created_at, transaction_id, pool_code, station_name, connector_id, start_date, time_band, cost,
+	card_alias, (last_meter_value - start_meter_value) / 1000.0, rate_off_peak, rate_flat, rate_peak,
+	energy_off_peak, energy_flat, energy_peak, stop_motive`
 
 func scanSummary(row interface{ Scan(...any) error }) (SessionSummary, error) {
 	var s SessionSummary
-	err := row.Scan(&s.ID, &s.TransactionID, &s.PoolCode, &s.StationName, &s.ConnectorID, &s.StartDate, &s.TimeBand,
-		&s.Cost, &s.CardAlias, &s.TotalEnergyKWh, &s.RateOffPeak, &s.RateFlat, &s.RatePeak,
-		&s.EnergyOffPeak, &s.EnergyFlat, &s.EnergyPeak)
+	err := row.Scan(&s.ID, &s.CreatedAt, &s.TransactionID, &s.PoolCode, &s.StationName, &s.ConnectorID, &s.StartDate,
+		&s.TimeBand, &s.Cost, &s.CardAlias, &s.TotalEnergyKWh, &s.RateOffPeak, &s.RateFlat, &s.RatePeak,
+		&s.EnergyOffPeak, &s.EnergyFlat, &s.EnergyPeak, &s.StopMotive)
 	return s, err
+}
+
+// SessionByKey returns the history row of a session by its charge point and transaction id, or ErrNotFound. When the
+// history holds more than one row for them (a repeated end with other meter values), it returns the latest.
+func (s *Store) SessionByKey(ctx context.Context, poolCode int, stationName string, connectorID int, transactionID int64) (SessionSummary, error) {
+	row := s.db.QueryRowContext(ctx, "SELECT "+summaryColumns+` FROM charging_session_history
+		WHERE pool_code = ? AND station_name = ? AND connector_id = ? AND transaction_id = ?
+		ORDER BY rowid DESC LIMIT 1`, poolCode, stationName, connectorID, transactionID)
+	summary, err := scanSummary(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return SessionSummary{}, ErrNotFound
+	}
+	if err != nil {
+		return SessionSummary{}, fmt.Errorf("store: reading session %d of %d/%s/%d: %w", transactionID, poolCode,
+			stationName, connectorID, err)
+	}
+	return summary, nil
+}
+
+// SessionsByTransaction returns the history rows with a transaction id, newest first: one per charge point that
+// reached it, at most limit.
+func (s *Store) SessionsByTransaction(ctx context.Context, transactionID int64, limit int) ([]SessionSummary, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT "+summaryColumns+` FROM charging_session_history
+		WHERE transaction_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?`, transactionID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("store: listing the sessions of transaction %d: %w", transactionID, err)
+	}
+	return scanSummaries(rows)
 }
 
 // Session returns a history row by its ID (SessionSummary.ID), or ErrNotFound.
@@ -184,8 +218,12 @@ func (s *Store) RecentSessions(ctx context.Context, poolCode, limit int) ([]Sess
 	if err != nil {
 		return nil, fmt.Errorf("store: listing recent sessions: %w", err)
 	}
-	defer rows.Close()
+	return scanSummaries(rows)
+}
 
+// scanSummaries reads (and closes) the rows of a summaryColumns query.
+func scanSummaries(rows *sql.Rows) ([]SessionSummary, error) {
+	defer rows.Close()
 	var sessions []SessionSummary
 	for rows.Next() {
 		summary, err := scanSummary(rows)
@@ -195,6 +233,13 @@ func (s *Store) RecentSessions(ctx context.Context, poolCode, limit int) ([]Sess
 		sessions = append(sessions, summary)
 	}
 	return sessions, rows.Err()
+}
+
+// migrateSessionStopMotive adds why each session stopped to the history. The CSMS always sent it with the end of the
+// session, but the history didn't keep it, so the sessions stored before stay without one ("").
+func migrateSessionStopMotive(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, "ALTER TABLE charging_session_history ADD COLUMN stop_motive TEXT NOT NULL DEFAULT ''")
+	return err
 }
 
 // PurgeTelemetry deletes the meter values older than the given number of days. It returns how many rows it

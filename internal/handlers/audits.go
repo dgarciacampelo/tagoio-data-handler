@@ -13,6 +13,7 @@ import (
 	"github.com/dgarciacampelo/tagoio-handler/internal/chargepoints"
 	"github.com/dgarciacampelo/tagoio-handler/internal/dto"
 	"github.com/dgarciacampelo/tagoio-handler/internal/export"
+	"github.com/dgarciacampelo/tagoio-handler/internal/sessionview"
 	"github.com/dgarciacampelo/tagoio-handler/internal/store"
 )
 
@@ -40,16 +41,22 @@ func (a *App) AuditsPage(w http.ResponseWriter, r *http.Request) {
 	}
 	view := dto.AuditsPage{PoolCode: poolCode, Sessions: make([]dto.AuditSession, 0, len(sessions))}
 	for _, s := range sessions {
-		view.Sessions = append(view.Sessions, dto.AuditSession{
-			TransactionID: s.TransactionID, PoolCode: s.PoolCode, StationName: s.StationName, ConnectorID: s.ConnectorID,
-			CardAlias: s.CardAlias, StartDate: s.StartDate, TimeBand: s.TimeBand,
-			TotalEnergyKWh: s.TotalEnergyKWh, Cost: s.Cost,
-			ExportURL: fmt.Sprintf("/api/admin/audits/%d/export", s.ID),
-			OffPeakWh: s.EnergyOffPeak, FlatWh: s.EnergyFlat, PeakWh: s.EnergyPeak,
-			RateOffPeak: s.RateOffPeak, RateFlat: s.RateFlat, RatePeak: s.RatePeak,
-		})
+		view.Sessions = append(view.Sessions, auditSession(s))
 	}
 	a.page(w, "audits", "Velo Energy - Auditoría de Sesiones", view)
+}
+
+// auditSession is a history row as the audits (and the sessions of a transaction id) list it.
+func auditSession(s store.SessionSummary) dto.AuditSession {
+	return dto.AuditSession{
+		TransactionID: s.TransactionID, PoolCode: s.PoolCode, StationName: s.StationName, ConnectorID: s.ConnectorID,
+		CardAlias: s.CardAlias, StartDate: s.StartDate, TimeBand: s.TimeBand,
+		TotalEnergyKWh: s.TotalEnergyKWh, Cost: s.Cost,
+		ExportURL:  fmt.Sprintf("/api/admin/audits/%d/export", s.ID),
+		SessionURL: sessionview.URL(s.PoolCode, s.StationName, s.ConnectorID, s.TransactionID),
+		OffPeakWh:  s.EnergyOffPeak, FlatWh: s.EnergyFlat, PeakWh: s.EnergyPeak,
+		RateOffPeak: s.RateOffPeak, RateFlat: s.RateFlat, RatePeak: s.RatePeak,
+	}
 }
 
 // AuditExport downloads the audit workbook of a session (GET /api/admin/audits/{session_id}/export). The session is

@@ -70,4 +70,22 @@ describe('AuditsApp', () => {
 			{ transaction: '7783', station: '12 / EVC01' }
 		]);
 	});
+
+	it('links each transaction to its session page, and finds one by its id', () => {
+		setPageData({
+			pool_code: 0,
+			sessions: [auditSession({ transaction_id: 7783, session_url: '/emsp-dashboard/sessions/12/EVC01/1/7783' })]
+		} satisfies AuditsPage);
+		const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => undefined);
+
+		const target = render(AuditsApp, {});
+
+		expect(target.querySelector('[data-session-link]')?.getAttribute('href')).toBe('/emsp-dashboard/sessions/12/EVC01/1/7783');
+		const form = target.querySelector<HTMLFormElement>('[data-go-to-transaction]')!;
+		const input = form.querySelector('input')!;
+		input.value = '4321';
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		form.requestSubmit();
+		expect(assign).toHaveBeenCalledWith('/emsp-dashboard/sessions/4321');
+	});
 });

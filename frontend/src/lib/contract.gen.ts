@@ -139,6 +139,7 @@ export interface AuditSession {
   total_energy_kwh: number /* float64 */;
   cost: number /* float64 */;
   export_url: string; // XLSX with every meter value
+  session_url: string; // Page of the session
   off_peak_wh: number /* int64 */;
   flat_wh: number /* int64 */;
   peak_wh: number /* int64 */;
@@ -258,6 +259,108 @@ export interface PayterTerminalInput {
   pool_code: number /* int */;
   is_pool_shared: boolean;
   linked_stations: string[];
+}
+
+//////////
+// source: session.go
+
+/**
+ * SessionPage is the view model of a session's page (GET /emsp-dashboard/sessions/{pool_code}/{station_name}/
+ * {connector_id}/{transaction_id}, or /emsp-dashboard/sessions/{transaction_id} when only the id is known).
+ */
+export interface SessionPage {
+  transaction_id: number /* int64 */;
+  session: SessionDetail | null; // null: not found, or several sessions have the id
+  matches: AuditSession[]; // The sessions with this transaction id, when Session is null
+}
+/**
+ * SessionDetail is a finished session: what the history stored when it ended, and what its meter values tell.
+ */
+export interface SessionDetail {
+  id: number /* int64 */; // History row (SessionSummary.ID)
+  transaction_id: number /* int64 */;
+  pool_code: number /* int */;
+  cpo_name: string;
+  station_name: string;
+  connector_id: number /* int */;
+  card_alias: string;
+  start_date: string; // DD/MM/YYYY, as the CSMS sends it
+  time_band: string; // "HH:MM - HH:MM"
+  stop_motive: string; // CAR, COST, CSMS, DISCONNECT, EVSE, RESERVED, USER, OTHER; "" when not stored
+  started_at: string | null; // ISO 8601: start date and minute of the time band
+  ended_at: string | null; // ISO 8601: last meter value, else when the end was stored
+  duration_seconds: number | null; // From StartedAt to EndedAt
+  energy_wh: number /* int64 */; // Last meter value minus the first one
+  cost: number /* float64 */; // €, as the CSMS charged it
+  bands: SessionBand[]; // Off-peak, flat and peak, in that order
+  evaluated_cost: number /* float64 */;
+  cost_check: CostCheck;
+  meter_value_count: number /* int */;
+  peak_power_w: number | null; // Highest power the station reported
+  mean_power_w: number | null; // Energy over the time from the start to the last delivery
+  last_delivery_at: string | null; // ISO 8601: last meter value that added energy
+  idle_seconds: number | null; // From the last delivery to the end: plugged in, not charging
+  telemetry_purged: boolean; // No meter values, and the session is older than their retention
+  series: SessionSeries | null; // null: nothing to chart
+  meter_values: SessionMeterValue[]; // In time order
+  export_url: string; // XLSX audit
+  payments_url: string; // GET: SessionPayments
+  audits_url: string; // The audits of its pool
+}
+/**
+ * SessionBand is the energy and cost of a session in a tariff band.
+ */
+export interface SessionBand {
+  band: TariffBand;
+  energy_wh: number /* int64 */;
+  rate: number /* float64 */; // €/kWh, frozen at the session start
+  cost: number /* float64 */; // €, energy times rate (4 decimals)
+}
+/**
+ * TariffBand is a tariff band of the CSMS.
+ */
+export const TariffBandOffPeak = "off_peak";
+export const TariffBandFlat = "flat";
+export const TariffBandPeak = "peak";
+export type TariffBand = typeof TariffBandOffPeak | typeof TariffBandFlat | typeof TariffBandPeak;
+/**
+ * CostCheck compares the cost the CSMS charged with the one its bands add up to (as the XLSX audit does).
+ */
+export const CostCheckOK = "ok"; // At most a cent apart: the CSMS rounds to cents
+export const CostCheckCapped = "capped"; // Stopped at the authorized amount, which is below what the bands add up to
+export const CostCheckMismatch = "mismatch"; // More than a cent apart, for no known reason
+export type CostCheck = typeof CostCheckOK | typeof CostCheckCapped | typeof CostCheckMismatch;
+/**
+ * SessionSeries is the power and energy series of the session's email (internal/series): consecutive steps of equal
+ * length, each with its mean power and the energy delivered by its end; null in a gap without meter values.
+ */
+export interface SessionSeries {
+  start: string; // ISO 8601 (UTC): start of the first step
+  step: number /* int */; // Seconds per step
+  power: (number | null)[]; // W
+  energy: (number | null)[]; // Wh delivered since the start
+}
+/**
+ * SessionMeterValue is a meter value of the session: the rows of the XLSX audit.
+ */
+export interface SessionMeterValue {
+  timestamp: string; // ISO 8601, as the CSMS sent it
+  meter_value: number /* int64 */; // Wh
+  power: number /* int64 */; // W
+  cost: number /* float64 */; // €, as the CSMS reported it
+  evaluated_cost: number /* float64 */; // €, the per-band energy times the rates
+  band: string; // Active band: "Off-Peak", "Flat" or "Peak"
+  off_peak_wh: number /* int64 */; // Cumulative per band
+  flat_wh: number /* int64 */;
+  peak_wh: number /* int64 */;
+}
+/**
+ * SessionPayments is the answer of GET /api/admin/sessions/{pool_code}/{station_name}/{connector_id}/{transaction_id}/
+ * payments: the payments the CSMS stored for the session (usually one; none for an RFID or free session).
+ */
+export interface SessionPayments {
+  payments: PaymentRecord[];
+  source: string; // Host of the CSMS that answered
 }
 
 //////////
