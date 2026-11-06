@@ -5,6 +5,8 @@
 package chargepoints
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -179,6 +181,43 @@ func (u SessionUpdate) Key() ConnectorKey {
 // Ended reports whether the update closes the session.
 func (u SessionUpdate) Ended() bool {
 	return u.Step == StepCompleted || (u.TimeBand != nil && *u.TimeBand != "")
+}
+
+// hasMeterValue reports whether the update carries a meter value of the session (the one sent at its start doesn't).
+func (u SessionUpdate) hasMeterValue() bool {
+	return u.Step == StepInProgress || u.Step == StepCompleted
+}
+
+// Validate checks the fields that identify a session update and its meter value, which a back-filled update brings
+// in its body (the live one takes its charge point from the URL).
+func (u SessionUpdate) Validate() error {
+	switch {
+	case u.PoolCode <= 0:
+		return errors.New("pool_code must be positive")
+	case strings.TrimSpace(u.StationName) == "":
+		return errors.New("station_name is required")
+	case u.ConnectorID <= 0:
+		return errors.New("connector_id must be positive")
+	case u.TransactionID <= 0:
+		return errors.New("transaction_id must be positive")
+	case u.Step != StepStarted && u.Step != StepInProgress && u.Step != StepCompleted:
+		return fmt.Errorf("unknown step %q", u.Step)
+	}
+	if u.hasMeterValue() && !isISOTimestamp(u.LastMeterTS) {
+		return errors.New("last_meter_ts must be an ISO 8601 timestamp")
+	}
+	return nil
+}
+
+// isISOTimestamp reports whether s is an ISO 8601 timestamp as the CSMS writes it: with its UTC offset, or without
+// one for a session it recovered without its time zone.
+func isISOTimestamp(s string) bool {
+	for _, layout := range []string{time.RFC3339Nano, "2006-01-02T15:04:05.999999999"} {
+		if _, err := time.Parse(layout, s); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // withDefaults fills the units the CSMS may leave out.

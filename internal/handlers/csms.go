@@ -4,6 +4,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
@@ -78,6 +79,77 @@ func (a *App) ChargingSessionUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+// MaxBackfillUpdates bounds the updates of a back-fill request (about 1 KB each, within the 1 MiB body limit).
+const MaxBackfillUpdates = 500
+
+// backfillRequest is the body of POST /v1/charging-session-backfill.
+//
+// ! Wire contract: neos-ocpp sends it from its outbox (handler_outbox.py there).
+type backfillRequest struct {
+	Updates []json.RawMessage `json:"updates"` // Each one a ChargingSessionUpdate, decoded on its own
+}
+
+// backfillResponse is the answer of POST /v1/charging-session-backfill.
+//
+// ! Wire contract: neos-ocpp reads it (handler_outbox.py there).
+type backfillResponse struct {
+	Stored     int                 `json:"stored"`     // Updates that added a meter value or a finished session
+	Duplicates int                 `json:"duplicates"` // Updates already stored: the CSMS needn't send them again
+	Rejected   []backfillRejection `json:"rejected"`   // Invalid updates, which no retry will fix
+}
+
+type backfillRejection struct {
+	Index int    `json:"index"` // Position in the request's updates
+	Error string `json:"error"`
+}
+
+// ChargingSessionBackfill stores the session updates that the CSMS couldn't deliver when they happened, because this
+// service was down or unreachable, and sends late from its outbox, oldest first (POST /v1/charging-session-backfill).
+// They fill the session telemetry (audits, email chart) and the history of the sessions that ended meanwhile. An
+// invalid update is rejected on its own; a storage failure fails the request, and the CSMS sends it all again.
+func (a *App) ChargingSessionBackfill(w http.ResponseWriter, r *http.Request) {
+	var request backfillRequest
+	if err := decodeJSON(w, r, &request); err != nil {
+		writeAPIError(w, http.StatusUnprocessableEntity, dto.ErrorCodeInvalidRequest, "Invalid back-fill: "+err.Error())
+		return
+	}
+	if len(request.Updates) > MaxBackfillUpdates {
+		message := "A back-fill takes at most " + strconv.Itoa(MaxBackfillUpdates) + " updates"
+		writeAPIError(w, http.StatusRequestEntityTooLarge, dto.ErrorCodeInvalidRequest, message)
+		return
+	}
+
+	response := backfillResponse{Rejected: []backfillRejection{}}
+	for i, raw := range request.Updates {
+		var update chargepoints.SessionUpdate
+		err := json.Unmarshal(raw, &update)
+		if err == nil {
+			err = update.Validate()
+		}
+		if err != nil {
+			response.Rejected = append(response.Rejected, backfillRejection{Index: i, Error: err.Error()})
+			continue
+		}
+
+		stored, err := a.ChargePoints.BackfillSession(r.Context(), update)
+		if err != nil {
+			a.Log.Error("Session back-fill failed", "pool_code", int64(update.PoolCode), "transaction_id", int64(update.TransactionID), "error", err)
+			writeAPIError(w, http.StatusInternalServerError, dto.ErrorCodeInternalError, "Back-fill not stored")
+			return
+		}
+		if stored {
+			response.Stored++
+		} else {
+			response.Duplicates++
+		}
+	}
+	if len(request.Updates) > 0 {
+		a.Log.Info("Session back-fill", "updates", len(request.Updates), "stored", response.Stored,
+			"duplicates", response.Duplicates, "rejected", len(response.Rejected))
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 // PoolSetup returns a pool's full setup for the CSMS, creating its TagoIO device when it has none
