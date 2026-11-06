@@ -261,7 +261,7 @@
 	"session_chart_heading": "Potencia y energía de la recarga",
 	"session_chart_power": "Potencia media (kW)",
 	"session_chart_energy": "Energía entregada (kWh)",
-	"session_chart_hint": "El mismo gráfico que el correo de fin de recarga: hasta 24 h, terminando en la última entrega de energía.",
+	"session_chart_hint": "El gráfico abarca como máximo 24 h y termina en la última entrega de energía.",
 	"session_chart_gap": "Sin lecturas",
 	"session_chart_none": "No hay entrega de energía que representar.",
 	"session_chart_no_meter_values": "No hay lecturas guardadas de esta sesión: no hay gráfico ni detalle.",
