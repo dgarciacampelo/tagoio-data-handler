@@ -59,9 +59,10 @@ type Credentials struct {
 
 // Config holds the whole service configuration.
 type Config struct {
-	AppEnv string // EnvDevelopment or EnvProduction
-	Port   int    // HTTP listen port (API_PORT)
-	DryRun bool   // Log instead of broadcasting events or writing to TagoIO (staging and payload capture)
+	AppEnv    string // EnvDevelopment or EnvProduction
+	Port      int    // HTTP listen port (API_PORT)
+	DryRun    bool   // Log instead of broadcasting events or writing to TagoIO (staging and payload capture)
+	GitCommit string // Commit the image was built from (GIT_COMMIT, set by the image build; "" outside it)
 
 	DatabasePath  string // SQLite file; its directory also holds the backup archives
 	BackupsToKeep int    // Newest backup archives kept on disk
@@ -118,6 +119,7 @@ func Load() (*Config, error) {
 		AppEnv:        appEnv,
 		Port:          r.requiredInt("API_PORT"),
 		DryRun:        r.optionalBool("DRY_RUN"),
+		GitCommit:     strings.TrimSpace(os.Getenv("GIT_COMMIT")),
 		DatabasePath:  cmp.Or(os.Getenv("DB_PATH"), "database_files/database.sqlite3"),
 		BackupsToKeep: r.optionalInt("BACKUPS_TO_KEEP", 30),
 		ShortLinkURL:  strings.TrimSuffix(r.required("SHORT_LINK_URL"), "/"),
