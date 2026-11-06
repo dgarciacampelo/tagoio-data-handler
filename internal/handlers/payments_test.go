@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -162,5 +164,40 @@ func TestPaymentsWhenTheCSMSFails(t *testing.T) {
 				t.Fatalf("status %d; want %d", rec.Code, tc.want)
 			}
 		})
+	}
+}
+
+func TestACSMSThatDidNotAnswerIsShownAndLogged(t *testing.T) {
+	app := newTestApp(t)
+	answering := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(csmsPayments))
+	}))
+	t.Cleanup(answering.Close)
+	unreachable := httptest.NewServer(http.NotFoundHandler())
+	unreachable.Close() // Refuses connections, as a CSMS whose name, port or network is wrong
+	app.CSMS = csms.New([]string{unreachable.URL, answering.URL}, app.Config.ServiceAPI, nil)
+	var logged bytes.Buffer
+	app.Log = slog.New(slog.NewTextHandler(&logged, nil))
+
+	rec := getPayments(app, "/api/admin/payments?from=2026-11-01&to=2026-11-05")
+
+	var result dto.PaymentsResult
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil || rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body)
+	}
+	down, up := strings.TrimPrefix(unreachable.URL, "http://"), strings.TrimPrefix(answering.URL, "http://")
+	if len(result.Payments) != 2 || result.Source != up || len(result.Unanswered) != 1 || result.Unanswered[0] != down {
+		t.Fatalf("result %+v; want the payments of %s, %s unanswered", result, up, down)
+	}
+	if line := logged.String(); !strings.Contains(line, "level=WARN") || !strings.Contains(line, "csms="+down) ||
+		!strings.Contains(line, "answered="+up) || !strings.Contains(line, "error=") {
+		t.Fatalf("log %q; want a warning naming the CSMS and why", line)
+	}
+
+	// When the first CSMS answers, nothing is unanswered: an empty list, not null
+	app.CSMS = csms.New([]string{answering.URL}, app.Config.ServiceAPI, nil)
+	rec = getPayments(app, "/api/admin/payments?from=2026-11-01&to=2026-11-05")
+	if !strings.Contains(rec.Body.String(), `"unanswered":[]`) {
+		t.Fatalf("body %s", rec.Body)
 	}
 }

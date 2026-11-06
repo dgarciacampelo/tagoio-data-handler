@@ -68,8 +68,16 @@ type PaymentsQuery struct {
 // PaymentsResult is the answer of the first CSMS that served the query.
 type PaymentsResult struct {
 	Payments  []Payment
-	Truncated bool   // More payments matched than the limit
-	Source    string // Base URL of the CSMS that answered
+	Truncated bool      // More payments matched than the limit
+	Source    string    // Base URL of the CSMS that answered
+	Failures  []Failure // The CSMS asked before Source, which didn't answer, in order
+}
+
+// Failure is a CSMS that didn't answer a query. The data is the same from another one, as they share the database,
+// but a CSMS that never answers is a deployment fault to fix (its name, port or network).
+type Failure struct {
+	Source string // Base URL
+	Err    error
 }
 
 // Client reads from the CSMS instances with the service credentials, the pair they send to this service.
@@ -92,22 +100,27 @@ func (c *Client) Configured() bool {
 	return c != nil && len(c.urls) > 0
 }
 
-// Payments returns the payments of the first CSMS that answers. A rejected query isn't sent to the next one.
+// Payments returns the payments of the first CSMS that answers, with the failures of those asked before it. A
+// rejected query isn't sent to the next one.
 func (c *Client) Payments(ctx context.Context, q PaymentsQuery) (PaymentsResult, error) {
 	if !c.Configured() {
 		return PaymentsResult{}, ErrNotConfigured
 	}
-	var errs []error
+	var failures []Failure
 	for _, base := range c.urls {
 		result, err := c.payments(ctx, base, q)
 		if err == nil {
-			result.Source = base
+			result.Source, result.Failures = base, failures
 			return result, nil
 		}
 		if errors.Is(err, ErrBadQuery) || ctx.Err() != nil {
 			return PaymentsResult{}, err
 		}
-		errs = append(errs, fmt.Errorf("%s: %w", base, err))
+		failures = append(failures, Failure{Source: base, Err: err})
+	}
+	errs := make([]error, len(failures))
+	for i, f := range failures {
+		errs[i] = fmt.Errorf("%s: %w", f.Source, f.Err)
 	}
 	return PaymentsResult{}, errors.Join(errs...)
 }

@@ -19,9 +19,10 @@ type PaymentsPool struct {
 // PaymentsResult is the answer of GET /api/admin/payments?from=2006-01-02&to=2006-01-02[&pool_code=221006]: the
 // payments created on those days (Europe/Madrid), newest first.
 type PaymentsResult struct {
-	Payments  []PaymentRecord `json:"payments"`
-	Truncated bool            `json:"truncated"` // More payments matched than the CSMS serves at once
-	Source    string          `json:"source"`    // Host of the CSMS that answered
+	Payments   []PaymentRecord `json:"payments"`
+	Truncated  bool           `json:"truncated"`  // More payments matched than the CSMS serves at once
+	Source     string          `json:"source"`     // Host of the CSMS that answered
+	Unanswered []string        `json:"unanswered"` // Hosts of the CSMS asked before it, which didn't answer (logged why)
 }
 
 // PaymentRecord is a payment of the history. Amounts are in cents.

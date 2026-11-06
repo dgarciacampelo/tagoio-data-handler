@@ -191,6 +191,7 @@ export interface PaymentsResult {
   payments: PaymentRecord[];
   truncated: boolean; // More payments matched than the CSMS serves at once
   source: string; // Host of the CSMS that answered
+  unanswered: string[]; // Hosts of the CSMS asked before it, which didn't answer (logged why)
 }
 /**
  * PaymentRecord is a payment of the history. Amounts are in cents.
@@ -362,6 +363,7 @@ export interface SessionMeterValue {
 export interface SessionPayments {
   payments: PaymentRecord[];
   source: string; // Host of the CSMS that answered
+  unanswered: string[]; // Hosts of the CSMS asked before it, which didn't answer (logged why)
 }
 
 //////////
