@@ -278,14 +278,8 @@ func (s *Service) UpdateSession(ctx context.Context, u SessionUpdate) error {
 	u = u.withDefaults()
 	key := u.Key()
 
-	if u.Step == StepInProgress || u.Step == StepCompleted {
-		err := s.store.InsertTelemetry(ctx, store.TelemetryRecord{
-			PoolCode: key.PoolCode, StationName: key.StationName, ConnectorID: key.ConnectorID,
-			TransactionID: int64(u.TransactionID), Timestamp: u.LastMeterTS, MeterValue: int64(u.LastMeterValue),
-			Power: int64(u.Power), Cost: float64(u.Cost), CurrentTariffBand: u.CurrentTariffBand,
-			EnergyOffPeak: int64(u.EnergyOffPeak), EnergyFlat: int64(u.EnergyFlat), EnergyPeak: int64(u.EnergyPeak),
-		})
-		if err != nil {
+	if u.hasMeterValue() {
+		if err := s.store.InsertTelemetry(ctx, telemetryRecord(u)); err != nil {
 			return err
 		}
 	}
@@ -295,14 +289,7 @@ func (s *Service) UpdateSession(ctx context.Context, u SessionUpdate) error {
 		delete(s.sessions, key)
 		s.mu.Unlock()
 
-		inserted, err := s.store.InsertSession(ctx, store.SessionRecord{
-			PoolCode: key.PoolCode, StationName: key.StationName, ConnectorID: key.ConnectorID,
-			TransactionID: int64(u.TransactionID), CardAlias: u.CardAlias, StartDate: u.StartDate, TimeBand: deref(u.TimeBand),
-			StartMeterValue: int64(u.StartMeterValue), LastMeterValue: int64(u.LastMeterValue), Cost: float64(u.Cost),
-			RateOffPeak: float64(u.RateOffPeak), RateFlat: float64(u.RateFlat), RatePeak: float64(u.RatePeak),
-			EnergyOffPeak: int64(u.EnergyOffPeak), EnergyFlat: int64(u.EnergyFlat), EnergyPeak: int64(u.EnergyPeak),
-			StopMotive: deref(u.StopMotive),
-		})
+		inserted, err := s.store.InsertSession(ctx, sessionRecord(u))
 		if err != nil {
 			return err
 		}
@@ -321,6 +308,52 @@ func (s *Service) UpdateSession(ctx context.Context, u SessionUpdate) error {
 
 	s.pushSession(u)
 	return nil
+}
+
+// BackfillSession stores a session update that the CSMS couldn't deliver when it happened (this service was down or
+// unreachable) and sends late. It stores the update's meter value and, for the update that ended the session, its
+// history row, both idempotently, so the CSMS can send it again. An update in progress writes no dashboard: its
+// reading is old, and the connector's live values come from the CSMS's next live update. The end of a session the
+// service hadn't recorded adds its dashboard history entry, and resets the connector's live values unless the
+// connector shows a newer session. It reports whether anything new was stored.
+func (s *Service) BackfillSession(ctx context.Context, u SessionUpdate) (bool, error) {
+	u = u.withDefaults()
+	stored := false
+	if u.hasMeterValue() {
+		added, err := s.store.AddTelemetry(ctx, telemetryRecord(u))
+		if err != nil {
+			return false, err
+		}
+		stored = added
+	}
+	if !u.Ended() {
+		return stored, nil
+	}
+
+	inserted, err := s.store.InsertSession(ctx, sessionRecord(u))
+	if err != nil {
+		return stored, err
+	}
+	if !inserted {
+		return stored, nil // Its end arrived live, or was back-filled already
+	}
+
+	key := u.Key()
+	s.mu.Lock()
+	active, inSession := s.sessions[key]
+	current := !inSession || active.TransactionID == u.TransactionID
+	if current {
+		delete(s.sessions, key)
+	}
+	s.mu.Unlock()
+
+	if u.Step == StepCompleted {
+		s.pushHistory(u)
+	}
+	if current {
+		s.pushLiveSession(u)
+	}
+	return true, nil
 }
 
 // inferCharging marks a connector as charging when it reports meter values while showing another status (a
@@ -342,23 +375,60 @@ func (s *Service) inferCharging(ctx context.Context, key ConnectorKey) error {
 	})
 }
 
+// telemetryRecord is the meter value of a session update.
+func telemetryRecord(u SessionUpdate) store.TelemetryRecord {
+	key := u.Key()
+	return store.TelemetryRecord{
+		PoolCode: key.PoolCode, StationName: key.StationName, ConnectorID: key.ConnectorID,
+		TransactionID: int64(u.TransactionID), Timestamp: u.LastMeterTS, MeterValue: int64(u.LastMeterValue),
+		Power: int64(u.Power), Cost: float64(u.Cost), CurrentTariffBand: u.CurrentTariffBand,
+		EnergyOffPeak: int64(u.EnergyOffPeak), EnergyFlat: int64(u.EnergyFlat), EnergyPeak: int64(u.EnergyPeak),
+	}
+}
+
+// sessionRecord is the history row of the update that ends a session, whether it arrives live or late.
+func sessionRecord(u SessionUpdate) store.SessionRecord {
+	key := u.Key()
+	return store.SessionRecord{
+		PoolCode: key.PoolCode, StationName: key.StationName, ConnectorID: key.ConnectorID,
+		TransactionID: int64(u.TransactionID), CardAlias: u.CardAlias, StartDate: u.StartDate, TimeBand: deref(u.TimeBand),
+		StartMeterValue: int64(u.StartMeterValue), LastMeterValue: int64(u.LastMeterValue), Cost: float64(u.Cost),
+		RateOffPeak: float64(u.RateOffPeak), RateFlat: float64(u.RateFlat), RatePeak: float64(u.RatePeak),
+		EnergyOffPeak: int64(u.EnergyOffPeak), EnergyFlat: int64(u.EnergyFlat), EnergyPeak: int64(u.EnergyPeak),
+		StopMotive: deref(u.StopMotive),
+	}
+}
+
 // pushSession queues the dashboard writes of a session update: the history entry of an ended (paid) session, the
 // active session row of the management dashboard and the public dashboard values.
 func (s *Service) pushSession(u SessionUpdate) {
+	if u.Step == StepCompleted {
+		s.pushHistory(u)
+	}
+	s.pushLiveSession(u)
+}
+
+// pushHistory queues the dashboard history entry of an ended session, when it was paid.
+func (s *Service) pushHistory(u SessionUpdate) {
+	if float64(u.Cost) == 0 {
+		return
+	}
+	// The group is the transaction, so the dashboard table shows one row per session.
+	s.enqueue(int(u.PoolCode), tagoio.DataInput{
+		Variable: HistoryVariable, Value: int64(u.TransactionID), Group: strconv.FormatInt(int64(u.TransactionID), 10),
+		Metadata: map[string]any{
+			"card_alias": u.CardAlias, "card_code": u.CardCode, "display_id": u.DisplayID, "start_date": u.StartDate,
+			"step": u.Step, "energy": float64(u.Energy), "energy_unit": u.EnergyUnit, "cost": float64(u.Cost),
+			"cost_unit": u.CostUnit, "stop_motive": u.StopMotive, "time_band": u.TimeBand,
+		},
+	})
+}
+
+// pushLiveSession queues the writes of the connector's live values: the active session row of the management
+// dashboard and the public dashboard values (reset when the session ended).
+func (s *Service) pushLiveSession(u SessionUpdate) {
 	key := u.Key()
 	ended := u.Step == StepCompleted
-
-	if ended && float64(u.Cost) != 0 {
-		// The group is the transaction, so the dashboard table shows one row per session.
-		s.enqueue(key.PoolCode, tagoio.DataInput{
-			Variable: HistoryVariable, Value: int64(u.TransactionID), Group: strconv.FormatInt(int64(u.TransactionID), 10),
-			Metadata: map[string]any{
-				"card_alias": u.CardAlias, "card_code": u.CardCode, "display_id": u.DisplayID, "start_date": u.StartDate,
-				"step": u.Step, "energy": float64(u.Energy), "energy_unit": u.EnergyUnit, "cost": float64(u.Cost),
-				"cost_unit": u.CostUnit, "stop_motive": u.StopMotive, "time_band": u.TimeBand,
-			},
-		})
-	}
 
 	connectorLabel := fmt.Sprintf("%s_[%d]", key.StationName, key.ConnectorID)
 	s.enqueue(key.PoolCode, tagoio.DataInput{

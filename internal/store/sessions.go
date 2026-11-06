@@ -111,16 +111,27 @@ func (s *Store) UpdateSessionCardAlias(ctx context.Context, id int64, cardAlias 
 
 // InsertTelemetry stores a meter value of a session; a repeated timestamp is ignored.
 func (s *Store) InsertTelemetry(ctx context.Context, t TelemetryRecord) error {
-	_, err := s.db.ExecContext(ctx, `INSERT OR IGNORE INTO charging_session_telemetry (
+	_, err := s.AddTelemetry(ctx, t)
+	return err
+}
+
+// AddTelemetry stores a meter value of a session and reports whether it was new: a repeated timestamp of the same
+// charge point and session is ignored, so the CSMS can send a meter value again.
+func (s *Store) AddTelemetry(ctx context.Context, t TelemetryRecord) (bool, error) {
+	result, err := s.db.ExecContext(ctx, `INSERT OR IGNORE INTO charging_session_telemetry (
 			pool_code, station_name, connector_id, transaction_id, timestamp, meter_value, power, cost,
 			current_tariff_band, energy_off_peak, energy_flat, energy_peak)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		t.PoolCode, t.StationName, t.ConnectorID, t.TransactionID, t.Timestamp, t.MeterValue, t.Power, t.Cost,
 		t.CurrentTariffBand, t.EnergyOffPeak, t.EnergyFlat, t.EnergyPeak)
 	if err != nil {
-		return fmt.Errorf("store: inserting telemetry of session %d: %w", t.TransactionID, err)
+		return false, fmt.Errorf("store: inserting telemetry of session %d: %w", t.TransactionID, err)
 	}
-	return nil
+	n, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("store: inserting telemetry of session %d: %w", t.TransactionID, err)
+	}
+	return n > 0, nil
 }
 
 // SessionTelemetry returns the meter values of a session in time order. Meter values stored before the telemetry

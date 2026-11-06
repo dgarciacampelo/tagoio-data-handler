@@ -227,6 +227,173 @@ func TestSessionLifecycle(t *testing.T) {
 	}
 }
 
+// backfillUpdate is a session update of transaction 42 sent late, at the given time.
+func backfillUpdate(t *testing.T, step, at string, meter int) SessionUpdate {
+	t.Helper()
+	stopMotive, timeBand := "null", "null"
+	if step == StepCompleted {
+		stopMotive, timeBand = `"EVDisconnected"`, `"09:00 - 09:30"`
+	}
+	u := sessionUpdate(t, fmt.Sprintf(sessionJSON, step, stopMotive, timeBand))
+	u.LastMeterTS, u.LastMeterValue = at, jsonx.Int(meter)
+	return u
+}
+
+func TestBackfillStoresMeterValuesWithoutDashboardWrites(t *testing.T) {
+	ctx := context.Background()
+	s, db := newTestService(t)
+	key := ConnectorKey{261001, "ST1", 1}
+
+	for i, at := range []string{"2026-10-22T09:10:00+02:00", "2026-10-22T09:05:00+02:00"} { // In any order
+		stored, err := s.BackfillSession(ctx, backfillUpdate(t, StepInProgress, at, 2000+i*1000))
+		if err != nil || !stored {
+			t.Fatalf("BackfillSession(%s) = %v, %v; want it stored", at, stored, err)
+		}
+	}
+	if stored, err := s.BackfillSession(ctx, backfillUpdate(t, StepInProgress, "2026-10-22T09:05:00+02:00", 3000)); err != nil || stored {
+		t.Fatalf("a repeated meter value = %v, %v; want a duplicate", stored, err)
+	}
+
+	if writes := drain(s); len(writes) != 0 {
+		t.Fatalf("dashboard writes = %+v; a late meter value must not overwrite the live values", writes)
+	}
+	if _, ok := s.ActiveSession(key); ok {
+		t.Fatal("a late meter value must not make its session active")
+	}
+	if _, known := s.Connector(key); known {
+		t.Fatal("a late meter value must not infer the connector's status")
+	}
+	telemetry, _ := db.SessionTelemetry(ctx, 261001, "ST1", 1, 42)
+	if len(telemetry) != 2 || telemetry[0].Timestamp != "2026-10-22T09:05:00+02:00" {
+		t.Fatalf("telemetry = %+v; want both meter values, in time order", telemetry)
+	}
+}
+
+func TestBackfillEndOfUnseenSession(t *testing.T) {
+	ctx := context.Background()
+	s, db := newTestService(t)
+	key := ConnectorKey{261001, "ST1", 1}
+
+	// The handler saw the session running, then was down when it ended
+	if err := s.UpdateSession(ctx, backfillUpdate(t, StepInProgress, "2026-10-22T09:05:00+02:00", 2000)); err != nil {
+		t.Fatal(err)
+	}
+	drain(s)
+
+	stored, err := s.BackfillSession(ctx, backfillUpdate(t, StepCompleted, "2026-10-22T09:30:00+02:00", 6000))
+	if err != nil || !stored {
+		t.Fatalf("BackfillSession(COMPLETED) = %v, %v; want it stored", stored, err)
+	}
+	if _, ok := s.ActiveSession(key); ok {
+		t.Fatal("the session that ended must be forgotten")
+	}
+	writes := drain(s)
+	if !hasVariable(writes, HistoryVariable) || !hasVariable(writes, "active_cs_data") {
+		t.Fatalf("dashboard writes = %+v; want the history entry and the connector's reset", writes)
+	}
+	for _, w := range writes {
+		if w.Variable == "energy_ST1_1" && w.Value != "0.0 KWh" {
+			t.Errorf("public energy after the late end = %v; want 0.0 KWh", w.Value)
+		}
+	}
+	sessions, _ := db.RecentSessions(ctx, 261001, 10)
+	if len(sessions) != 1 || sessions[0].TransactionID != 42 || sessions[0].StopMotive != "EVDisconnected" {
+		t.Fatalf("history = %+v; want the session that ended, with its stop motive", sessions)
+	}
+
+	// Sent again (the CSMS didn't get the answer): nothing new, no dashboard writes
+	if stored, err := s.BackfillSession(ctx, backfillUpdate(t, StepCompleted, "2026-10-22T09:30:00+02:00", 6000)); err != nil || stored {
+		t.Fatalf("a repeated late end = %v, %v; want a duplicate", stored, err)
+	}
+	if writes := drain(s); len(writes) != 0 {
+		t.Fatalf("a repeated late end wrote %+v", writes)
+	}
+}
+
+func TestBackfillEndKeepsTheConnectorsNewerSession(t *testing.T) {
+	ctx := context.Background()
+	s, db := newTestService(t)
+	key := ConnectorKey{261001, "ST1", 1}
+
+	// A newer session (43) is running live when the end of session 42 arrives late
+	newer := backfillUpdate(t, StepInProgress, "2026-10-22T10:05:00+02:00", 9000)
+	newer.TransactionID = 43
+	if err := s.UpdateSession(ctx, newer); err != nil {
+		t.Fatal(err)
+	}
+	drain(s)
+
+	if stored, err := s.BackfillSession(ctx, backfillUpdate(t, StepCompleted, "2026-10-22T09:30:00+02:00", 6000)); err != nil || !stored {
+		t.Fatalf("BackfillSession(COMPLETED) = %v, %v; want it stored", stored, err)
+	}
+	if active, ok := s.ActiveSession(key); !ok || active.TransactionID != 43 {
+		t.Fatalf("active session = %+v (%v); want the newer session 43 kept", active, ok)
+	}
+	writes := drain(s)
+	if !hasVariable(writes, HistoryVariable) {
+		t.Errorf("dashboard writes = %+v; want the late session's history entry", writes)
+	}
+	if hasVariable(writes, "active_cs_data") || hasVariable(writes, "energy_ST1_1") {
+		t.Errorf("dashboard writes = %+v; the late end must not reset the newer session's live values", writes)
+	}
+	if sessions, _ := db.RecentSessions(ctx, 261001, 10); len(sessions) != 1 {
+		t.Fatalf("history = %+v; want the late session", sessions)
+	}
+}
+
+func TestBackfillAfterTheLiveEndIsADuplicate(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestService(t)
+	end := backfillUpdate(t, StepCompleted, "2026-10-22T09:30:00+02:00", 6000)
+	if err := s.UpdateSession(ctx, end); err != nil {
+		t.Fatal(err)
+	}
+	drain(s)
+
+	// The live POST was stored, but its answer was lost: the CSMS's outbox sends it again
+	if stored, err := s.BackfillSession(ctx, end); err != nil || stored {
+		t.Fatalf("BackfillSession after the live end = %v, %v; want a duplicate", stored, err)
+	}
+	if writes := drain(s); len(writes) != 0 {
+		t.Fatalf("a duplicate end wrote %+v", writes)
+	}
+}
+
+func TestSessionUpdateValidate(t *testing.T) {
+	valid := func() SessionUpdate {
+		return backfillUpdate(t, StepInProgress, "2026-10-22T09:05:00.123456+02:00", 2000)
+	}
+	if err := valid().Validate(); err != nil {
+		t.Fatalf("a valid update: %v", err)
+	}
+	naive := valid()
+	naive.LastMeterTS = "2026-10-22T09:05:00.123456" // A session the CSMS recovered without its time zone
+	if err := naive.Validate(); err != nil {
+		t.Fatalf("a timestamp without offset: %v", err)
+	}
+	started := valid()
+	started.Step, started.LastMeterTS = StepStarted, ""
+	if err := started.Validate(); err != nil {
+		t.Fatalf("a STARTED update carries no meter value: %v", err)
+	}
+
+	broken := map[string]func(*SessionUpdate){
+		"pool code":      func(u *SessionUpdate) { u.PoolCode = 0 },
+		"station":        func(u *SessionUpdate) { u.StationName = " " },
+		"connector":      func(u *SessionUpdate) { u.ConnectorID = 0 },
+		"transaction id": func(u *SessionUpdate) { u.TransactionID = 0 },
+		"step":           func(u *SessionUpdate) { u.Step = "FINISHED" },
+		"timestamp":      func(u *SessionUpdate) { u.LastMeterTS = "22/10/2026 09:05" },
+	}
+	for name, breakIt := range broken {
+		u := valid()
+		breakIt(&u)
+		if err := u.Validate(); err == nil {
+			t.Errorf("an update without a valid %s passed", name)
+		}
+	}
+}
+
 func TestDeleteStationForgetsEverything(t *testing.T) {
 	ctx := context.Background()
 	s, _ := newTestService(t)
