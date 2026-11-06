@@ -57,7 +57,8 @@ function sessionDetail(overrides: Partial<SessionDetail> = {}): SessionDetail {
 
 const payments: SessionPayments = {
 	payments: [paymentRecord({ id: 31, pool_code: 990001, station_name: 'ST1', connector_id: 2, amount: 260, order: 'ORDER-A' })],
-	source: 'csms-1:8080'
+	source: 'csms-1:8080',
+	unanswered: []
 };
 
 function renderPage(page: SessionPage): HTMLElement {
@@ -99,7 +100,7 @@ describe('SessionApp', () => {
 	it('flags a payment settled for less than the session cost', async () => {
 		// As seen on PROD: a reconnect settled the payment at 0,31 € while the car kept charging to 2,37 €
 		const settledEarly = paymentRecord({ id: 1466, status: 'COMMITTED', amount: 31, order: 'ORDER-SHORT' });
-		stubFetch(() => ({ body: { payments: [settledEarly], source: 'csms-1:8080' } satisfies SessionPayments }));
+		stubFetch(() => ({ body: { payments: [settledEarly], source: 'csms-1:8080', unanswered: [] } satisfies SessionPayments }));
 		const target = renderPage({ transaction_id: 4321, session: sessionDetail({ cost: 2.37, evaluated_cost: 2.37 }), matches: [] });
 		await settle();
 
@@ -111,7 +112,7 @@ describe('SessionApp', () => {
 
 	it('compares no payment that is not settled', async () => {
 		const open = paymentRecord({ id: 32, status: 'AUTHORIZED', amount: null });
-		stubFetch(() => ({ body: { payments: [open], source: 'csms-1:8080' } satisfies SessionPayments }));
+		stubFetch(() => ({ body: { payments: [open], source: 'csms-1:8080', unanswered: [] } satisfies SessionPayments }));
 		const target = renderPage({ transaction_id: 4321, session: sessionDetail(), matches: [] });
 		await settle();
 
@@ -132,7 +133,7 @@ describe('SessionApp', () => {
 	});
 
 	it('flags a capped cost and says when the session has no payment', async () => {
-		stubFetch(() => ({ body: { payments: [], source: 'csms-1:8080' } satisfies SessionPayments }));
+		stubFetch(() => ({ body: { payments: [], source: 'csms-1:8080', unanswered: [] } satisfies SessionPayments }));
 		const target = renderPage({
 			transaction_id: 4321,
 			session: sessionDetail({ cost: 2.5, stop_motive: 'COST', cost_check: 'capped' }),
@@ -142,6 +143,15 @@ describe('SessionApp', () => {
 
 		expect(textOf(target.querySelector('[data-cost-check="capped"]'))).toBe(m.session_cost_capped());
 		expect(textOf(target.querySelector('[data-no-payment]'))).toBe(m.session_payments_none());
+		expect(target.querySelector('[data-unanswered]')).toBeNull();
+	});
+
+	it('names the CSMS that did not answer before the one that served the payments', async () => {
+		stubFetch(() => ({ body: { payments: [], source: 'csms-2:8080', unanswered: ['csms-1:8080'] } satisfies SessionPayments }));
+		const target = renderPage({ transaction_id: 4321, session: sessionDetail(), matches: [] });
+		await settle();
+
+		expect(textOf(target.querySelector('[data-unanswered]'))).toBe(m.payments_unanswered({ hosts: 'csms-1:8080' }));
 	});
 
 	it('shows why the payment is unknown when no CSMS answers', async () => {

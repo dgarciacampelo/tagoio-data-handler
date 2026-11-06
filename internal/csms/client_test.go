@@ -59,6 +59,11 @@ func TestPaymentsComeFromTheFirstCSMSThatAnswers(t *testing.T) {
 	if len(result.Payments) != 1 || result.Payments[0].ID != 7 || *result.Payments[0].ErrorCode != 562 {
 		t.Fatalf("payments %+v", result.Payments)
 	}
+	// The CSMS that didn't answer is reported, so the fallback doesn't hide it
+	if len(result.Failures) != 1 || result.Failures[0].Source != down.URL ||
+		!strings.Contains(result.Failures[0].Err.Error(), "HTTP 503 the database is not available") {
+		t.Fatalf("failures %+v", result.Failures)
+	}
 }
 
 func TestTheSecondCSMSIsNotAskedWhenTheFirstAnswers(t *testing.T) {
@@ -67,7 +72,7 @@ func TestTheSecondCSMSIsNotAskedWhenTheFirstAnswers(t *testing.T) {
 
 	result, err := New([]string{first.URL, second.URL}, creds, nil).Payments(context.Background(), testQuery())
 
-	if err != nil || len(result.Payments) != 0 || secondCalls.Load() != 0 {
+	if err != nil || len(result.Payments) != 0 || secondCalls.Load() != 0 || len(result.Failures) != 0 {
 		t.Fatalf("result %+v, err %v, calls to the second CSMS %d", result, err, secondCalls.Load())
 	}
 }

@@ -207,6 +207,7 @@
 	"payments_col_error": "Error",
 	"payments_empty": "No hay pagos en este rango.",
 	"payments_source": "Datos servidos por {source}.",
+	"payments_unanswered": "Sin respuesta de {hosts}; el motivo está en el log del servicio.",
 
 	"session_title": "Velo Energy - Sesión de recarga",
 	"session_back": "Volver a la auditoría",

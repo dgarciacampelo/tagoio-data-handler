@@ -101,6 +101,7 @@ type SessionMeterValue struct {
 // SessionPayments is the answer of GET /api/admin/sessions/{pool_code}/{station_name}/{connector_id}/{transaction_id}/
 // payments: the payments the CSMS stored for the session (usually one; none for an RFID or free session).
 type SessionPayments struct {
-	Payments []PaymentRecord `json:"payments"`
-	Source   string          `json:"source"` // Host of the CSMS that answered
+	Payments   []PaymentRecord `json:"payments"`
+	Source     string          `json:"source"`     // Host of the CSMS that answered
+	Unanswered []string        `json:"unanswered"` // Hosts of the CSMS asked before it, which didn't answer (logged why)
 }

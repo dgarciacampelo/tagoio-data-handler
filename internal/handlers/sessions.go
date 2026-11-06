@@ -5,7 +5,6 @@ package handlers
 import (
 	"errors"
 	"net/http"
-	"net/url"
 	"strconv"
 	"time"
 
@@ -131,9 +130,7 @@ func (a *App) SessionPaymentsAPI(w http.ResponseWriter, r *http.Request) {
 
 	cpoName := a.Pools.Get(session.PoolCode).CPOName
 	view := dto.SessionPayments{Payments: []dto.PaymentRecord{}}
-	if source, err := url.Parse(result.Source); err == nil {
-		view.Source = source.Host
-	}
+	view.Source, view.Unanswered = a.csmsSources(result)
 	for _, p := range result.Payments {
 		if paysFor(p, session) {
 			view.Payments = append(view.Payments, paymentRecord(p, cpoName))

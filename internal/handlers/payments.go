@@ -61,9 +61,7 @@ func (a *App) PaymentsAPI(w http.ResponseWriter, r *http.Request) {
 
 	cpoNames := map[int]string{}
 	view := dto.PaymentsResult{Payments: make([]dto.PaymentRecord, 0, len(result.Payments)), Truncated: result.Truncated}
-	if source, err := url.Parse(result.Source); err == nil {
-		view.Source = source.Host
-	}
+	view.Source, view.Unanswered = a.csmsSources(result)
 	for _, p := range result.Payments {
 		name, known := cpoNames[p.PoolCode]
 		if !known {
@@ -100,6 +98,28 @@ func (a *App) paymentsQuery(w http.ResponseWriter, values url.Values) (csms.Paym
 		query.PoolCode = poolCode
 	}
 	return query, true
+}
+
+// csmsSources returns the host of the CSMS that answered and those of the ones asked before it, logging why each of
+// those didn't answer. The data is the same from any of them, but a CSMS that never answers is a deployment fault
+// (its name, port or network), which the fallback would otherwise hide.
+func (a *App) csmsSources(result csms.PaymentsResult) (source string, unanswered []string) {
+	source = hostOf(result.Source)
+	unanswered = make([]string, 0, len(result.Failures))
+	for _, f := range result.Failures {
+		host := hostOf(f.Source)
+		a.Log.Warn("CSMS didn't answer, another one did", "csms", host, "answered", source, "error", f.Err)
+		unanswered = append(unanswered, host)
+	}
+	return source, unanswered
+}
+
+// hostOf is the host and port of a CSMS base URL, which the pages show.
+func hostOf(base string) string {
+	if u, err := url.Parse(base); err == nil && u.Host != "" {
+		return u.Host
+	}
+	return base
 }
 
 // location is the time zone of the dates people pick: Europe/Madrid, or UTC when the configuration has none.

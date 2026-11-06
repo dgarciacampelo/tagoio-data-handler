@@ -242,7 +242,12 @@ range of days, without personal data. The rows come from GET /api/admin/payments
 					</div>
 				</section>
 				{#if result.source}
-					<p class="text-label-sm text-on-surface-variant mt-2">{m.payments_source({ source: result.source })}</p>
+					<p class="text-label-sm text-on-surface-variant mt-2">
+						{m.payments_source({ source: result.source })}
+						{#if result.unanswered.length > 0}
+							<span class="text-error" data-unanswered>{m.payments_unanswered({ hosts: result.unanswered.join(', ') })}</span>
+						{/if}
+					</p>
 				{/if}
 			{/if}
 		{/if}

@@ -325,7 +325,12 @@ shared by several charge points, it lists them.
 								<p class="text-on-surface-variant" data-no-payment>{m.session_payments_none()}</p>
 							{/each}
 							{#if payments.source}
-								<p class="text-label-sm text-on-surface-variant">{m.payments_source({ source: payments.source })}</p>
+								<p class="text-label-sm text-on-surface-variant">
+									{m.payments_source({ source: payments.source })}
+									{#if payments.unanswered.length > 0}
+										<span class="text-error" data-unanswered>{m.payments_unanswered({ hosts: payments.unanswered.join(', ') })}</span>
+									{/if}
+								</p>
 							{/if}
 						{/if}
 					</div>
