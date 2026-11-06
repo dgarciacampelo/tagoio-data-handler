@@ -324,7 +324,8 @@ export const TariffBandFlat = "flat";
 export const TariffBandPeak = "peak";
 export type TariffBand = typeof TariffBandOffPeak | typeof TariffBandFlat | typeof TariffBandPeak;
 /**
- * CostCheck compares the cost the CSMS charged with the one its bands add up to (as the XLSX audit does).
+ * CostCheck compares the session cost the CSMS stored with the one its bands add up to (as the XLSX audit does). What
+ * the card was charged is compared with that cost on the page, against the payment the CSMS returns.
  */
 export const CostCheckOK = "ok"; // At most a cent apart: the CSMS rounds to cents
 export const CostCheckCapped = "capped"; // Stopped at the authorized amount, which is below what the bands add up to

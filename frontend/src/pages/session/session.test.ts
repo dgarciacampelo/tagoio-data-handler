@@ -1,6 +1,49 @@
 import { describe, expect, it } from 'vitest';
 import { m } from '$lib/paraglide/messages';
-import { formatDuration, formatMeterTime, formatPower, sessionUrl, stopMotiveLabel, transactionUrl } from './session';
+import type { SessionDetail } from '$lib/contract.gen';
+import { paymentRecord } from '../../test/fixtures';
+import {
+	chargeComparison,
+	chargeLabel,
+	formatDuration,
+	formatMeterTime,
+	formatPower,
+	sessionUrl,
+	stopMotiveLabel,
+	transactionUrl
+} from './session';
+
+/** Only the cost matters to the charge comparison. */
+const costing = (cost: number) => ({ cost }) as SessionDetail;
+
+describe('charge comparison', () => {
+	it('flags a payment settled for less than the session cost', () => {
+		const comparison = chargeComparison(costing(2.37), paymentRecord({ amount: 31 }));
+		expect(comparison).toEqual({ check: 'short', charged: 31, cost: 237, difference: -206 });
+		expect(chargeLabel(comparison!)).toBe(m.session_charge_short({ charged: '0,31 €', cost: '2,37 €', difference: '2,06 €' }));
+	});
+
+	it('flags a payment settled for more than the session cost', () => {
+		const comparison = chargeComparison(costing(1.5), paymentRecord({ amount: 400 }));
+		expect(comparison?.check).toBe('over');
+		expect(chargeLabel(comparison!)).toBe(m.session_charge_over({ charged: '4,00 €', cost: '1,50 €', difference: '2,50 €' }));
+	});
+
+	it('takes a cent apart as rounding, even for float costs', () => {
+		expect(chargeComparison(costing(2.6), paymentRecord({ amount: 260 }))?.check).toBe('ok');
+		expect(chargeComparison(costing(0.29), paymentRecord({ amount: 29 }))?.check).toBe('ok'); // 0.29 * 100 = 28.999…
+		expect(chargeComparison(costing(2.6), paymentRecord({ amount: 259 }))?.check).toBe('ok');
+		expect(chargeLabel(chargeComparison(costing(2.6), paymentRecord({ amount: 261 }))!)).toBe(m.session_charge_ok());
+		expect(chargeComparison(costing(2.6), paymentRecord({ amount: 258 }))?.check).toBe('short');
+	});
+
+	it('compares only settled payments', () => {
+		for (const status of ['PENDING', 'AUTHORIZED', 'CANCELED', 'ERROR']) {
+			expect(chargeComparison(costing(2.37), paymentRecord({ status, amount: 31 }))).toBeNull();
+		}
+		expect(chargeComparison(costing(2.37), paymentRecord({ amount: null }))).toBeNull();
+	});
+});
 
 describe('session page helpers', () => {
 	it('builds the addresses the Go server serves (station names escaped as url.PathEscape does)', () => {

@@ -16,7 +16,7 @@ import (
 	"github.com/dgarciacampelo/tagoio-handler/internal/store"
 )
 
-// costTolerance is how far apart the charged cost and the bands' may be: the CSMS rounds the cost to cents.
+// costTolerance is how far apart the CSMS's cost and the bands' may be: the CSMS rounds the cost to cents.
 const costTolerance = 0.01
 
 // stopMotiveCost is the stop motive of a session that reached its authorized amount.
@@ -141,7 +141,7 @@ func lastDeliveryAt(readings []series.Reading) (time.Time, bool) {
 	return last, found
 }
 
-// bands returns the energy and cost of each tariff band, their total, and how it compares with the charged cost.
+// bands returns the energy and cost of each tariff band, their total, and how it compares with the CSMS's cost.
 func bands(s store.SessionSummary) ([]dto.SessionBand, float64, dto.CostCheck) {
 	list := []dto.SessionBand{
 		{Band: dto.TariffBandOffPeak, EnergyWh: s.EnergyOffPeak, Rate: s.RateOffPeak},

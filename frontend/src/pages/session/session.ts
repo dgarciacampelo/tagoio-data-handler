@@ -1,8 +1,9 @@
 // Logic of the page of a finished session: its address, the stop motives, and how durations, power and times show.
 
-import type { CostCheck, SessionDetail, TariffBand } from '$lib/contract.gen';
+import type { CostCheck, PaymentRecord, SessionDetail, TariffBand } from '$lib/contract.gen';
 import { formatFixed } from '$lib/format';
 import { m } from '$lib/paraglide/messages';
+import { formatCents } from '../payments/payments';
 import { TIME_ZONE } from './chart';
 
 /** The page of a session (internal/sessionview.URL). */
@@ -49,6 +50,40 @@ export const costCheckLabels: Record<CostCheck, () => string> = {
 	capped: m.session_cost_capped,
 	mismatch: m.session_cost_mismatch
 };
+
+/** How a settled payment compares with the session's cost: in full, short of it, or over it. */
+export type ChargeCheck = 'ok' | 'short' | 'over';
+
+export interface ChargeComparison {
+	check: ChargeCheck;
+	charged: number; // Cents the card was charged
+	cost: number; // Cents the session cost, as the CSMS stored it
+	difference: number; // charged - cost
+}
+
+/**
+ * What the card was charged against what the session cost, for a settled (COMMITTED) payment; null for any other.
+ * The bands check only compares the CSMS's own figures: this one catches a payment settled before the session ended
+ * (seen on PROD: 0,31 € charged of 2,37 €, settled by a reconnect while the car kept charging). A cent apart is rounding.
+ */
+export function chargeComparison(session: SessionDetail, payment: PaymentRecord): ChargeComparison | null {
+	if (payment.status !== 'COMMITTED' || payment.amount === null) return null;
+	const cost = Math.round(session.cost * 100);
+	const difference = payment.amount - cost;
+	const check: ChargeCheck = Math.abs(difference) <= 1 ? 'ok' : difference < 0 ? 'short' : 'over';
+	return { check, charged: payment.amount, cost, difference };
+}
+
+/** The sentence of a charge comparison, "Se cobraron 0,31 € de 2,37 €: 2,06 € sin cobrar". */
+export function chargeLabel(comparison: ChargeComparison): string {
+	if (comparison.check === 'ok') return m.session_charge_ok();
+	const amounts = {
+		charged: formatCents(comparison.charged),
+		cost: formatCents(comparison.cost),
+		difference: formatCents(Math.abs(comparison.difference))
+	};
+	return comparison.check === 'short' ? m.session_charge_short(amounts) : m.session_charge_over(amounts);
+}
 
 /** A duration, "1 h 40 min", "12 min" or "35 s"; "—" when unknown. */
 export function formatDuration(seconds: number | null): string {
