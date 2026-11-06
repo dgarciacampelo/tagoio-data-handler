@@ -1,8 +1,9 @@
 <!--
 @component
-Page of a finished charging session: its summary and figures, the cost of each tariff band against what the CSMS
-charged, the power and energy chart of its email, its payment (asked to the CSMS once the page shows) and every meter
-value of its XLSX audit. When the address only gives a transaction id shared by several charge points, it lists them.
+Page of a finished charging session: its summary and figures, the cost of each tariff band against the CSMS's cost,
+the power and energy chart of its email, its payment (asked to the CSMS once the page shows) with what the card was
+charged against that cost, and every meter value of its XLSX audit. When the address only gives a transaction id
+shared by several charge points, it lists them.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -21,6 +22,8 @@ value of its XLSX audit. When the address only gives a transaction id shared by 
 		bandColors,
 		bandLabels,
 		bandShare,
+		chargeComparison,
+		chargeLabel,
 		costCheckLabels,
 		formatDuration,
 		formatInstant,
@@ -268,6 +271,7 @@ value of its XLSX audit. When the address only gives a transaction id shared by 
 						{:else}
 							{#each payments.payments as payment (payment.id)}
 								{@const status = displayStatus(payment, paymentsLoadedAt)}
+								{@const charge = chargeComparison(session, payment)}
 								<dl class="grid grid-cols-2 gap-x-4 gap-y-2 border border-outline-variant rounded-lg p-3" data-payment={payment.id}>
 									<div>
 										<dt class="text-label-sm text-on-surface-variant">{m.payments_col_status()}</dt>
@@ -300,6 +304,16 @@ value of its XLSX audit. When the address only gives a transaction id shared by 
 										<dt class="text-label-sm text-on-surface-variant">{m.payments_col_reference()}</dt>
 										<dd class="font-mono text-sm break-all">{payment.order ?? payment.terminal ?? '—'}</dd>
 									</div>
+									{#if charge}
+										<div class="col-span-2">
+											<span
+												class="inline-block px-2 py-1 rounded text-label-sm font-bold {checkClasses[charge.check === 'ok' ? 'ok' : 'mismatch']}"
+												data-charge-check={charge.check}
+											>
+												{chargeLabel(charge)}
+											</span>
+										</div>
+									{/if}
 									{#if errorText(payment)}
 										<div class="col-span-2 text-label-sm text-error" data-error>
 											{errorText(payment)}

@@ -93,6 +93,30 @@ describe('SessionApp', () => {
 		expect(textOf(payment?.querySelector('[data-status]'))).toBe(m.payments_status_committed());
 		expect(textOf(payment)).toContain('2,60 €');
 		expect(textOf(payment)).toContain('ORDER-A');
+		expect(textOf(payment?.querySelector('[data-charge-check="ok"]'))).toBe(m.session_charge_ok());
+	});
+
+	it('flags a payment settled for less than the session cost', async () => {
+		// As seen on PROD: a reconnect settled the payment at 0,31 € while the car kept charging to 2,37 €
+		const settledEarly = paymentRecord({ id: 1466, status: 'COMMITTED', amount: 31, order: 'ORDER-SHORT' });
+		stubFetch(() => ({ body: { payments: [settledEarly], source: 'csms-1:8080' } satisfies SessionPayments }));
+		const target = renderPage({ transaction_id: 4321, session: sessionDetail({ cost: 2.37, evaluated_cost: 2.37 }), matches: [] });
+		await settle();
+
+		expect(target.querySelector('[data-cost-check="ok"]')).not.toBeNull(); // The CSMS's own figures agree…
+		const check = target.querySelector('[data-payment="1466"] [data-charge-check]'); // …but not with the card's
+		expect(check?.getAttribute('data-charge-check')).toBe('short');
+		expect(textOf(check)).toBe(m.session_charge_short({ charged: '0,31 €', cost: '2,37 €', difference: '2,06 €' }));
+	});
+
+	it('compares no payment that is not settled', async () => {
+		const open = paymentRecord({ id: 32, status: 'AUTHORIZED', amount: null });
+		stubFetch(() => ({ body: { payments: [open], source: 'csms-1:8080' } satisfies SessionPayments }));
+		const target = renderPage({ transaction_id: 4321, session: sessionDetail(), matches: [] });
+		await settle();
+
+		expect(target.querySelector('[data-payment="32"]')).not.toBeNull();
+		expect(target.querySelector('[data-charge-check]')).toBeNull();
 	});
 
 	it('shows the meter values on demand', () => {

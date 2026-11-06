@@ -66,7 +66,8 @@ const (
 	TariffBandPeak    TariffBand = "peak"
 )
 
-// CostCheck compares the cost the CSMS charged with the one its bands add up to (as the XLSX audit does).
+// CostCheck compares the session cost the CSMS stored with the one its bands add up to (as the XLSX audit does). What
+// the card was charged is compared with that cost on the page, against the payment the CSMS returns.
 type CostCheck string
 
 const (
