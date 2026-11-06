@@ -6,6 +6,7 @@ package handlers
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/dgarciacampelo/tagoio-handler/internal/bucket"
@@ -48,6 +49,7 @@ type App struct {
 	loginLimit  *windowLimiter
 	chargeLimit *windowLimiter
 	pollLimit   *windowLimiter
+	snapshotMu  sync.Mutex // Held while a database snapshot is made and sent: one at a time
 }
 
 // New creates the handlers.

@@ -144,6 +144,21 @@ neos-ocpp reconnects to `/api/stream` by itself. After a deploy, `docker logs -f
 The MQTT meters (about every 90 s each) are only counted: an `Events: summary` line per pool at the top of every
 hour, a warning when events were dropped or a meter sent none.
 
+## Production data
+
+`GET /api/admin/database/snapshot` downloads a zipped copy of the database
+(`tagoio_data_handler_snapshot_<date>_<commit>.zip`) to inspect it locally, for example with `sqlite3`:
+- It is consistent: `VACUUM INTO` includes the writes still in the WAL file.
+- It has every table, with the TagoIO device tokens blanked.
+- Open the address in a browser that is logged in to the eMSP dashboard, or call it with that session's cookie.
+- One copy is made at a time; a second request meanwhile answers 409.
+
+The copy is for reading only, and there is no upload. Data is corrected through the admin APIs, which each change one
+thing and keep TagoIO in step. For example, `PUT /api/admin/audits/{session_id}/card-alias` with
+`{"card_alias": "TPV Virtual"}` corrects the alias of a finished session in three places: the audits, its session page
+and its pool's TagoIO history. `session_id` is the `rowid` of the session's `charging_session_history` row; the
+session's export address, `/api/admin/audits/{session_id}/export`, shows it too.
+
 ## History: migration from the Python service
 
 The Python/FastAPI service (Jinja + HTMX pages, Socket.IO realtime) was replaced by this one in production on
