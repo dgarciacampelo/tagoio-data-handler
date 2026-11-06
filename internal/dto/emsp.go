@@ -71,7 +71,8 @@ type AuditSession struct {
 	TimeBand       string  `json:"time_band"`
 	TotalEnergyKWh float64 `json:"total_energy_kwh"`
 	Cost           float64 `json:"cost"`
-	ExportURL      string  `json:"export_url"` // XLSX with every meter value
+	ExportURL      string  `json:"export_url"`  // XLSX with every meter value
+	SessionURL     string  `json:"session_url"` // Page of the session
 	OffPeakWh      int64   `json:"off_peak_wh"`
 	FlatWh         int64   `json:"flat_wh"`
 	PeakWh         int64   `json:"peak_wh"`

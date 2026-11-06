@@ -14,6 +14,8 @@ range of days, without personal data. The rows come from GET /api/admin/payments
 	import { m } from '$lib/paraglide/messages';
 	import {
 		DISPLAY_STATUSES,
+		STATUS_CLASSES,
+		STATUS_LABELS,
 		defaultRange,
 		displayStatus,
 		errorText,
@@ -23,6 +25,7 @@ range of days, without personal data. The rows come from GET /api/admin/payments
 		summarize,
 		type DisplayStatus
 	} from './payments';
+	import { sessionUrl, transactionUrl } from '../session/session';
 
 	const view = getPageData<PaymentsPage>();
 	const range = defaultRange(view?.today ?? new Date().toISOString().slice(0, 10));
@@ -42,22 +45,8 @@ range of days, without personal data. The rows come from GET /api/admin/payments
 	);
 	let summary = $derived(summarize(result?.payments ?? [], loadedAt));
 
-	const statusLabels: Record<DisplayStatus, () => string> = {
-		COMMITTED: m.payments_status_committed,
-		CANCELED: m.payments_status_canceled,
-		ERROR: m.payments_status_error,
-		ABANDONED: m.payments_status_abandoned,
-		AUTHORIZED: m.payments_status_authorized,
-		PENDING: m.payments_status_pending
-	};
-	const statusClasses: Record<DisplayStatus, string> = {
-		COMMITTED: 'bg-status-available text-black',
-		CANCELED: 'bg-surface-container-high text-on-surface-variant',
-		ERROR: 'bg-error-container text-error',
-		ABANDONED: 'bg-status-unavailable text-black',
-		AUTHORIZED: 'bg-status-charging text-black',
-		PENDING: 'bg-status-preparing text-black'
-	};
+	const statusLabels = STATUS_LABELS;
+	const statusClasses = STATUS_CLASSES;
 
 	async function load(event?: SubmitEvent) {
 		event?.preventDefault();
@@ -74,6 +63,14 @@ range of days, without personal data. The rows come from GET /api/admin/payments
 		} finally {
 			loading = false;
 		}
+	}
+
+	/** The page of the payment's session; by its transaction id alone when the payment has no connector (Payter). */
+	function paymentSessionUrl(p: PaymentRecord): string {
+		const transactionId = p.transaction_id ?? 0;
+		return p.connector_id === null
+			? transactionUrl(transactionId)
+			: sessionUrl(p.pool_code, p.station_name, p.connector_id, transactionId);
 	}
 
 	function where(p: PaymentRecord): string {
@@ -214,7 +211,9 @@ range of days, without personal data. The rows come from GET /api/admin/payments
 										<td class="p-3 text-right whitespace-nowrap font-bold">{formatCents(payment.amount)}</td>
 										<td class="p-3 whitespace-nowrap">
 											{#if payment.transaction_id !== null}
-												<div class="font-mono text-sm">#{payment.transaction_id}</div>
+												<a href={paymentSessionUrl(payment)} class="font-mono text-sm text-primary hover:underline" data-session-link
+													>#{payment.transaction_id}</a
+												>
 												<div class="text-label-sm text-on-surface-variant">{formatEnergy(payment.session_energy)}</div>
 											{:else}
 												—

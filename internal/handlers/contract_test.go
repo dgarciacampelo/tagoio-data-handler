@@ -71,6 +71,12 @@ func TestChargingSessionUpdateContract(t *testing.T) {
 	if _, active := app.ChargePoints.ActiveSession(key); active {
 		t.Fatal("the session is still active after its COMPLETED update")
 	}
+
+	// The history keeps why it stopped, for the session's page
+	stored, err := app.Store.SessionByKey(context.Background(), key.PoolCode, key.StationName, key.ConnectorID, 4321)
+	if err != nil || stored.StopMotive != "Cost" || stored.TimeBand != "09:00 - 10:15" {
+		t.Fatalf("history row = %+v, %v; want the stop motive and time band of the update", stored, err)
+	}
 }
 
 func TestChargingSessionUpdateRejectsMalformedBodies(t *testing.T) {

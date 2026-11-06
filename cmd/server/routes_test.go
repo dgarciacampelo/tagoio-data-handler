@@ -83,6 +83,7 @@ var (
 		{"PUT", "/api/admin/payter-terminals/P6X20222101349"},
 		{"DELETE", "/api/admin/payter-terminals/P6X20222101349"},
 		{"GET", "/api/admin/payments?from=2026-11-01&to=2026-11-05"},
+		{"GET", "/api/admin/sessions/990001/ST1/1/4321/payments"},
 	}
 	adminPages = []route{
 		{"GET", "/emsp-dashboard"},
@@ -91,6 +92,8 @@ var (
 		{"GET", "/emsp-dashboard/poster/261001/ST1"},
 		{"GET", "/emsp-dashboard/payter"},
 		{"GET", "/emsp-dashboard/payments"},
+		{"GET", "/emsp-dashboard/sessions/4321"},
+		{"GET", "/emsp-dashboard/sessions/990001/ST1/1/4321"},
 	}
 	publicRoutes = []route{
 		{"GET", "/healthz"},

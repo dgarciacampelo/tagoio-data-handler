@@ -29,7 +29,7 @@ const (
 	variableThreshold = 250    // Records of one variable that make it worth trimming
 	variablePageSize  = 10_000 // Records per page when counting the variables of a bucket
 	routineRetention  = 2      // Weeks kept when trimming below the warning threshold
-	telemetryDays     = 120    // Days of session telemetry kept in the database
+	telemetryDays     = store.TelemetryRetentionDays
 )
 
 // routinePrefixes are the variables the service writes all the time and can trim safely.

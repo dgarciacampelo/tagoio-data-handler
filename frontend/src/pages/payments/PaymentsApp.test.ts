@@ -93,4 +93,22 @@ describe('PaymentsApp', () => {
 		expect(textOf(target.querySelector('[role="alert"]'))).toBe(m.payments_not_configured());
 		expect(fetch).not.toHaveBeenCalled();
 	});
+
+	it("links a payment's transaction to its session page", async () => {
+		stubFetch(() => ({
+			body: {
+				...answer,
+				payments: [
+					payment({ id: 11, pool_code: 990001, station_name: 'DEMO 01' }),
+					payment({ id: 13, pool_code: 990001, station_name: 'DEMO-02', connector_id: null, transaction_id: 4400, platform: 'PAYTER' })
+				]
+			} satisfies PaymentsResult
+		}));
+		const target = renderPage();
+		await settle();
+
+		const link = (id: number) => target.querySelector(`[data-payment="${id}"] [data-session-link]`)?.getAttribute('href');
+		expect(link(11)).toBe('/emsp-dashboard/sessions/990001/DEMO%2001/1/4321'); // The station name escaped
+		expect(link(13)).toBe('/emsp-dashboard/sessions/4400'); // No connector: found by the transaction id alone
+	});
 });

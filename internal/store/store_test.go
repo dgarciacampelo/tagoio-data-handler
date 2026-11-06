@@ -258,6 +258,7 @@ func TestTelemetryMigrationTakesTheChargePointOfTheHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = db.Exec(`DROP TABLE payter_terminal_station; DROP TABLE payter_terminal; -- Added by later migrations
+		ALTER TABLE charging_session_history DROP COLUMN stop_motive;
 		DROP TABLE charging_session_telemetry;
 		CREATE TABLE charging_session_telemetry(transaction_id INTEGER NOT NULL, timestamp TEXT NOT NULL,
 			meter_value INTEGER NOT NULL, power INTEGER NOT NULL, cost REAL NOT NULL, current_tariff_band TEXT NOT NULL,
@@ -345,4 +346,52 @@ func TestOpenDatabaseCopy(t *testing.T) {
 		t.Fatalf("RecentSessions: %v", err)
 	}
 	t.Logf("devices %d, connector statuses %d, sessions %d", len(devices), len(statuses), len(sessions))
+}
+
+func TestStopMotiveMigrationKeepsTheHistory(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "v3.sqlite3")
+
+	// A version 3 database, whose history has no stop motive yet, with a session in it
+	s, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = s.Close()
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`ALTER TABLE charging_session_history DROP COLUMN stop_motive;
+		INSERT INTO charging_session_history (pool_code, station_name, connector_id, transaction_id, card_alias,
+			start_date, time_band, start_meter_value, last_meter_value, cost)
+		VALUES (990001, 'ST1', 1, 4321, 'A', '04/11/2026', '19:00 - 19:30', 0, 3000, 1.05);
+		PRAGMA user_version = 3;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = db.Close()
+
+	s, err = Open(ctx, path)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer s.Close()
+	old, err := s.SessionByKey(ctx, 990001, "ST1", 1, 4321)
+	if err != nil || old.StopMotive != "" || old.TotalEnergyKWh != 3 {
+		t.Fatalf("session stored before the migration = %+v, %v; want it unchanged, without stop motive", old, err)
+	}
+
+	_, err = s.InsertSession(ctx, SessionRecord{PoolCode: 990001, StationName: "ST2", ConnectorID: 1, TransactionID: 4321,
+		CardAlias: "A", StartDate: "04/11/2026", TimeBand: "19:00 - 19:30", LastMeterValue: 9000, StopMotive: "USER"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions, err := s.SessionsByTransaction(ctx, 4321, 10)
+	if err != nil || len(sessions) != 2 || sessions[0].StationName != "ST2" || sessions[0].StopMotive != "USER" {
+		t.Fatalf("SessionsByTransaction = %+v, %v; want ST2 (newest, USER) then ST1", sessions, err)
+	}
+	if _, err := s.SessionByKey(ctx, 990001, "ST3", 1, 4321); err != ErrNotFound {
+		t.Errorf("SessionByKey of another charge point: %v; want ErrNotFound", err)
+	}
 }

@@ -301,6 +301,7 @@ func (s *Service) UpdateSession(ctx context.Context, u SessionUpdate) error {
 			StartMeterValue: int64(u.StartMeterValue), LastMeterValue: int64(u.LastMeterValue), Cost: float64(u.Cost),
 			RateOffPeak: float64(u.RateOffPeak), RateFlat: float64(u.RateFlat), RatePeak: float64(u.RatePeak),
 			EnergyOffPeak: int64(u.EnergyOffPeak), EnergyFlat: int64(u.EnergyFlat), EnergyPeak: int64(u.EnergyPeak),
+			StopMotive: deref(u.StopMotive),
 		})
 		if err != nil {
 			return err

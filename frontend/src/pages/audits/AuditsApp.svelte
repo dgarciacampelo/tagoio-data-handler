@@ -10,8 +10,20 @@ tariff band, and the XLSX export of every meter value.
 	import Icon from '$lib/components/Icon.svelte';
 	import { formatFixed } from '$lib/format';
 	import { m } from '$lib/paraglide/messages';
+	import { transactionUrl } from '../session/session';
 
 	const view = getPageData<AuditsPage>();
+
+	let transactionId = $state('');
+
+	/** Opens the session with that transaction id (or the list of them, when several charge points reached it). */
+	function goToTransaction(event: SubmitEvent) {
+		event.preventDefault();
+		const id = Number(transactionId.trim());
+		if (Number.isInteger(id) && id > 0) {
+			window.location.assign(transactionUrl(id));
+		}
+	}
 
 	const bands = [
 		{ key: 'off_peak', label: m.audits_off_peak, colors: 'bg-band-off-peak text-on-band-off-peak' },
@@ -29,11 +41,30 @@ tariff band, and the XLSX export of every meter value.
 
 	<main class="max-w-[1440px] mx-auto p-4 md:p-8 space-y-lg w-full">
 		<section class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
-			<div class="p-4 border-b border-outline-variant bg-surface flex justify-between items-center">
+			<div class="p-4 border-b border-outline-variant bg-surface flex flex-wrap gap-4 justify-between items-center">
 				<h2 class="text-title-lg font-bold text-on-surface flex items-center gap-2">
 					<Icon name="manageSearch" class="text-primary" />
 					{view?.pool_code ? m.audits_heading_pool({ pool: String(view.pool_code) }) : m.audits_heading()}
 				</h2>
+				<form onsubmit={goToTransaction} class="flex items-center gap-2" data-go-to-transaction>
+					<label for="audits-transaction" class="text-label-sm font-bold text-on-surface-variant">{m.audits_go_label()}</label>
+					<input
+						id="audits-transaction"
+						type="text"
+						inputmode="numeric"
+						pattern="[0-9]+"
+						required
+						placeholder={m.audits_go_placeholder()}
+						class="w-44 bg-surface border border-outline-variant rounded-lg px-3 py-1.5 font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+						bind:value={transactionId}
+					/>
+					<button
+						type="submit"
+						class="bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-label-caps text-label-caps py-1.5 px-4 rounded-lg transition-colors"
+					>
+						{m.audits_go_button()}
+					</button>
+				</form>
 			</div>
 
 			<div class="overflow-x-auto">
@@ -58,7 +89,11 @@ tariff band, and the XLSX export of every meter value.
 							     can hold two rows of one session), and the list never changes after the page loads. -->
 							{#each view.sessions as session}
 								<tr class="hover:bg-surface-container-low transition-colors">
-									<td class="p-4 font-mono text-sm font-bold">{session.transaction_id}</td>
+									<td class="p-4 font-mono text-sm font-bold">
+										<a href={session.session_url} class="text-primary hover:underline" title={m.audits_open_session()} data-session-link
+											>{session.transaction_id}</a
+										>
+									</td>
 									<td class="p-4">
 										<div class="font-bold text-on-surface">{session.pool_code} / {session.station_name}</div>
 										<div class="text-on-surface-variant text-sm">

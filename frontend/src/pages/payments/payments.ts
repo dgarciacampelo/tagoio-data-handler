@@ -2,6 +2,7 @@
 
 import type { PaymentRecord } from '$lib/contract.gen';
 import { formatFixed } from '$lib/format';
+import { m } from '$lib/paraglide/messages';
 
 /** A PENDING payment older than this is a checkout the driver never finished (or a request that failed silently). */
 export const ABANDONED_AFTER_MS = 15 * 60 * 1000;
@@ -12,6 +13,24 @@ export const DEFAULT_RANGE_DAYS = 7;
 export type DisplayStatus = 'PENDING' | 'AUTHORIZED' | 'COMMITTED' | 'CANCELED' | 'ERROR' | 'ABANDONED';
 
 export const DISPLAY_STATUSES: DisplayStatus[] = ['COMMITTED', 'CANCELED', 'ERROR', 'ABANDONED', 'AUTHORIZED', 'PENDING'];
+
+export const STATUS_LABELS: Record<DisplayStatus, () => string> = {
+	COMMITTED: m.payments_status_committed,
+	CANCELED: m.payments_status_canceled,
+	ERROR: m.payments_status_error,
+	ABANDONED: m.payments_status_abandoned,
+	AUTHORIZED: m.payments_status_authorized,
+	PENDING: m.payments_status_pending
+};
+
+export const STATUS_CLASSES: Record<DisplayStatus, string> = {
+	COMMITTED: 'bg-status-available text-black',
+	CANCELED: 'bg-surface-container-high text-on-surface-variant',
+	ERROR: 'bg-error-container text-error',
+	ABANDONED: 'bg-status-unavailable text-black',
+	AUTHORIZED: 'bg-status-charging text-black',
+	PENDING: 'bg-status-preparing text-black'
+};
 
 /** Adds days to a "2006-01-02" date. */
 export function addDays(date: string, days: number): string {
