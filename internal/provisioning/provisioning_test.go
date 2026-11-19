@@ -40,6 +40,12 @@ func (b *recordingBucket) count() int {
 	return len(b.records)
 }
 
+func (b *recordingBucket) has(variable string) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return slices.ContainsFunc(b.records, func(r tagoio.DataInput) bool { return r.Variable == variable })
+}
+
 type fixture struct {
 	service  *Service
 	registry *devices.Registry
@@ -112,6 +118,10 @@ func TestEnsureDeviceRegistersAnExistingDevice(t *testing.T) {
 	if f.tago.DeviceCount() != 1 {
 		t.Errorf("devices in the account = %d", f.tago.DeviceCount())
 	}
+	time.Sleep(100 * time.Millisecond) // Room for a background write that must not happen
+	if got := f.bucket.count(); got != 0 {
+		t.Errorf("defaults written to an existing pool: %d", got)
+	}
 }
 
 func TestEnsureDeviceCreatesAMissingDevice(t *testing.T) {
@@ -128,6 +138,11 @@ func TestEnsureDeviceCreatesAMissingDevice(t *testing.T) {
 	if device := devicesInAccount[0]; device.TagValue("plan") != "ADVANCED" || device.TagValue("group_id") != "261001" ||
 		device.TagValue("type") != "MASTER" {
 		t.Errorf("tags = %+v", device.Tags)
+	}
+	// The default configuration, without operator details: there is no sign-up form for a pool created this way
+	waitForDefaults(t, f.bucket, 5)
+	if !f.bucket.has("rate_costs") || f.bucket.has("operator_info") {
+		t.Errorf("defaults = %+v", f.bucket.records)
 	}
 }
 
@@ -194,6 +209,9 @@ func TestProvisionCPOCreatesTheUserTheDeviceAndTheDefaults(t *testing.T) {
 	}
 	if got := f.bucket.count(); got != 6 {
 		t.Errorf("default variables written = %d; want 6", got)
+	}
+	if !f.bucket.has("operator_info") {
+		t.Errorf("no operator_info from the sign-up form")
 	}
 }
 
@@ -328,6 +346,7 @@ func TestLinkPoolCreatesTheMissingDeviceAndAddsTheTagOnce(t *testing.T) {
 	if f.tago.DeviceCount() != 2 || f.tago.Calls("PUT /run/users/{id}") != 1 {
 		t.Errorf("devices %d, user edits %d", f.tago.DeviceCount(), f.tago.Calls("PUT /run/users/{id}"))
 	}
+	waitForDefaults(t, f.bucket, 5)
 }
 
 func TestLinkPoolTouchesNothingForAnUnknownEmail(t *testing.T) {

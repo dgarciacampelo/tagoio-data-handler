@@ -100,7 +100,7 @@ func (s *Service) ProvisionCPO(ctx context.Context, form Form) (Result, error) {
 		return result, nil
 	}
 	result.DeviceCreated, result.DeviceID = true, device.DeviceID
-	go s.writeDefaults(poolCode, form)
+	go s.writeDefaults(poolCode, &form)
 
 	s.provisionUser(ctx, form, poolCode, &result)
 	result.ErrorMessage = joinErrors(result)
@@ -228,7 +228,8 @@ func joinErrors(r Result) string {
 }
 
 // EnsureDevice returns the MASTER device of a pool, creating it (with the ADVANCED plan) when the account has
-// none; created reports which.
+// none; created reports which. A created device gets the default configuration in the background, without operator
+// details (there is no sign-up form), so the dashboard shows what the CSMS and this service assume for it.
 func (s *Service) EnsureDevice(ctx context.Context, poolCode int) (d devices.Device, created bool, err error) {
 	name := s.devices.DeviceName(poolCode)
 	d, _, found, err := s.devices.FindByName(ctx, name)
@@ -243,7 +244,12 @@ func (s *Service) EnsureDevice(ctx context.Context, poolCode int) (d devices.Dev
 		return d, false, nil
 	}
 	d, err = s.createDevice(ctx, poolCode, true)
-	return d, err == nil, err
+	if err != nil {
+		return devices.Device{}, false, err
+	}
+	s.log.Info("Provisioning: pool device created", "pool_code", poolCode, "device_id", d.DeviceID)
+	go s.writeDefaults(poolCode, nil)
+	return d, true, nil
 }
 
 // createDevice creates and registers a pool's MASTER device.
@@ -278,8 +284,8 @@ func (s *Service) createDevice(ctx context.Context, poolCode int, advancedPlan b
 }
 
 // writeDefaults writes the default configuration of a new pool (flat 0.40 €/kWh rates, 10 % VAT, 5 kW, no load
-// balancing, 40 € pre-authorization) and its operator details.
-func (s *Service) writeDefaults(poolCode int, form Form) {
+// balancing, 40 € pre-authorization) and, from a sign-up form (nil when there is none), its operator details.
+func (s *Service) writeDefaults(poolCode int, form *Form) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	records := []tagoio.DataInput{
@@ -288,10 +294,12 @@ func (s *Service) writeDefaults(poolCode int, form Form) {
 		{Variable: "max_grid_power_consumption", Value: 5000, Group: "1"},
 		{Variable: "withholding_amount", Value: 40.0, Group: "1"},
 		{Variable: "rate_costs", Value: 0, Group: "1", Metadata: map[string]any{"valle": 0.4, "llanas": 0.4, "punta": 0.4, "IVA": 0.1}},
-		{Variable: "operator_info", Value: 0, Group: "1", Metadata: map[string]any{
+	}
+	if form != nil {
+		records = append(records, tagoio.DataInput{Variable: "operator_info", Value: 0, Group: "1", Metadata: map[string]any{
 			"web": "", "nombre": form.CompanyName, "CIF": form.FiscalID, "direccion": form.CompanyAddress,
 			"telefono": form.ContactPhone, "correo": form.ContactEmail,
-		}},
+		}})
 	}
 	for _, record := range records {
 		if err := s.bucket.Insert(ctx, poolCode, record); err != nil {
