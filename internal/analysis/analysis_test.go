@@ -375,13 +375,19 @@ func TestPowerConsumptionShapes(t *testing.T) {
 			record:   tagoio.DataRecord{Device: testDevice, Params: map[string]any{"P": json.Number("1500.5")}},
 			wantPool: testPool, wantWatts: 1500.5,
 		},
-		"raw MQTT payload string, pool from the topic": {
-			record:   tagoio.DataRecord{Topic: "Bivocom/MASTER-BUSINESS-261003", Payload: json.RawMessage(`"{\"params\":{\"P\":2200}}"`)},
+		"raw Bivocom MQTT payload string in kW, pool from the topic": {
+			record:   tagoio.DataRecord{Topic: "Bivocom/MASTER-BUSINESS-261003", Payload: json.RawMessage(`"{\"params\":{\"P\":2.2}}"`)},
 			wantPool: 261003, wantWatts: 2200,
 		},
 		"plain variable, pool from the metadata topic": {
 			record:   tagoio.DataRecord{Value: json.Number("300"), Metadata: map[string]any{"mqtt_topic": "x/MASTER-BUSINESS-261004"}},
-			wantPool: 261004, wantWatts: 300,
+			wantPool: 261004, wantWatts: 300, // Not a Bivocom meter: kept as it comes
+		},
+		"parsed Bivocom params in kW, pool from the metadata topic": {
+			record: tagoio.DataRecord{
+				Params: map[string]any{"P": json.Number("38.614")}, Metadata: map[string]any{"mqtt_topic": "Bivocom/MASTER-BUSINESS-221006"},
+			},
+			wantPool: 221006, wantWatts: 38614,
 		},
 	}
 	for name, tt := range tests {
@@ -423,12 +429,13 @@ func TestCapturedChangeAvailability(t *testing.T) {
 }
 
 func TestCapturedPowerConsumptionUpdate(t *testing.T) {
-	// The MQTT integration forwards the meter's parsed message without a device: the pool comes from the topic.
+	// The MQTT integration forwards the meter's parsed message without a device: the pool comes from the topic. The
+	// Bivocom meter's P is in kW: 29.88 kW.
 	trigger := capturedTrigger(t, "sse_power_consumption_update.json")
 
 	h := newHarness()
 	h.trigger(t, config.AnalysisPowerConsumptionUpdate, trigger.Data)
 	assertEvents(t, h.publisher.events, events.PowerUpdate{
-		Header: events.NewHeader(events.TypePowerConsumptionUpdate, 221006), MeterWatts: 29.88,
+		Header: events.NewHeader(events.TypePowerConsumptionUpdate, 221006), MeterWatts: 29880,
 	})
 }
