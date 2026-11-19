@@ -175,19 +175,24 @@ func (a *App) PoolSetup(w http.ResponseWriter, r *http.Request) {
 
 // provisioningResponse is the answer of POST /api/provision-cpo.
 //
-// ! Wire contract: neos-notification-mgmt reads it (create_user.py there).
+// ! Wire contract: neos-notification-mgmt reads it (create_user.py there). A pool is ready when device_created
+// and either user_created (with generated_password) or user_linked (an existing user, who keeps their password).
 type provisioningResponse struct {
 	UserCreated       bool              `json:"user_created"`
+	UserExisted       bool              `json:"user_existed"` // The email already had a user: none was created
+	UserLinked        bool              `json:"user_linked"`  // That user now has the pool's group_id tag
 	DeviceCreated     bool              `json:"device_created"`
 	PoolCode          *int              `json:"pool_code"`
 	DeviceID          *string           `json:"device_id"`
-	GeneratedPassword *string           `json:"generated_password"`
-	FormData          provisioning.Form `json:"form_data"` // Echoed with the Spanish form keys
+	GeneratedPassword *string           `json:"generated_password"` // Only for a new user
+	FormData          provisioning.Form `json:"form_data"`          // Echoed with the Spanish form keys
+	UserError         *string           `json:"user_error"`
+	DeviceError       *string           `json:"device_error"`
 	ErrorMessage      *string           `json:"error_message"`
 }
 
-// ProvisionCPO creates the TagoIO user and pool device of a new CPO (POST /api/provision-cpo). It always answers
-// 200 with the outcome, except for an invalid form.
+// ProvisionCPO creates the pool device of a new CPO and gives its email a user that reaches it, new or existing
+// (POST /api/provision-cpo). It always answers 200 with each step's outcome, except for an invalid form.
 func (a *App) ProvisionCPO(w http.ResponseWriter, r *http.Request) {
 	var form provisioning.Form
 	if err := decodeJSON(w, r, &form); err != nil {
@@ -206,15 +211,22 @@ func (a *App) ProvisionCPO(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.UserCreated, response.DeviceCreated = result.UserCreated, result.DeviceCreated
+	response.UserExisted, response.UserLinked = result.UserExisted, result.UserLinked
 	response.PoolCode = &result.PoolCode
-	response.GeneratedPassword = &result.Password
-	if result.DeviceID != "" {
-		response.DeviceID = &result.DeviceID
-	}
-	if result.ErrorMessage != "" {
-		response.ErrorMessage = &result.ErrorMessage
-	}
+	response.GeneratedPassword = optionalText(result.Password)
+	response.DeviceID = optionalText(result.DeviceID)
+	response.UserError = optionalText(result.UserError)
+	response.DeviceError = optionalText(result.DeviceError)
+	response.ErrorMessage = optionalText(result.ErrorMessage)
 	writeJSON(w, http.StatusOK, response)
+}
+
+// optionalText returns nil for "", so the answer carries a JSON null.
+func optionalText(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 // SessionSeries returns the power and energy series of a charging session, which the email of a finished session

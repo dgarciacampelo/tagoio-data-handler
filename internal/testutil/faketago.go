@@ -17,8 +17,8 @@ import (
 )
 
 // FakeTagoIO is an in-memory stand-in for the TagoIO REST API, covering the calls of internal/tagoio: device
-// listing, device tokens and creation, run users, and the data of each device bucket. It answers with TagoIO's
-// envelopes, so the real tagoio.Client is used against it.
+// listing, device tokens and creation, run users (creation, lookup by email, tag edits), and the data of each device
+// bucket. It answers with TagoIO's envelopes, so the real tagoio.Client is used against it.
 type FakeTagoIO struct {
 	*httptest.Server
 
@@ -111,6 +111,9 @@ func (f *FakeTagoIO) serve(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, "/device/") && strings.HasSuffix(r.URL.Path, "/data_amount") {
 		endpoint = r.Method + " /device/data_amount"
 	}
+	if strings.HasPrefix(r.URL.Path, "/run/users/") {
+		endpoint = r.Method + " /run/users/{id}"
+	}
 	if r.Method == http.MethodGet && r.URL.Path == "/device" && f.BeforeDeviceList != nil {
 		f.BeforeDeviceList()
 	}
@@ -164,7 +167,10 @@ func (f *FakeTagoIO) serve(w http.ResponseWriter, r *http.Request) {
 		writeEnvelope(w, http.StatusOK, true, map[string]string{"device_id": id, "token": token}, "")
 
 	case endpoint == "POST /run/users":
-		writeEnvelope(w, http.StatusOK, true, "User created", "")
+		f.createUser(w, r)
+
+	case endpoint == "GET /run/users/{id}" || endpoint == "PUT /run/users/{id}":
+		f.serveUser(w, r)
 
 	case r.URL.Path == "/data":
 		f.serveData(w, r)
