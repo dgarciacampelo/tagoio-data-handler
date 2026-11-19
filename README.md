@@ -13,7 +13,7 @@ Go with Svelte 5 pages.
   instructions, terms), and the admin pages: eMSP dashboard with the QR posters, the session audits with their
   XLSX export, and the Payter terminals (sent to the Payter CSMS as `manage_payter_terminal` events).
 - **Housekeeping.** Keeps the TagoIO buckets below their record limit, purges old telemetry and backs the database
-  up to Telegram.
+  up to Telegram. A daily job whose time a restart skipped runs once at startup, up to 10 minutes late.
 
 ## Layout
 

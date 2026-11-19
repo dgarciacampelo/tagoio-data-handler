@@ -172,7 +172,7 @@ func run(logger *slog.Logger) error {
 	}
 	logger.Info("TagoIO realtime: analysis connections started", "analyses", len(cfg.AnalysisTokens))
 
-	jobs := scheduler.New(cfg.Location, logger)
+	jobs := scheduler.New(cfg.Location, logger, db) // db records the completed runs, to catch up one a restart missed
 	jobs.Daily("telemetry-purge", 4, 0, upkeep.PurgeTelemetry)
 	jobs.Daily("data-amount-check-morning", 8, 0, upkeep.CheckDataAmount)
 	jobs.Daily("data-amount-check-evening", 20, 0, upkeep.CheckDataAmount)
