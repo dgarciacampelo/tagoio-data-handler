@@ -60,6 +60,15 @@ func (app *application) routes() http.Handler {
 	mux.Handle("GET /api/admin/sessions/{pool_code}/{station_name}/{connector_id}/{transaction_id}/payments", adminAPI(h.SessionPaymentsAPI))
 	// endregion
 
+	// region Read-only TagoIO inspection: the service credentials (the `server tagoio` command) and the admin session
+	mux.Handle("GET /api/tagoio/devices", service(h.TagoDevicesAPI))
+	mux.Handle("GET /api/tagoio/pools/{pool_code}", service(h.TagoPoolAPI))
+	mux.Handle("GET /api/tagoio/users", service(h.TagoUsersAPI))
+	mux.Handle("GET /api/admin/tagoio/devices", adminAPI(h.TagoDevicesAPI))
+	mux.Handle("GET /api/admin/tagoio/pools/{pool_code}", adminAPI(h.TagoPoolAPI))
+	mux.Handle("GET /api/admin/tagoio/users", adminAPI(h.TagoUsersAPI))
+	// endregion
+
 	mux.HandleFunc("/", h.Fallback)
 
 	// Rejects cross-site browser requests that change state (Sec-Fetch-Site / Origin); requests without those

@@ -30,6 +30,8 @@ type FakeTagoIO struct {
 	failing map[string]bool                // "METHOD /path" -> answer with an error
 	nextID  int
 
+	accountExtras // Run users and device details, for the inspection (faketago_inspect.go)
+
 	// BeforeDeviceList, when set, runs before each device listing is answered (outside the lock), e.g. to hold
 	// concurrent callers at a barrier.
 	BeforeDeviceList func()
@@ -106,6 +108,9 @@ func (f *FakeTagoIO) serve(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, "/device/token/") {
 		endpoint = r.Method + " /device/token"
 	}
+	if strings.HasPrefix(r.URL.Path, "/device/") && strings.HasSuffix(r.URL.Path, "/data_amount") {
+		endpoint = r.Method + " /device/data_amount"
+	}
 	if r.Method == http.MethodGet && r.URL.Path == "/device" && f.BeforeDeviceList != nil {
 		f.BeforeDeviceList()
 	}
@@ -122,15 +127,21 @@ func (f *FakeTagoIO) serve(w http.ResponseWriter, r *http.Request) {
 	case endpoint == "GET /device":
 		filter := r.URL.Query().Get("filter[name]")
 		page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-		matched := []tagoio.Device{}
+		matched := []map[string]any{}
 		if page <= 1 {
 			for _, d := range f.devices {
 				if filter == "" || strings.Contains(d.Name, filter) {
-					matched = append(matched, d)
+					matched = append(matched, f.deviceJSON(d))
 				}
 			}
 		}
 		writeEnvelope(w, http.StatusOK, true, matched, "")
+
+	case endpoint == "GET /device/data_amount":
+		f.serveDataAmount(w, r)
+
+	case endpoint == "GET /run/users":
+		f.serveUsers(w, r)
 
 	case endpoint == "GET /device/token":
 		id := strings.TrimPrefix(r.URL.Path, "/device/token/")
