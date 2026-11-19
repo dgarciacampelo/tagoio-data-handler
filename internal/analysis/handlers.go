@@ -240,7 +240,30 @@ func (s *Service) changeRateList(ctx context.Context, sc scope) {
 
 var fieldBalancingMode = field{position: 0}
 
-// changeLoadBalancingMode selects the dynamic load balancing mode.
+// balancingModes maps the codes of the CSMS load balancing modes to the labels the dashboard shows and stores.
+var balancingModes = []struct{ code, label string }{
+	{"NONE", "Ninguno"},
+	{"STATICNORMAL", "Estático normal"},
+	{"DYNAMICNORMAL", "Dinámico normal"},
+	{"DYNAMICBOOST", "Dinámico boost"},
+}
+
+// balancingModeLabel returns the dashboard label of a load balancing mode given by its label or its code, in any
+// case, as the CSMS reads it; false for an empty or unknown mode.
+func balancingModeLabel(mode string) (string, bool) {
+	mode = strings.TrimSpace(mode)
+	for _, m := range balancingModes {
+		if strings.EqualFold(mode, m.code) || strings.EqualFold(mode, m.label) {
+			return m.label, true
+		}
+	}
+	return "", false
+}
+
+// changeLoadBalancingMode selects the load balancing mode: the CSMS gets the event first, then the
+// load_balancing_mode record of the pool's bucket is replaced, since the dashboard input doesn't store it, and the
+// configuration cache is updated. An empty or unknown mode is still sent to the CSMS, which ignores it, but is
+// neither stored nor cached. The form has no feedback toast: a failed write is only logged.
 func (s *Service) changeLoadBalancingMode(ctx context.Context, sc scope) {
 	poolCode, ok := s.poolOf(ctx, sc, "change_load_balancing_mode")
 	if !ok {
@@ -251,7 +274,17 @@ func (s *Service) changeLoadBalancingMode(ctx context.Context, sc scope) {
 		Header:       events.NewHeader(events.TypeChangeLoadBalancingMode, poolCode),
 		SelectedMode: mode,
 	})
-	s.configs.Update(poolCode, func(c *pools.Config) { c.LoadBalancingMode = mode })
+
+	label, known := balancingModeLabel(mode)
+	if !known {
+		s.log.Warn("Analysis: unknown load balancing mode not stored", "pool_code", poolCode, "mode", mode)
+		return
+	}
+	s.configs.Update(poolCode, func(c *pools.Config) { c.LoadBalancingMode = label })
+	record := tagoio.DataInput{Variable: "load_balancing_mode", Value: label, Group: "1"}
+	if err := s.bucket.Replace(ctx, poolCode, "load_balancing_mode", "", record); err != nil {
+		s.log.Error("Analysis: storing load balancing mode failed", "pool_code", poolCode, "mode", label, "error", err)
+	}
 }
 
 // endregion
