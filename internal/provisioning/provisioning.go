@@ -1,14 +1,17 @@
 // Package provisioning creates the TagoIO resources of a new charging point operator (CPO), from the sign-up form
-// the notification service forwards: a dashboard user, and the MASTER device whose bucket holds the new charging
-// pool's data, with its default configuration. It also ensures the device of an existing pool for the CSMS.
+// the notification service forwards: the MASTER device whose bucket holds the new charging pool's data, with its
+// default configuration, and a dashboard user (new, or the existing user of the email, given the pool's group_id).
+// It also ensures the device of an existing pool for the CSMS, and links a pool to an existing user.
 package provisioning
 
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,18 +47,38 @@ func New(tago *tagoio.Client, registry *devices.Registry, s *store.Store, b Buck
 	return &Service{tago: tago, devices: registry, store: s, bucket: b, log: log, location: location}
 }
 
-// Result is the outcome of a CPO provisioning.
+// groupTag is the user and device tag that gives a run user access to a pool's device and dashboards.
+const groupTag = "group_id"
+
+// ErrUserNotFound is returned when no run user has the given email.
+var ErrUserNotFound = errors.New("provisioning: no TagoIO user with that email")
+
+// Result is the outcome of a CPO provisioning, step by step: the pool device first, then the user.
 type Result struct {
-	UserCreated   bool
+	PoolCode int
+
 	DeviceCreated bool
-	PoolCode      int
 	DeviceID      string
-	Password      string
-	ErrorMessage  string
+	DeviceError   string
+
+	UserCreated bool   // A new run user was created, with Password
+	UserExisted bool   // A run user with the form's email already existed: no user was created
+	UserLinked  bool   // The existing user has the pool's group_id tag (added now, or it had it already)
+	UserError   string // Why the user step failed or was skipped
+	Password    string // The new user's password, only when UserCreated
+
+	ErrorMessage string // Every step's failure, "" when the CPO is fully provisioned
 }
 
-// ProvisionCPO creates the TagoIO user and pool device of a new CPO. A user creation failure stops it before the
-// device; the default configuration is written in the background.
+// Complete reports whether the pool has its device and a user that can reach it.
+func (r Result) Complete() bool {
+	return r.DeviceCreated && (r.UserCreated || r.UserLinked)
+}
+
+// ProvisionCPO creates the pool device of a new CPO, with its default configuration (written in the background),
+// and gives the form's email a user that reaches it: a new run user, or, when the email already has one (a second
+// pool of the same CPO, or a repeated sign-up), that user with the new pool's group_id tag added. The device goes
+// first because it reserves the pool code; a user step failure doesn't undo it, and each step's outcome is returned.
 func (s *Service) ProvisionCPO(ctx context.Context, form Form) (Result, error) {
 	s.poolCodes.Lock()
 	defer s.poolCodes.Unlock()
@@ -64,18 +87,60 @@ func (s *Service) ProvisionCPO(ctx context.Context, form Form) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	result := Result{PoolCode: poolCode}
+
+	advancedPlan := strings.Contains(form.PaymentSystem, "TPV") // Pools with payment terminals
+	device, err := s.createDevice(ctx, poolCode, advancedPlan)
+	if err != nil {
+		s.log.Error("Provisioning: device creation failed", "pool_code", poolCode, "error", err)
+		result.DeviceError = "device creation failed: " + err.Error()
+		// Without its device the pool code isn't reserved and could go to the next sign-up: no user gets it.
+		result.UserError = "user step skipped: the pool device couldn't be created"
+		result.ErrorMessage = joinErrors(result)
+		return result, nil
+	}
+	result.DeviceCreated, result.DeviceID = true, device.DeviceID
+	go s.writeDefaults(poolCode, form)
+
+	s.provisionUser(ctx, form, poolCode, &result)
+	result.ErrorMessage = joinErrors(result)
+	s.log.Info("Provisioning: CPO provisioned", "pool_code", poolCode, "company", form.CompanyName,
+		"user_created", result.UserCreated, "user_existed", result.UserExisted, "user_linked", result.UserLinked,
+		"complete", result.Complete())
+	return result, nil
+}
+
+// provisionUser gives the form's email a run user that reaches the pool: it links the existing user, or creates one.
+func (s *Service) provisionUser(ctx context.Context, form Form, poolCode int, result *Result) {
+	users, err := s.tago.FindUsersByEmail(ctx, form.UserEmail)
+	if err != nil {
+		// Unknown whether the user exists: try the creation, which TagoIO rejects for a taken email.
+		s.log.Warn("Provisioning: user lookup failed, creating the user", "pool_code", poolCode, "error", err)
+	}
+	if len(users) > 0 {
+		result.UserExisted = true
+		_, linked, err := s.linkUser(ctx, users[0].ID, poolCode)
+		if err != nil {
+			s.log.Error("Provisioning: linking the existing user failed", "pool_code", poolCode, "user_id", users[0].ID, "error", err)
+			result.UserError = "existing user found, but adding the pool's group_id tag failed: " + err.Error()
+			return
+		}
+		result.UserLinked = true
+		s.log.Info("Provisioning: existing user linked to the pool", "pool_code", poolCode, "user_id", users[0].ID, "tag_added", linked)
+		return
+	}
+
 	password, err := generatePassword(16)
 	if err != nil {
-		return Result{}, err
+		result.UserError = "password generation failed: " + err.Error()
+		return
 	}
-	result := Result{PoolCode: poolCode, Password: password}
-
 	err = s.tago.CreateUser(ctx, tagoio.NewUser{
 		Name: form.ManagerName, Email: form.UserEmail, Password: password, Language: "es", Timezone: "Europe/Madrid",
 		Phone: form.ContactPhone, Company: form.CompanyName, Active: true,
 		Tags: []tagoio.Tag{
 			{Key: "name", Value: form.ManagerName},
-			{Key: "group_id", Value: strconv.Itoa(poolCode)}, // The user only sees this pool
+			{Key: groupTag, Value: strconv.Itoa(poolCode)}, // The pools the user sees
 			{Key: "installation_type", Value: "BUSINESS"},
 			{Key: "plan", Value: "ADVANCED"},
 			{Key: "user_type", Value: "MANAGER"},
@@ -86,24 +151,80 @@ func (s *Service) ProvisionCPO(ctx context.Context, form Form) (Result, error) {
 	})
 	if err != nil {
 		s.log.Error("Provisioning: user creation failed", "pool_code", poolCode, "error", err)
-		result.ErrorMessage = "Failed to create TagoIO user. Aborting device creation."
-		return result, nil
+		result.UserError = "user creation failed: " + err.Error()
+		return
 	}
-	result.UserCreated = true
+	result.UserCreated, result.Password = true, password
+}
 
-	advancedPlan := strings.Contains(form.PaymentSystem, "TPV") // Pools with payment terminals
-	device, err := s.createDevice(ctx, poolCode, advancedPlan)
+// linkUser adds the pool's group_id tag to a run user, keeping its other tags; added is false when the user had it.
+func (s *Service) linkUser(ctx context.Context, userID string, poolCode int) (user tagoio.RunUser, added bool, err error) {
+	user, err = s.tago.User(ctx, userID) // Its current tags: the edit replaces them all
 	if err != nil {
-		s.log.Error("Provisioning: device creation failed", "pool_code", poolCode, "error", err)
-		result.ErrorMessage = "User created, but device provisioning failed."
-		return result, nil
+		return tagoio.RunUser{}, false, err
 	}
-	result.DeviceCreated = true
-	result.DeviceID = device.DeviceID
+	value := strconv.Itoa(poolCode)
+	if user.HasTag(groupTag, value) {
+		return user, false, nil
+	}
+	tags := append(slices.Clone(user.Tags), tagoio.Tag{Key: groupTag, Value: value})
+	if err := s.tago.SetUserTags(ctx, userID, tags); err != nil {
+		return tagoio.RunUser{}, false, err
+	}
+	user.Tags = tags
+	return user, true, nil
+}
 
-	go s.writeDefaults(poolCode, form)
-	s.log.Info("Provisioning: CPO provisioned", "pool_code", poolCode, "company", form.CompanyName)
+// LinkResult is the outcome of linking a pool to an existing run user.
+type LinkResult struct {
+	DeviceID      string
+	DeviceCreated bool
+	UserID        string
+	TagAdded      bool // false when the user already had the pool's group_id tag
+	GroupIDs      []string
+}
+
+// LinkPool gives the existing run user with that email access to a pool: it ensures the pool's MASTER device (see
+// EnsureDevice) and adds the pool's group_id tag to the user, keeping its other tags. Calling it again is harmless.
+func (s *Service) LinkPool(ctx context.Context, poolCode int, email string) (LinkResult, error) {
+	users, err := s.tago.FindUsersByEmail(ctx, email)
+	if err != nil {
+		return LinkResult{}, fmt.Errorf("provisioning: looking up the user: %w", err)
+	}
+	if len(users) == 0 {
+		return LinkResult{}, ErrUserNotFound
+	}
+
+	device, created, err := s.EnsureDevice(ctx, poolCode)
+	if err != nil {
+		return LinkResult{}, fmt.Errorf("provisioning: ensuring the pool device: %w", err)
+	}
+	result := LinkResult{DeviceID: device.DeviceID, DeviceCreated: created, UserID: users[0].ID}
+
+	user, added, err := s.linkUser(ctx, users[0].ID, poolCode)
+	if err != nil {
+		return result, fmt.Errorf("provisioning: adding the pool's group_id tag: %w", err)
+	}
+	result.TagAdded = added
+	for _, tag := range user.Tags {
+		if tag.Key == groupTag {
+			result.GroupIDs = append(result.GroupIDs, tag.Value)
+		}
+	}
+	s.log.Info("Provisioning: pool linked to an existing user", "pool_code", poolCode, "user_id", user.ID,
+		"device_created", created, "tag_added", added)
 	return result, nil
+}
+
+// joinErrors returns the failures of a provisioning's steps, "" when there are none.
+func joinErrors(r Result) string {
+	var parts []string
+	for _, e := range []string{r.DeviceError, r.UserError} {
+		if e != "" {
+			parts = append(parts, e)
+		}
+	}
+	return strings.Join(parts, "; ")
 }
 
 // EnsureDevice returns the MASTER device of a pool, creating it (with the ADVANCED plan) when the account has

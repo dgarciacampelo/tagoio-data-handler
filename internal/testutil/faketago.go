@@ -17,8 +17,8 @@ import (
 )
 
 // FakeTagoIO is an in-memory stand-in for the TagoIO REST API, covering the calls of internal/tagoio: device
-// listing, device tokens and creation, run users, and the data of each device bucket. It answers with TagoIO's
-// envelopes, so the real tagoio.Client is used against it.
+// listing, device tokens and creation, run users (creation, lookup by email, tag edits), and the data of each device
+// bucket. It answers with TagoIO's envelopes, so the real tagoio.Client is used against it.
 type FakeTagoIO struct {
 	*httptest.Server
 
@@ -28,6 +28,7 @@ type FakeTagoIO struct {
 	data    map[string][]tagoio.DataRecord // Device token -> records, oldest first
 	calls   map[string]int                 // "METHOD /path" -> count (the path without its last segment for tokens)
 	failing map[string]bool                // "METHOD /path" -> answer with an error
+	users   []tagoio.RunUser
 	nextID  int
 
 	// BeforeDeviceList, when set, runs before each device listing is answered (outside the lock), e.g. to hold
@@ -58,6 +59,37 @@ func (f *FakeTagoIO) AddDevice(id, name, token string, tags ...tagoio.Tag) {
 	defer f.mu.Unlock()
 	f.devices = append(f.devices, tagoio.Device{ID: id, Name: name, Tags: tags})
 	f.tokens[id] = token
+}
+
+// AddUser adds a run user to the account.
+func (f *FakeTagoIO) AddUser(id, email string, tags ...tagoio.Tag) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.users = append(f.users, tagoio.RunUser{ID: id, Name: "User " + id, Email: email, Active: true, Tags: tags})
+}
+
+// User returns a run user by ID (ok false when missing).
+func (f *FakeTagoIO) User(id string) (tagoio.RunUser, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, u := range f.users {
+		if u.ID == id {
+			return u, true
+		}
+	}
+	return tagoio.RunUser{}, false
+}
+
+// UserByEmail returns a run user by email (ok false when missing).
+func (f *FakeTagoIO) UserByEmail(email string) (tagoio.RunUser, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, u := range f.users {
+		if strings.EqualFold(u.Email, email) {
+			return u, true
+		}
+	}
+	return tagoio.RunUser{}, false
 }
 
 // AddRecord stores a record in the bucket of the device with token.
@@ -106,6 +138,9 @@ func (f *FakeTagoIO) serve(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, "/device/token/") {
 		endpoint = r.Method + " /device/token"
 	}
+	if strings.HasPrefix(r.URL.Path, "/run/users/") {
+		endpoint = r.Method + " /run/users/{id}"
+	}
 	if r.Method == http.MethodGet && r.URL.Path == "/device" && f.BeforeDeviceList != nil {
 		f.BeforeDeviceList()
 	}
@@ -153,7 +188,62 @@ func (f *FakeTagoIO) serve(w http.ResponseWriter, r *http.Request) {
 		writeEnvelope(w, http.StatusOK, true, map[string]string{"device_id": id, "token": token}, "")
 
 	case endpoint == "POST /run/users":
+		var u tagoio.NewUser
+		if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
+			writeEnvelope(w, http.StatusBadRequest, false, nil, err.Error())
+			return
+		}
+		for _, existing := range f.users {
+			if strings.EqualFold(existing.Email, u.Email) {
+				writeEnvelope(w, http.StatusBadRequest, false, nil, "Email address already in use")
+				return
+			}
+		}
+		f.nextID++
+		f.users = append(f.users, tagoio.RunUser{ID: fmt.Sprintf("user-%d", f.nextID), Name: u.Name, Email: u.Email, Active: u.Active, Tags: u.Tags})
 		writeEnvelope(w, http.StatusOK, true, "User created", "")
+
+	case endpoint == "GET /run/users": // Only filter[email] (exact, as TagoIO) and the listed fields
+		email := r.URL.Query().Get("filter[email]")
+		withTags := false
+		for key, values := range r.URL.Query() {
+			if strings.HasPrefix(key, "fields[") && slices.Contains(values, "tags") {
+				withTags = true
+			}
+		}
+		matched := []tagoio.RunUser{}
+		for _, u := range f.users {
+			if email == "" || u.Email == email {
+				if !withTags {
+					u.Tags = nil
+				}
+				matched = append(matched, u)
+			}
+		}
+		writeEnvelope(w, http.StatusOK, true, matched, "")
+
+	case endpoint == "GET /run/users/{id}" || endpoint == "PUT /run/users/{id}":
+		id := strings.TrimPrefix(r.URL.Path, "/run/users/")
+		i := slices.IndexFunc(f.users, func(u tagoio.RunUser) bool { return u.ID == id })
+		if i < 0 {
+			writeEnvelope(w, http.StatusNotFound, false, nil, "User not found")
+			return
+		}
+		if r.Method == http.MethodGet {
+			writeEnvelope(w, http.StatusOK, true, f.users[i], "")
+			return
+		}
+		var edit struct {
+			Tags *[]tagoio.Tag `json:"tags"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&edit); err != nil {
+			writeEnvelope(w, http.StatusBadRequest, false, nil, err.Error())
+			return
+		}
+		if edit.Tags != nil { // The edit replaces the whole tag list
+			f.users[i].Tags = *edit.Tags
+		}
+		writeEnvelope(w, http.StatusOK, true, "User Successfully Updated", "")
 
 	case r.URL.Path == "/data":
 		f.serveData(w, r)

@@ -81,6 +81,7 @@ var (
 		{"DELETE", "/api/admin/stations/261001/ST1"},
 		{"GET", "/api/admin/audits/4321/export"},
 		{"PUT", "/api/admin/audits/4321/card-alias"},
+		{"POST", "/api/admin/pools/261001/users"},
 		{"GET", "/api/admin/database/snapshot"},
 		{"PUT", "/api/admin/payter-terminals/P6X20222101349"},
 		{"DELETE", "/api/admin/payter-terminals/P6X20222101349"},

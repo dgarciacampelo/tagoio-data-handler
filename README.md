@@ -29,7 +29,7 @@ internal/
   bucket                 A pool's TagoIO bucket by pool code (device-full recovery, validation toasts, cleanup)
   devices                Pool -> TagoIO device and token registry
   pools                  Pool configuration cache (operator, rates, pre-authorization) and CSMS pool setup
-  provisioning           CPO sign-up: TagoIO user and pool device
+  provisioning           CPO sign-up: pool device, and a new TagoIO user or the existing one of the email
   maintenance, scheduler Bucket data checks, telemetry purge, backups; daily jobs in Europe/Madrid
   store                  SQLite (pure Go driver) with versioned migrations
   telegram               Notices and backups
@@ -51,7 +51,7 @@ frontend/                Svelte 5 pages (Vite, Tailwind CSS 4, Paraglide JS), on
 | `GET /api/pools/{pool_code}` | neos-ocpp | Pool setup (creates the TagoIO device when missing). |
 | `GET /api/sessions/{pool_code}/{station_name}/{connector_id}/{transaction_id}/series` | neos-ocpp | Power and energy of a finished session, for the chart of its email: at most 96 steps over the 24 h before it last delivered energy, from the stored meter values. Optional `started_at`, and `stopped_at` with `energy` (Wh), add the readings the telemetry doesn't hold yet. 404 when there is nothing to chart. |
 | `GET /api/payter-terminals` | neos-ocpp | Every Payter terminal, active or not: the Payter CSMS applies the list at startup, since the events sent while it was down are lost. |
-| `POST /api/provision-cpo` | neos-notification-mgmt | CPO sign-up form (snake_case or the Google Form titles). |
+| `POST /api/provision-cpo` | neos-notification-mgmt | CPO sign-up form (snake_case or the Google Form titles). The pool device goes first (it reserves the code); then the email gets a new user, or its existing user gets the pool's `group_id` tag (`user_existed`, `user_linked`, no `generated_password`). Each step's failure is in `device_error` / `user_error`; the pool is ready when `device_created` and `user_created` or `user_linked`. |
 | `POST /v1/trigger-task/pool-variable-cleanup`, `POST /v1/trigger-task/backup-to-telegram`, `DELETE /v1/trigger-task/single-variable/{pool_code}/{variable}` | Operators (curl) | Background jobs answer 202. |
 
 This service also calls the CSMS: the payments page of the eMSP dashboard (`/emsp-dashboard/payments`, API
@@ -159,6 +159,11 @@ thing and keep TagoIO in step. For example, `PUT /api/admin/audits/{session_id}/
 `{"card_alias": "TPV Virtual"}` corrects the alias of a finished session in three places: the audits, its session page
 and its pool's TagoIO history. `session_id` is the `rowid` of the session's `charging_session_history` row; the
 session's export address, `/api/admin/audits/{session_id}/export`, shows it too.
+
+`POST /api/admin/pools/{pool_code}/users` with `{"email": "..."}` gives the existing TagoIO user of that email
+access to a pool: it ensures the pool's MASTER device (created without configuration when missing) and adds the
+pool's `group_id` tag to the user, keeping its other tags. It answers the user's `group_ids`; calling it again is
+harmless, and an unknown email answers 404 without touching anything.
 
 ## History: migration from the Python service
 

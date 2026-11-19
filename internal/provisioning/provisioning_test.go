@@ -3,10 +3,13 @@ package provisioning
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -175,11 +178,15 @@ func TestProvisionCPOCreatesTheUserTheDeviceAndTheDefaults(t *testing.T) {
 	}
 
 	result, err := f.service.ProvisionCPO(context.Background(), form)
-	if err != nil || !result.UserCreated || !result.DeviceCreated || result.PoolCode != code(1001) {
+	if err != nil || !result.UserCreated || !result.DeviceCreated || result.PoolCode != code(1001) || !result.Complete() ||
+		result.UserExisted || result.ErrorMessage != "" {
 		t.Fatalf("ProvisionCPO = %+v, %v", result, err)
 	}
 	if len(result.Password) != 16 || f.tago.Calls("POST /run/users") != 1 {
 		t.Errorf("password length %d, users created %d", len(result.Password), f.tago.Calls("POST /run/users"))
+	}
+	if user, ok := f.tago.UserByEmail("ana@acme.es"); !ok || !user.HasTag("group_id", strconv.Itoa(code(1001))) {
+		t.Errorf("new user = %+v, found %v", user, ok)
 	}
 	deadline := time.Now().Add(3 * time.Second) // The defaults are written in the background
 	for f.bucket.count() < 6 && time.Now().Before(deadline) {
@@ -187,6 +194,148 @@ func TestProvisionCPOCreatesTheUserTheDeviceAndTheDefaults(t *testing.T) {
 	}
 	if got := f.bucket.count(); got != 6 {
 		t.Errorf("default variables written = %d; want 6", got)
+	}
+}
+
+// provisionForm returns the form of a sign-up with the given user email.
+func provisionForm(t *testing.T, email string) Form {
+	t.Helper()
+	var form Form
+	raw := strings.Replace(notificationForm(`"Garaje comunitario"`), "ana@acme.es", email, 1)
+	if err := json.Unmarshal([]byte(raw), &form); err != nil {
+		t.Fatal(err)
+	}
+	return form
+}
+
+// waitForDefaults waits for the default variables written in the background.
+func waitForDefaults(t *testing.T, b *recordingBucket, want int) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for b.count() < want && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if got := b.count(); got != want {
+		t.Errorf("default variables written = %d; want %d", got, want)
+	}
+}
+
+func TestProvisionCPOLinksTheExistingUserOfTheEmail(t *testing.T) {
+	// A second sign-up with the same email (a second pool of the CPO, or a repeated form): the pool gets its device
+	// and defaults, and the existing user gets its group_id tag, keeping the old one and its other tags.
+	f := newFixture(t)
+	first := strconv.Itoa(code(1001))
+	f.tago.AddDevice("dev-1", "MASTER-BUSINESS-"+first, "token-1")
+	f.tago.AddUser("user-1", "ana@acme.es", tagoio.Tag{Key: "name", Value: "Ana"}, tagoio.Tag{Key: "group_id", Value: first},
+		tagoio.Tag{Key: "user_type", Value: "MANAGER"})
+
+	result, err := f.service.ProvisionCPO(context.Background(), provisionForm(t, "Ana@ACME.es"))
+	if err != nil || !result.DeviceCreated || result.UserCreated || !result.UserExisted || !result.UserLinked ||
+		!result.Complete() || result.PoolCode != code(1002) || result.Password != "" || result.ErrorMessage != "" {
+		t.Fatalf("ProvisionCPO = %+v, %v", result, err)
+	}
+	if f.tago.Calls("POST /run/users") != 0 {
+		t.Errorf("a user was created for a taken email")
+	}
+	user, _ := f.tago.User("user-1")
+	second := strconv.Itoa(code(1002))
+	if !user.HasTag("group_id", first) || !user.HasTag("group_id", second) || !user.HasTag("name", "Ana") ||
+		!user.HasTag("user_type", "MANAGER") || len(user.Tags) != 4 {
+		t.Errorf("user tags = %+v", user.Tags)
+	}
+	waitForDefaults(t, f.bucket, 6)
+}
+
+func TestProvisionCPOCreatesTheDeviceWhenTheUserCreationFails(t *testing.T) {
+	f := newFixture(t)
+	f.tago.Fail("POST /run/users", true)
+
+	result, err := f.service.ProvisionCPO(context.Background(), provisionForm(t, "ana@acme.es"))
+	if err != nil || !result.DeviceCreated || result.DeviceID == "" || result.UserCreated || result.UserExisted ||
+		result.Complete() || result.Password != "" || !strings.Contains(result.UserError, "user creation failed") ||
+		result.ErrorMessage != result.UserError {
+		t.Fatalf("ProvisionCPO = %+v, %v", result, err)
+	}
+	if registered, err := f.registry.ByPool(context.Background(), code(1001)); err != nil || registered.DeviceID != result.DeviceID {
+		t.Errorf("registry = %+v, %v", registered, err)
+	}
+	waitForDefaults(t, f.bucket, 6)
+}
+
+func TestProvisionCPOGivesNoUserAnUnreservedPoolCode(t *testing.T) {
+	// Without its device the pool code isn't reserved (the next sign-up would get it again): no user is tagged with it.
+	f := newFixture(t)
+	f.tago.AddUser("user-1", "ana@acme.es", tagoio.Tag{Key: "group_id", Value: "251001"})
+	f.tago.Fail("POST /device", true)
+
+	result, err := f.service.ProvisionCPO(context.Background(), provisionForm(t, "ana@acme.es"))
+	if err != nil || result.DeviceCreated || result.UserCreated || result.UserLinked || result.DeviceError == "" ||
+		!strings.Contains(result.UserError, "skipped") || !strings.Contains(result.ErrorMessage, "device creation failed") {
+		t.Fatalf("ProvisionCPO = %+v, %v", result, err)
+	}
+	if user, _ := f.tago.User("user-1"); len(user.Tags) != 1 || f.tago.Calls("PUT /run/users/{id}") != 0 {
+		t.Errorf("user edited: %+v", user.Tags)
+	}
+	if f.tago.Calls("POST /run/users") != 0 || f.tago.Calls("GET /run/users") != 0 {
+		t.Errorf("the user step ran")
+	}
+}
+
+func TestProvisionCPOReportsAFailedLinkWithoutHidingTheDevice(t *testing.T) {
+	f := newFixture(t)
+	f.tago.AddUser("user-1", "ana@acme.es", tagoio.Tag{Key: "group_id", Value: "251001"})
+	f.tago.Fail("PUT /run/users/{id}", true)
+
+	result, err := f.service.ProvisionCPO(context.Background(), provisionForm(t, "ana@acme.es"))
+	if err != nil || !result.DeviceCreated || !result.UserExisted || result.UserLinked || result.Complete() ||
+		!strings.Contains(result.UserError, "adding the pool's group_id tag failed") {
+		t.Fatalf("ProvisionCPO = %+v, %v", result, err)
+	}
+}
+
+func TestProvisionCPOCreatesTheUserWhenTheLookupFails(t *testing.T) {
+	f := newFixture(t)
+	f.tago.Fail("GET /run/users", true)
+
+	result, err := f.service.ProvisionCPO(context.Background(), provisionForm(t, "ana@acme.es"))
+	if err != nil || !result.DeviceCreated || !result.UserCreated || !result.Complete() || result.Password == "" {
+		t.Fatalf("ProvisionCPO = %+v, %v", result, err)
+	}
+}
+
+func TestLinkPoolCreatesTheMissingDeviceAndAddsTheTagOnce(t *testing.T) {
+	f := newFixture(t)
+	f.tago.AddDevice("dev-5", "MASTER-BUSINESS-261005", "token-5")
+	f.tago.AddUser("user-1", "ana@acme.es", tagoio.Tag{Key: "group_id", Value: "261005"}, tagoio.Tag{Key: "plan", Value: "ADVANCED"})
+
+	result, err := f.service.LinkPool(context.Background(), 261006, "ana@acme.es")
+	if err != nil || !result.DeviceCreated || result.DeviceID == "" || result.UserID != "user-1" || !result.TagAdded ||
+		!slices.Equal(result.GroupIDs, []string{"261005", "261006"}) {
+		t.Fatalf("LinkPool = %+v, %v", result, err)
+	}
+	if user, _ := f.tago.User("user-1"); !user.HasTag("plan", "ADVANCED") || len(user.Tags) != 3 {
+		t.Errorf("user tags = %+v", user.Tags)
+	}
+
+	again, err := f.service.LinkPool(context.Background(), 261006, "ana@acme.es") // Harmless when repeated
+	if err != nil || again.DeviceCreated || again.TagAdded || again.DeviceID != result.DeviceID ||
+		!slices.Equal(again.GroupIDs, []string{"261005", "261006"}) {
+		t.Fatalf("second LinkPool = %+v, %v", again, err)
+	}
+	if f.tago.DeviceCount() != 2 || f.tago.Calls("PUT /run/users/{id}") != 1 {
+		t.Errorf("devices %d, user edits %d", f.tago.DeviceCount(), f.tago.Calls("PUT /run/users/{id}"))
+	}
+}
+
+func TestLinkPoolTouchesNothingForAnUnknownEmail(t *testing.T) {
+	f := newFixture(t)
+	f.tago.AddUser("user-1", "ana@acme.es")
+
+	if _, err := f.service.LinkPool(context.Background(), 261006, "other@acme.es"); !errors.Is(err, ErrUserNotFound) {
+		t.Fatalf("LinkPool error = %v", err)
+	}
+	if f.tago.DeviceCount() != 0 {
+		t.Errorf("a device was created for an unknown user")
 	}
 }
 
