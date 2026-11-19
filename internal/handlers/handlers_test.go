@@ -291,7 +291,7 @@ func TestChargeRequestValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	events, unsubscribe := app.Broker.Subscribe()
+	sub, unsubscribe := app.Broker.Subscribe("")
 	defer unsubscribe()
 
 	// In order: the first published event is checked below.
@@ -317,7 +317,7 @@ func TestChargeRequestValidation(t *testing.T) {
 	}
 
 	// The amount comes from the pool configuration (defaults here), never from the client.
-	data := <-events
+	data := (<-sub.Events).Data
 	if !strings.Contains(string(data), `"amount":40`) || !strings.Contains(string(data), `"receipt_email":null`) {
 		t.Fatalf("published event = %s", data)
 	}

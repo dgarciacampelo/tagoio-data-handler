@@ -46,7 +46,7 @@ frontend/                Svelte 5 pages (Vite, Tailwind CSS 4, Paraglide JS), on
 
 | Endpoint | Caller | Notes |
 | --- | --- | --- |
-| `GET /api/stream` | neos-ocpp | SSE: one `data: {"event": <type>, "data": {...}}` line per event, keep-alive every 15 s. Event shapes in `internal/events`, checked against the former Pydantic models. |
+| `GET /api/stream` | neos-ocpp | SSE: per event an `id: <epoch>-<seq>` line and a `data: {"event": <type>, "data": {...}}` line, keep-alive every 15 s. A CSMS that reconnects with `Last-Event-ID` first gets the events of the last 30 s it missed, also across a restart of this service. Event shapes in `internal/events`, checked against the former Pydantic models. |
 | `POST /v1/charge-point-update/{pool_code}/{station_name}/{connector_id}` | neos-ocpp | Connector status. |
 | `POST /v1/charging-session-update/{pool_code}/{station_name}/{connector_id}` | neos-ocpp | Session start, meter values and end. |
 | `GET /api/pools/{pool_code}` | neos-ocpp | Pool setup (creates the TagoIO device when missing, with the default configuration but no `operator_info`). |
@@ -145,7 +145,7 @@ git pull --ff-only && docker compose up -d --build
 neos-ocpp reconnects to `/api/stream` by itself. After a deploy, `docker logs -f tagoio-data-handler` should show
 `TagoIO realtime: analysis connected` for the 8 analyses, then `Analysis: trigger received` for each dashboard action.
 The MQTT meters (about every 90 s each) are only counted: an `Events: summary` line per pool at the top of every
-hour, a warning when events were dropped or a meter sent none.
+hour, a warning when events were dropped or a meter sent none. Events published while no CSMS is connected (the seconds of a deploy) are kept for 30 s and replayed when it reconnects (`Events: published late`); `Events: no subscriber connected in time, event dropped` means one was lost.
 
 ## Production data
 

@@ -28,15 +28,15 @@ func callPayter(mux *http.ServeMux, method, target, body string) *httptest.Respo
 }
 
 // nextEvent returns the next event published on the stream, or fails after a second.
-func nextEvent(t *testing.T, stream <-chan []byte) events.PayterTerminalManagement {
+func nextEvent(t *testing.T, stream <-chan events.Message) events.PayterTerminalManagement {
 	t.Helper()
 	select {
-	case line := <-stream:
+	case m := <-stream:
 		var envelope struct {
 			Data events.PayterTerminalManagement `json:"data"`
 		}
-		if err := json.Unmarshal(line, &envelope); err != nil {
-			t.Fatalf("event %s: %v", line, err)
+		if err := json.Unmarshal(m.Data, &envelope); err != nil {
+			t.Fatalf("event %s: %v", m.Data, err)
 		}
 		return envelope.Data
 	case <-time.After(time.Second):
@@ -45,11 +45,11 @@ func nextEvent(t *testing.T, stream <-chan []byte) events.PayterTerminalManageme
 	return events.PayterTerminalManagement{}
 }
 
-func noEvent(t *testing.T, stream <-chan []byte) {
+func noEvent(t *testing.T, stream <-chan events.Message) {
 	t.Helper()
 	select {
-	case line := <-stream:
-		t.Fatalf("unexpected event %s", line)
+	case m := <-stream:
+		t.Fatalf("unexpected event %s", m.Data)
 	case <-time.After(50 * time.Millisecond):
 	}
 }
@@ -68,7 +68,8 @@ func TestTheCSMSReadsEveryPayterTerminal(t *testing.T) {
 
 func TestSavingAPayterTerminalTellsTheCSMS(t *testing.T) {
 	app := newTestApp(t)
-	stream, unsubscribe := app.Broker.Subscribe()
+	sub, unsubscribe := app.Broker.Subscribe("")
+	stream := sub.Events
 	defer unsubscribe()
 
 	body := `{"pool_code": 221006, "is_pool_shared": false, "linked_stations": [" 22V20539CCPOS ", "22V20539CCPOS", ""]}`
@@ -104,7 +105,8 @@ func TestAnInvalidPayterTerminalIsRejectedWithoutTellingTheCSMS(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			app := newTestApp(t)
-			stream, unsubscribe := app.Broker.Subscribe()
+			sub, unsubscribe := app.Broker.Subscribe("")
+			stream := sub.Events
 			defer unsubscribe()
 
 			rec := callPayter(payterMux(app), http.MethodPut, "/api/admin/payter-terminals/"+tt.serial, tt.body)
@@ -119,7 +121,8 @@ func TestAnInvalidPayterTerminalIsRejectedWithoutTellingTheCSMS(t *testing.T) {
 
 func TestDeactivatingAPayterTerminalTellsTheCSMSOfItsPool(t *testing.T) {
 	app := newTestApp(t)
-	stream, unsubscribe := app.Broker.Subscribe()
+	sub, unsubscribe := app.Broker.Subscribe("")
+	stream := sub.Events
 	defer unsubscribe()
 	mux := payterMux(app)
 
