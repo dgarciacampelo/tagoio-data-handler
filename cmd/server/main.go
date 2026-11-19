@@ -27,6 +27,7 @@ import (
 	"github.com/dgarciacampelo/tagoio-handler/internal/devices"
 	"github.com/dgarciacampelo/tagoio-handler/internal/events"
 	"github.com/dgarciacampelo/tagoio-handler/internal/handlers"
+	"github.com/dgarciacampelo/tagoio-handler/internal/inspect"
 	"github.com/dgarciacampelo/tagoio-handler/internal/maintenance"
 	"github.com/dgarciacampelo/tagoio-handler/internal/pools"
 	"github.com/dgarciacampelo/tagoio-handler/internal/provisioning"
@@ -51,6 +52,10 @@ type application struct {
 func main() {
 	checkConfig := flag.Bool("check-config", false, "validate the configuration (environment) and exit")
 	flag.Parse()
+
+	if flag.Arg(0) == "tagoio" { // Read-only TagoIO inspection, asked to the running service
+		os.Exit(runTagoIOCommand(context.Background(), flag.Args()[1:], os.Stdout, os.Stderr))
+	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel()}))
 	slog.SetDefault(logger)
@@ -185,7 +190,7 @@ func run(logger *slog.Logger) error {
 		handlers: handlers.New(handlers.Deps{
 			Log: logger, Config: cfg, Store: db, Broker: broker, ChargePoints: stations, Pools: poolConfigs,
 			Devices: registry, Bucket: buckets, Provisioning: provisioner, Maintenance: upkeep, UI: ui, Jobs: ctx,
-			CSMS: csms.New(cfg.CSMSURLs, cfg.ServiceAPI, nil),
+			CSMS: csms.New(cfg.CSMSURLs, cfg.ServiceAPI, nil), Inspect: inspect.New(tago, registry, stations, logger),
 		}),
 	}
 

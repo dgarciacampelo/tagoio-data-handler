@@ -15,6 +15,7 @@ import (
 	"github.com/dgarciacampelo/tagoio-handler/internal/csms"
 	"github.com/dgarciacampelo/tagoio-handler/internal/devices"
 	"github.com/dgarciacampelo/tagoio-handler/internal/events"
+	"github.com/dgarciacampelo/tagoio-handler/internal/inspect"
 	"github.com/dgarciacampelo/tagoio-handler/internal/maintenance"
 	"github.com/dgarciacampelo/tagoio-handler/internal/pools"
 	"github.com/dgarciacampelo/tagoio-handler/internal/provisioning"
@@ -35,6 +36,7 @@ type Deps struct {
 	Provisioning *provisioning.Service
 	Maintenance  *maintenance.Service
 	CSMS         *csms.Client // Payment history; never nil in production, may be unconfigured
+	Inspect      *inspect.Service
 	UI           *webui.Renderer
 
 	// Jobs is the context of the background jobs the handlers start; it ends at shutdown.
