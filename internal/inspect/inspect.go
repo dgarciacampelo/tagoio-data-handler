@@ -148,9 +148,9 @@ type UserQuery struct {
 // ErrEmptyQuery is returned for a user query without email nor group_id.
 var ErrEmptyQuery = fmt.Errorf("inspect: an email or a group_id is required")
 
-// Users returns the run users matching the query. TagoIO is asked for the email in lower case (how it compares
-// emails isn't documented), and the filter is applied here again, the email case-insensitively, so the answer is
-// right even if TagoIO ignored or widened it.
+// Users returns the run users matching the query. TagoIO filters them (email case-insensitively, checked against
+// the account on 2026-11-19); the filter is applied here again, so the answer stays right if TagoIO ever ignores or
+// widens it.
 func (s *Service) Users(ctx context.Context, q UserQuery) ([]User, error) {
 	q.Email, q.GroupID = strings.ToLower(strings.TrimSpace(q.Email)), strings.TrimSpace(q.GroupID)
 	if q.Email == "" && q.GroupID == "" {
