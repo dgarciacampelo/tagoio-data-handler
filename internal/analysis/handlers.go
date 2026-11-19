@@ -360,6 +360,11 @@ func capitalize(s string) string {
 
 // region Power consumption (MQTT meter)
 
+// bivocomTopicPrefix starts the topic of the Bivocom grid meters ("Bivocom/MASTER-BUSINESS-221006"). They report P
+// in kW: 221006 sent 38–48 at mid-morning on 2026-11-19, against an 80 kW contract and one charger at 6.6 kW. As watts,
+// the CSMS took the building as idle, and its dynamic load balancing never lowered the chargers.
+const bivocomTopicPrefix = "Bivocom/"
+
 // powerConsumptionUpdate reports the power the installation draws from the grid. The record comes in one of
 // three shapes: the parsed MQTT JSON (params.P), the raw MQTT message (topic and a JSON payload string), or a
 // plain variable (value). Records forwarded by the MQTT integration may have no device; the pool code is then
@@ -387,15 +392,19 @@ func (s *Service) powerConsumptionUpdate(ctx context.Context, sc scope) {
 		return
 	}
 
+	topic := r.Topic
+	if topic == "" {
+		topic = tagoio.ValueString(r.Metadata["mqtt_topic"])
+	}
+	if strings.HasPrefix(topic, bivocomTopicPrefix) {
+		watts *= 1000 // A Bivocom meter reports P in kW
+	}
+
 	poolCode, ok := 0, false
 	if r.Device != "" {
 		poolCode, ok = s.pools.PoolByDevice(ctx, r.Device)
 	}
 	if !ok {
-		topic := r.Topic
-		if topic == "" {
-			topic = tagoio.ValueString(r.Metadata["mqtt_topic"])
-		}
 		poolCode, ok = poolFromTopic(topic)
 	}
 	if !ok {
