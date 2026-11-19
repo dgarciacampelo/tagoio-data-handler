@@ -1,5 +1,5 @@
-// This file holds the account-level calls on run (dashboard) users beyond their creation: lookup by email, user
-// details and tag edits.
+// This file holds the account-level calls the provisioning makes on existing run (dashboard) users: lookup by email,
+// user details and tag edits. The user type and the listing are the inspection's (inspect.go).
 
 package tagoio
 
@@ -7,18 +7,8 @@ import (
 	"context"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 )
-
-// RunUser is a run (dashboard) user of the account.
-type RunUser struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
-	Active bool   `json:"active"`
-	Tags   []Tag  `json:"tags"`
-}
 
 // HasTag reports whether the user has a tag with exactly that key and value.
 func (u RunUser) HasTag(key, value string) bool {
@@ -30,27 +20,16 @@ func (u RunUser) HasTag(key, value string) bool {
 	return false
 }
 
-// runUserFields are the fields asked for when listing run users (TagoIO answers only id and name by default).
-var runUserFields = []string{"id", "name", "email", "active", "tags"}
-
 // FindUsersByEmail returns the run users whose email is email, ignoring case (TagoIO keeps one user per email, so
-// there is at most one).
+// there is at most one). The email is looked up in lower case, and only exact matches are kept.
 func (c *Client) FindUsersByEmail(ctx context.Context, email string) ([]RunUser, error) {
 	email = strings.TrimSpace(email)
-	query := url.Values{
-		"page":          {"1"},
-		"amount":        {"100"},
-		"filter[email]": {strings.ToLower(email)},
-	}
-	for i, field := range runUserFields {
-		query.Set("fields["+strconv.Itoa(i)+"]", field)
-	}
-	var users []RunUser
-	if err := c.do(ctx, http.MethodGet, "/run/users", query, c.account(), nil, &users); err != nil {
+	users, err := c.ListRunUsers(ctx, UserFilter{Email: strings.ToLower(email)})
+	if err != nil {
 		return nil, err
 	}
 	matched := users[:0]
-	for _, u := range users { // The filter may match loosely: keep the exact email only
+	for _, u := range users {
 		if strings.EqualFold(strings.TrimSpace(u.Email), email) {
 			matched = append(matched, u)
 		}

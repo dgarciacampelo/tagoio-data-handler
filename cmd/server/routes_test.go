@@ -74,6 +74,9 @@ var (
 		{"POST", "/v1/trigger-task/pool-variable-cleanup"},
 		{"POST", "/v1/trigger-task/backup-to-telegram"},
 		{"DELETE", "/v1/trigger-task/single-variable/261001/state"},
+		{"GET", "/api/tagoio/devices"},
+		{"GET", "/api/tagoio/pools/261001"},
+		{"GET", "/api/tagoio/users?group_id=261001"},
 	}
 	adminAPIRoutes = []route{
 		{"GET", "/api/admin/station-link?pool_code=261001&station_name=ST1"},
@@ -87,6 +90,9 @@ var (
 		{"DELETE", "/api/admin/payter-terminals/P6X20222101349"},
 		{"GET", "/api/admin/payments?from=2026-11-01&to=2026-11-05"},
 		{"GET", "/api/admin/sessions/990001/ST1/1/4321/payments"},
+		{"GET", "/api/admin/tagoio/devices"},
+		{"GET", "/api/admin/tagoio/pools/261001"},
+		{"GET", "/api/admin/tagoio/users?group_id=261001"},
 	}
 	adminPages = []route{
 		{"GET", "/emsp-dashboard"},

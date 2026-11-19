@@ -35,7 +35,7 @@ func (discardBucket) Insert(context.Context, int, ...tagoio.DataInput) error { r
 func TestProvisionCPOAnswersAnExistingUserWithoutAPassword(t *testing.T) {
 	app := newTestApp(t)
 	tago := withProvisioning(t, app)
-	tago.AddUser("user-1", "a@b.es", tagoio.Tag{Key: "group_id", Value: "251001"})
+	tago.AddUser(testutil.FakeUser{ID: "user-1", Email: "a@b.es", Active: true, Tags: []tagoio.Tag{{Key: "group_id", Value: "251001"}}})
 
 	body := `{"user_email":"a@b.es","company_name":"ACME","cpo_fiscal_id":"B1","company_address":"C/ 1",
 		"contact_phone":"985","contact_email":"c@b.es","manager_name":"Ana","manager_dni":"1X","iban":"ES00",
@@ -60,7 +60,7 @@ func TestLinkPoolUserAPI(t *testing.T) {
 	app := newTestApp(t)
 	tago := withProvisioning(t, app)
 	tago.AddDevice("dev-5", "MASTER-BUSINESS-261005", "token-5")
-	tago.AddUser("user-1", "a@b.es", tagoio.Tag{Key: "group_id", Value: "261005"})
+	tago.AddUser(testutil.FakeUser{ID: "user-1", Email: "a@b.es", Active: true, Tags: []tagoio.Tag{{Key: "group_id", Value: "261005"}}})
 
 	link := func(pool, body string) *httptest.ResponseRecorder {
 		r := httptest.NewRequest(http.MethodPost, "/api/admin/pools/"+pool+"/users", strings.NewReader(body))

@@ -226,8 +226,9 @@ func TestProvisionCPOLinksTheExistingUserOfTheEmail(t *testing.T) {
 	f := newFixture(t)
 	first := strconv.Itoa(code(1001))
 	f.tago.AddDevice("dev-1", "MASTER-BUSINESS-"+first, "token-1")
-	f.tago.AddUser("user-1", "ana@acme.es", tagoio.Tag{Key: "name", Value: "Ana"}, tagoio.Tag{Key: "group_id", Value: first},
-		tagoio.Tag{Key: "user_type", Value: "MANAGER"})
+	f.tago.AddUser(testutil.FakeUser{ID: "user-1", Email: "ana@acme.es", Active: true, Tags: []tagoio.Tag{
+		{Key: "name", Value: "Ana"}, {Key: "group_id", Value: first}, {Key: "user_type", Value: "MANAGER"},
+	}})
 
 	result, err := f.service.ProvisionCPO(context.Background(), provisionForm(t, "Ana@ACME.es"))
 	if err != nil || !result.DeviceCreated || result.UserCreated || !result.UserExisted || !result.UserLinked ||
@@ -265,7 +266,7 @@ func TestProvisionCPOCreatesTheDeviceWhenTheUserCreationFails(t *testing.T) {
 func TestProvisionCPOGivesNoUserAnUnreservedPoolCode(t *testing.T) {
 	// Without its device the pool code isn't reserved (the next sign-up would get it again): no user is tagged with it.
 	f := newFixture(t)
-	f.tago.AddUser("user-1", "ana@acme.es", tagoio.Tag{Key: "group_id", Value: "251001"})
+	f.tago.AddUser(testutil.FakeUser{ID: "user-1", Email: "ana@acme.es", Active: true, Tags: []tagoio.Tag{{Key: "group_id", Value: "251001"}}})
 	f.tago.Fail("POST /device", true)
 
 	result, err := f.service.ProvisionCPO(context.Background(), provisionForm(t, "ana@acme.es"))
@@ -283,7 +284,7 @@ func TestProvisionCPOGivesNoUserAnUnreservedPoolCode(t *testing.T) {
 
 func TestProvisionCPOReportsAFailedLinkWithoutHidingTheDevice(t *testing.T) {
 	f := newFixture(t)
-	f.tago.AddUser("user-1", "ana@acme.es", tagoio.Tag{Key: "group_id", Value: "251001"})
+	f.tago.AddUser(testutil.FakeUser{ID: "user-1", Email: "ana@acme.es", Active: true, Tags: []tagoio.Tag{{Key: "group_id", Value: "251001"}}})
 	f.tago.Fail("PUT /run/users/{id}", true)
 
 	result, err := f.service.ProvisionCPO(context.Background(), provisionForm(t, "ana@acme.es"))
@@ -306,7 +307,9 @@ func TestProvisionCPOCreatesTheUserWhenTheLookupFails(t *testing.T) {
 func TestLinkPoolCreatesTheMissingDeviceAndAddsTheTagOnce(t *testing.T) {
 	f := newFixture(t)
 	f.tago.AddDevice("dev-5", "MASTER-BUSINESS-261005", "token-5")
-	f.tago.AddUser("user-1", "ana@acme.es", tagoio.Tag{Key: "group_id", Value: "261005"}, tagoio.Tag{Key: "plan", Value: "ADVANCED"})
+	f.tago.AddUser(testutil.FakeUser{ID: "user-1", Email: "ana@acme.es", Active: true, Tags: []tagoio.Tag{
+		{Key: "group_id", Value: "261005"}, {Key: "plan", Value: "ADVANCED"},
+	}})
 
 	result, err := f.service.LinkPool(context.Background(), 261006, "ana@acme.es")
 	if err != nil || !result.DeviceCreated || result.DeviceID == "" || result.UserID != "user-1" || !result.TagAdded ||
@@ -329,7 +332,7 @@ func TestLinkPoolCreatesTheMissingDeviceAndAddsTheTagOnce(t *testing.T) {
 
 func TestLinkPoolTouchesNothingForAnUnknownEmail(t *testing.T) {
 	f := newFixture(t)
-	f.tago.AddUser("user-1", "ana@acme.es")
+	f.tago.AddUser(testutil.FakeUser{ID: "user-1", Email: "ana@acme.es", Active: true})
 
 	if _, err := f.service.LinkPool(context.Background(), 261006, "other@acme.es"); !errors.Is(err, ErrUserNotFound) {
 		t.Fatalf("LinkPool error = %v", err)

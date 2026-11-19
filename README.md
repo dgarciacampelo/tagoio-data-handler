@@ -30,6 +30,7 @@ internal/
   devices                Pool -> TagoIO device and token registry
   pools                  Pool configuration cache (operator, rates, pre-authorization) and CSMS pool setup
   provisioning           CPO sign-up: pool device, and a new TagoIO user or the existing one of the email
+  inspect                Read-only TagoIO inspection: devices, run users, per-pool consistency report
   maintenance, scheduler Bucket data checks, telemetry purge, backups; daily jobs in Europe/Madrid
   store                  SQLite (pure Go driver) with versioned migrations
   telegram               Notices and backups
@@ -53,6 +54,7 @@ frontend/                Svelte 5 pages (Vite, Tailwind CSS 4, Paraglide JS), on
 | `GET /api/payter-terminals` | neos-ocpp | Every Payter terminal, active or not: the Payter CSMS applies the list at startup, since the events sent while it was down are lost. |
 | `POST /api/provision-cpo` | neos-notification-mgmt | CPO sign-up form (snake_case or the Google Form titles). The pool device goes first (it reserves the code); then the email gets a new user, or its existing user gets the pool's `group_id` tag (`user_existed`, `user_linked`, no `generated_password`). Each step's failure is in `device_error` / `user_error`; the pool is ready when `device_created` and `user_created` or `user_linked`. |
 | `POST /v1/trigger-task/pool-variable-cleanup`, `POST /v1/trigger-task/backup-to-telegram`, `DELETE /v1/trigger-task/single-variable/{pool_code}/{variable}` | Operators (curl) | Background jobs answer 202. |
+| `GET /api/tagoio/devices`, `GET /api/tagoio/pools/{pool_code}`, `GET /api/tagoio/users?email=&group_id=` | Operators (`server tagoio`) | Read-only TagoIO inspection, see [TagoIO account](#tagoio-account). Also under `/api/admin/tagoio/…` for the admin session. |
 
 This service also calls the CSMS: the payments page of the eMSP dashboard (`/emsp-dashboard/payments`, API
 `GET /api/admin/payments?from=&to=[&pool_code=]`, Europe/Madrid days) reads `GET /api/payments` from the first CSMS in
@@ -164,6 +166,38 @@ session's export address, `/api/admin/audits/{session_id}/export`, shows it too.
 access to a pool: it ensures the pool's MASTER device (created without configuration when missing) and adds the
 pool's `group_id` tag to the user, keeping its other tags. It answers the user's `group_ids`; calling it again is
 harmless, and an unknown email answers 404 without touching anything.
+
+### TagoIO account
+
+The TagoIO account can be read without its token: the service reads it with its own token and never answers with a
+token or a password. From a shell on the server (one-shot `ssh` included), `server tagoio` asks the running service
+on `127.0.0.1` with the service credentials of the container's environment, and prints the JSON answer:
+
+```bash
+docker exec tagoio-data-handler /app/server tagoio pool 261001
+docker exec tagoio-data-handler /app/server tagoio devices
+docker exec tagoio-data-handler /app/server tagoio users -email user@example.com
+docker exec tagoio-data-handler /app/server tagoio users -group-id 261001
+```
+
+From Windows, through the ssh-agent: `ssh -o BatchMode=yes root@<server> "docker exec tagoio-data-handler /app/server tagoio pool 261001"`.
+
+- `pool <pool_code>` is the most useful view. It lists the pool's devices (named `MASTER-BUSINESS-<pool_code>` or
+  carrying its `group_id` tag), the device the service has registered for it, the stations the service knows, the
+  bucket's record count and the latest record of each configuration variable (`operator_info`, `rate_costs`,
+  `max_installation_power`, `max_grid_power_consumption`, `load_balancing_mode`, `withholding_amount`), and the run
+  users that carry its `group_id` or have the operator email of `operator_info`. Then come `findings`, the
+  inconsistencies in plain words (no device, not registered, missing configuration, nobody sees the pool, the operator
+  email's user in another pool…), and `errors`, the reads that failed (the rest is still filled in).
+- `devices` lists every device of the account (tags, active, dates, last input, whether the service has it
+  registered), and the registered pools whose device is no longer in the account.
+- `users` lists the run users by email (case-insensitive) and/or `group_id` tag: name, email, company, tags, the
+  `group_id` values, active, dates. One filter at least is required.
+
+The inspection only reads: it never writes to TagoIO and never registers a device it finds (the bucket of an
+unregistered device is read with the token TagoIO gives for it, which is not returned). An admin session reaches the
+same answers under `/api/admin/tagoio/…`. Outside the container, `-base-url` points the command at another service,
+e.g. a local one: `go run ./cmd/server tagoio -base-url http://localhost:8000 pool 261001`.
 
 ## History: migration from the Python service
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 )
 
@@ -18,8 +19,13 @@ func TestRunUserCalls(t *testing.T) {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/run/users":
 			// The email is looked up in lower case, and the tags must be asked for (TagoIO lists id and name only)
-			if query.Get("filter[email]") != "ana@acme.es" || query.Get("fields[4]") != "tags" || query.Get("fields[2]") != "email" {
+			if query.Get("filter[email]") != "ana@acme.es" || !slices.Contains(query["fields"], "tags") ||
+				!slices.Contains(query["fields"], "email") {
 				t.Errorf("list query = %s", r.URL.RawQuery)
+			}
+			if query.Get("page") != "1" { // ListRunUsers pages until one brings no new user
+				_, _ = w.Write([]byte(`{"status":true,"result":[]}`))
+				return
 			}
 			_, _ = w.Write([]byte(`{"status":true,"result":[
 				{"id":"u1","name":"Ana","email":"ana@acme.es","active":true,"tags":[{"key":"group_id","value":"261005"}]},
