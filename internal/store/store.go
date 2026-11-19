@@ -58,6 +58,7 @@ var migrations = []func(ctx context.Context, tx *sql.Tx) error{
 	migrateTelemetryChargePoint,
 	migratePayterTerminals,
 	migrateSessionStopMotive,
+	migrateJobRuns,
 }
 
 func (s *Store) migrate(ctx context.Context) error {
