@@ -352,16 +352,85 @@ func TestSimpleAnalyses(t *testing.T) {
 	h := newHarness()
 	h.trigger(t, config.AnalysisChangeAvailability, []tagoio.DataRecord{rec("station", "22HBS0442HBS23")})
 	h.trigger(t, config.AnalysisChangeMaxGridPower, []tagoio.DataRecord{rec("power", json.Number("7400"))})
-	h.trigger(t, config.AnalysisChangeLoadBalancingMode, []tagoio.DataRecord{rec("mode", "Dinámico")})
+	h.trigger(t, config.AnalysisChangeLoadBalancingMode, []tagoio.DataRecord{rec("mode", "Dinámico boost")})
 	h.trigger(t, config.AnalysisChangeAvailability, []tagoio.DataRecord{{Device: "unknown", Value: "X"}}) // Unknown pool: ignored
 
 	assertEvents(t, h.publisher.events,
 		events.ChangeAvailability{Header: events.NewHeader(events.TypeChangeAvailability, testPool), StationName: "22HBS0442HBS23"},
 		events.MaxGridPower{Header: events.NewHeader(events.TypeChangeMaxGridPower, testPool), MaxPowerWatts: 7400},
-		events.LoadBalancing{Header: events.NewHeader(events.TypeChangeLoadBalancingMode, testPool), SelectedMode: "Dinámico"},
+		events.LoadBalancing{Header: events.NewHeader(events.TypeChangeLoadBalancingMode, testPool), SelectedMode: "Dinámico boost"},
 	)
-	if h.configs.config.MaxPower != 7400 || h.configs.config.LoadBalancingMode != "Dinámico" {
+	if h.configs.config.MaxPower != 7400 || h.configs.config.LoadBalancingMode != "Dinámico boost" {
 		t.Errorf("config not updated in place: %+v", h.configs.config)
+	}
+}
+
+func TestChangeLoadBalancingModeStoresTheMode(t *testing.T) {
+	tests := map[string]struct{ mode, wantLabel string }{
+		"dashboard label":            {"Dinámico boost", "Dinámico boost"},
+		"label in another case":      {" estático NORMAL ", "Estático normal"},
+		"CSMS code":                  {"DYNAMICNORMAL", "Dinámico normal"},
+		"none, as the dashboard has": {"Ninguno", "Ninguno"},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			h := newHarness()
+			h.trigger(t, config.AnalysisChangeLoadBalancingMode, []tagoio.DataRecord{rec("mode", tt.mode)})
+
+			assertEvents(t, h.publisher.events, events.LoadBalancing{
+				Header: events.NewHeader(events.TypeChangeLoadBalancingMode, testPool), SelectedMode: tt.mode,
+			})
+			want := []bucketCall{{Op: "replace", Variable: "load_balancing_mode", Group: "", Record: &tagoio.DataInput{
+				Variable: "load_balancing_mode", Value: tt.wantLabel, Group: "1",
+			}}}
+			if !reflect.DeepEqual(h.bucket.calls, want) {
+				t.Errorf("bucket calls = %+v; want %+v", h.bucket.calls, want)
+			}
+			if h.configs.config.LoadBalancingMode != tt.wantLabel {
+				t.Errorf("config mode = %q; want %q", h.configs.config.LoadBalancingMode, tt.wantLabel)
+			}
+			if len(h.bucket.feedback) != 0 {
+				t.Errorf("feedback = %v; the form has no toast", h.bucket.feedback)
+			}
+		})
+	}
+}
+
+func TestChangeLoadBalancingModeFailedWriteStillSendsTheEvent(t *testing.T) {
+	h := newHarness()
+	h.bucket.fail = true
+	h.trigger(t, config.AnalysisChangeLoadBalancingMode, []tagoio.DataRecord{rec("mode", "Dinámico boost")})
+
+	assertEvents(t, h.publisher.events, events.LoadBalancing{
+		Header: events.NewHeader(events.TypeChangeLoadBalancingMode, testPool), SelectedMode: "Dinámico boost",
+	})
+	if len(h.bucket.calls) != 1 || h.bucket.calls[0].Op != "replace" {
+		t.Errorf("bucket calls = %+v; want one replace attempt", h.bucket.calls)
+	}
+	if h.configs.config.LoadBalancingMode != "Dinámico boost" {
+		t.Errorf("config mode = %q; the cache must follow the CSMS even if TagoIO fails", h.configs.config.LoadBalancingMode)
+	}
+	if len(h.bucket.feedback) != 0 {
+		t.Errorf("feedback = %v; the form has no toast", h.bucket.feedback)
+	}
+}
+
+func TestChangeLoadBalancingModeUnknownIsNotStored(t *testing.T) {
+	for _, mode := range []string{"", "  ", "Dinámico", "turbo"} {
+		t.Run(mode, func(t *testing.T) {
+			h := newHarness()
+			h.trigger(t, config.AnalysisChangeLoadBalancingMode, []tagoio.DataRecord{rec("mode", mode)})
+
+			assertEvents(t, h.publisher.events, events.LoadBalancing{
+				Header: events.NewHeader(events.TypeChangeLoadBalancingMode, testPool), SelectedMode: mode,
+			})
+			if len(h.bucket.calls) != 0 {
+				t.Errorf("bucket calls = %+v; an unknown mode must not be stored", h.bucket.calls)
+			}
+			if h.configs.config.LoadBalancingMode != pools.Defaults().LoadBalancingMode {
+				t.Errorf("config mode = %q; an unknown mode must not be cached", h.configs.config.LoadBalancingMode)
+			}
+		})
 	}
 }
 
