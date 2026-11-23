@@ -36,6 +36,24 @@ func (app *application) routes() http.Handler {
 	mux.HandleFunc("POST /api/stop-request", h.StopRequest)
 	// endregion
 
+	// region CPO management panel (embedded in the TagoIO dashboards): its own session, see handlers/panel.go
+	mux.HandleFunc("GET /panel", h.PanelPage)
+	mux.HandleFunc("POST /api/panel/session", h.PanelSessionAPI)
+	mux.HandleFunc("GET /api/panel/{device_id}/overview", h.PanelOverviewAPI)
+	mux.HandleFunc("GET /api/panel/{device_id}/stream", h.PanelStreamAPI)
+	mux.HandleFunc("GET /api/panel/{device_id}/history", h.PanelHistoryAPI)
+	mux.HandleFunc("GET /api/panel/{device_id}/history.csv", h.PanelHistoryCSVAPI)
+	mux.HandleFunc("GET /api/panel/{device_id}/cards", h.PanelCardsAPI)
+	mux.HandleFunc("POST /api/panel/{device_id}/cards", h.PanelCreateCardAPI)
+	mux.HandleFunc("PUT /api/panel/{device_id}/cards/{card_id}", h.PanelUpdateCardAPI)
+	mux.HandleFunc("DELETE /api/panel/{device_id}/cards/{card_id}", h.PanelDeleteCardAPI)
+	mux.HandleFunc("PUT /api/panel/{device_id}/rates", h.PanelRatesAPI)
+	mux.HandleFunc("PUT /api/panel/{device_id}/max-power", h.PanelMaxPowerAPI)
+	mux.HandleFunc("PUT /api/panel/{device_id}/load-balancing-mode", h.PanelModeAPI)
+	mux.HandleFunc("PUT /api/panel/{device_id}/cpo", h.PanelCPOAPI)
+	mux.HandleFunc("POST /api/panel/{device_id}/stations/{station}/reset", h.PanelResetAPI)
+	// endregion
+
 	// region Admin pages and APIs
 	mux.HandleFunc("GET /login", h.LoginPage)
 	mux.HandleFunc("POST /api/login", h.LoginAPI)

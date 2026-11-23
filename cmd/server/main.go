@@ -29,6 +29,8 @@ import (
 	"github.com/dgarciacampelo/tagoio-handler/internal/handlers"
 	"github.com/dgarciacampelo/tagoio-handler/internal/inspect"
 	"github.com/dgarciacampelo/tagoio-handler/internal/maintenance"
+	"github.com/dgarciacampelo/tagoio-handler/internal/panelauth"
+	"github.com/dgarciacampelo/tagoio-handler/internal/poolactions"
 	"github.com/dgarciacampelo/tagoio-handler/internal/pools"
 	"github.com/dgarciacampelo/tagoio-handler/internal/provisioning"
 	"github.com/dgarciacampelo/tagoio-handler/internal/scheduler"
@@ -191,6 +193,9 @@ func run(logger *slog.Logger) error {
 			Log: logger, Config: cfg, Store: db, Broker: broker, ChargePoints: stations, Pools: poolConfigs,
 			Devices: registry, Bucket: buckets, Provisioning: provisioner, Maintenance: upkeep, UI: ui, Jobs: ctx,
 			CSMS: csms.New(cfg.CSMSURLs, cfg.ServiceAPI, nil), Inspect: inspect.New(tago, registry, stations, logger),
+			Actions:   poolactions.New(buckets, poolConfigs, broker, logger),
+			PanelAuth: panelauth.New(tago, cfg.TagoRunURL, cfg.CookieSecret, logger),
+			PanelData: buckets,
 		}),
 	}
 

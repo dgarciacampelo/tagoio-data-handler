@@ -39,12 +39,13 @@ frontend/src/lib/contract.gen.ts (tygo). Field names are snake_case.
 export const ErrorCodeInvalidRequest = "invalid_request";
 export const ErrorCodeInvalidCredentials = "invalid_credentials";
 export const ErrorCodeUnauthenticated = "unauthenticated";
+export const ErrorCodeForbidden = "forbidden";
 export const ErrorCodeNotFound = "not_found";
 export const ErrorCodeConflict = "conflict";
 export const ErrorCodeRateLimited = "rate_limited";
 export const ErrorCodeServiceUnavailable = "service_unavailable";
 export const ErrorCodeInternalError = "internal_error";
-export type ErrorCode = typeof ErrorCodeInvalidRequest | typeof ErrorCodeInvalidCredentials | typeof ErrorCodeUnauthenticated | typeof ErrorCodeNotFound | typeof ErrorCodeConflict | typeof ErrorCodeRateLimited | typeof ErrorCodeServiceUnavailable | typeof ErrorCodeInternalError;
+export type ErrorCode = typeof ErrorCodeInvalidRequest | typeof ErrorCodeInvalidCredentials | typeof ErrorCodeUnauthenticated | typeof ErrorCodeForbidden | typeof ErrorCodeNotFound | typeof ErrorCodeConflict | typeof ErrorCodeRateLimited | typeof ErrorCodeServiceUnavailable | typeof ErrorCodeInternalError;
 /**
  * APIError is the body of every JSON error answer.
  */
@@ -163,6 +164,208 @@ export interface AuditCardAliasResult {
   pool_code: number /* int */;
   card_alias: string;
   tagoio_records: number /* int */; // History records changed in TagoIO (0: none stored, e.g. a free session)
+}
+
+//////////
+// source: panel.go
+
+/**
+ * PanelSessionRequest starts a panel session: the TagoIO token of the person who has the dashboard open, and the
+ * pool's device as the dashboard selected it.
+ */
+export interface PanelSessionRequest {
+  token: string;
+  device_id: string;
+}
+/**
+ * PanelUserKind is who opened the panel.
+ */
+export const PanelUserKindRunUser = "run_user"; // A CPO in TagoIO Run: the pools of its group_id tags
+export const PanelUserKindAdmin = "admin"; // The TagoIO account itself: every pool
+export type PanelUserKind = typeof PanelUserKindRunUser | typeof PanelUserKindAdmin;
+/**
+ * PanelSession is a started panel session: sent as "Authorization: Bearer <session>" on every panel call.
+ */
+export interface PanelSession {
+  session: string;
+  expires_at: string; // RFC 3339
+  pool_code: number /* int */;
+  user_kind: PanelUserKind;
+}
+/**
+ * PanelOverview is the configuration of a pool, read when the panel opens and after each change.
+ */
+export interface PanelOverview {
+  pool_code: number /* int */;
+  installation_name: string;
+  cpo: PanelCPO;
+  rates: PanelRates;
+  max_power_w: number /* float64 */;
+  load_balancing_mode: string; // Label, e.g. "Dinámico normal"
+  balancing_modes: string[]; // Every label, in order
+  stations: string[]; // Station names, sorted
+  bands: PanelTariffPeriod[]; // Weekday tariff periods (weekends and holidays: off-peak)
+}
+/**
+ * PanelCPO are the operator details.
+ */
+export interface PanelCPO {
+  name: string;
+  fiscal_id: string;
+  address: string;
+  phone: string;
+  email: string;
+  web: string;
+}
+/**
+ * PanelRates are the energy rates (€/kWh, VAT included), the VAT and the virtual POS pre-authorization (€).
+ */
+export interface PanelRates {
+  off_peak: number /* float64 */;
+  flat: number /* float64 */;
+  peak: number /* float64 */;
+  vat_percent: number /* float64 */;
+  withholding: number /* float64 */;
+}
+/**
+ * PanelTariffPeriod is a weekday period of a tariff band, in whole hours [from, to).
+ */
+export interface PanelTariffPeriod {
+  band: TariffBand;
+  from_hour: number /* int */;
+  to_hour: number /* int */;
+}
+/**
+ * PanelConnection is the connection state of a station.
+ */
+export const PanelConnectionOnline = "Online";
+export const PanelConnectionBooting = "Booting";
+export const PanelConnectionOffline = "Offline";
+export type PanelConnection = typeof PanelConnectionOnline | typeof PanelConnectionBooting | typeof PanelConnectionOffline;
+/**
+ * PanelLive is the live state of a pool, sent by the panel stream at start and on every change.
+ */
+export interface PanelLive {
+  generated_at: string; // RFC 3339
+  stations: PanelStation[];
+  sessions: PanelLiveSession[];
+  total_power_w: number /* int64 */;
+}
+/**
+ * PanelStation is a station with its connectors.
+ */
+export interface PanelStation {
+  name: string;
+  connection: PanelConnection;
+  connection_since: string | null; // RFC 3339; null when unknown
+  connectors: PanelConnector[];
+}
+/**
+ * PanelConnector is a connector of a station.
+ */
+export interface PanelConnector {
+  id: number /* int */;
+  status: ConnectorStatus;
+  since: string | null; // RFC 3339; null when unknown
+}
+/**
+ * PanelLiveSession is a charging session in progress.
+ */
+export interface PanelLiveSession {
+  station_name: string;
+  connector_id: number /* int */;
+  transaction_id: number /* int64 */;
+  card_alias: string;
+  start_date: string; // DD/MM/YYYY
+  start_time: string; // HH:MM
+  duration: string; // As the CSMS formats it
+  power_w: number /* int64 */;
+  energy_kwh: number /* float64 */;
+  cost: number /* float64 */; // € so far
+  current_band: TariffBand;
+  energy_bands_wh: number /* int64 */[]; // Off-peak, flat, peak
+  last_meter_at: string; // ISO 8601, as the CSMS sent it
+}
+/**
+ * PanelHistorySort is the column the history is sorted by.
+ */
+export const PanelHistorySortDate = "date";
+export const PanelHistorySortStation = "station";
+export const PanelHistorySortCard = "card";
+export const PanelHistorySortMinutes = "minutes";
+export const PanelHistorySortEnergy = "energy";
+export const PanelHistorySortCost = "cost";
+export type PanelHistorySort = typeof PanelHistorySortDate | typeof PanelHistorySortStation | typeof PanelHistorySortCard | typeof PanelHistorySortMinutes | typeof PanelHistorySortEnergy | typeof PanelHistorySortCost;
+/**
+ * PanelHistoryPage is a page of the finished sessions, with the totals of every session the filter selects.
+ */
+export interface PanelHistoryPage {
+  items: PanelHistoryItem[];
+  total: number /* int */; // Sessions the filter selects
+  page: number /* int */; // From 1
+  page_size: number /* int */;
+  totals: PanelHistoryTotals;
+}
+/**
+ * PanelHistoryItem is a finished session.
+ */
+export interface PanelHistoryItem {
+  transaction_id: number /* int64 */;
+  started_at: string; // Local date and time, "2006-01-02T15:04"
+  time_band: string; // "HH:MM - HH:MM"
+  station: string; // "<station> [<connector>]"
+  card: string;
+  minutes: number /* int */;
+  energy_kwh: number /* float64 */;
+  cost: number /* float64 */;
+  stop_motive: string;
+}
+/**
+ * PanelHistoryTotals add up the sessions the filter selects.
+ */
+export interface PanelHistoryTotals {
+  sessions: number /* int */;
+  minutes: number /* int */;
+  energy_kwh: number /* float64 */;
+  cost: number /* float64 */;
+}
+/**
+ * PanelCard is an RFID card of the pool.
+ */
+export interface PanelCard {
+  id: string;
+  alias: string;
+  email: string;
+  linked_stations: string[];
+  spent_30_days: number /* float64 */; // € of its sessions in the last 30 days
+}
+/**
+ * PanelCardRequest creates or changes a card.
+ */
+export interface PanelCardRequest {
+  id: string;
+  alias: string;
+  email: string;
+  linked_stations: string[];
+}
+/**
+ * PanelMaxPowerRequest changes the installation power.
+ */
+export interface PanelMaxPowerRequest {
+  max_power_w: number /* float64 */;
+}
+/**
+ * PanelModeRequest changes the load balancing mode.
+ */
+export interface PanelModeRequest {
+  mode: string;
+}
+/**
+ * PanelResetResult is a reset sent to a station.
+ */
+export interface PanelResetResult {
+  station_name: string;
+  sent_at: string; // RFC 3339
 }
 
 //////////

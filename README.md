@@ -167,6 +167,27 @@ access to a pool: it ensures the pool's MASTER device (created without configura
 pool's `group_id` tag to the user, keeping its other tags. It answers the user's `group_ids`; calling it again is
 harmless, and an unknown email answers 404 without touching anything.
 
+### CPO management panel
+
+`GET /panel` is the management panel of a pool, shown inside the CPO dashboard of TagoIO: each tab of the
+dashboard has one Custom Widget (type iframe) whose URL is `https://<this service>/panel#general`, `#tarifas`,
+`#cpo` or `#en-curso`. Without a hash the page shows its own tabs. The widget's data source must include a variable
+of the blueprint device that always has a value (e.g. `load_balancing_mode`): TagoIO only reveals the selected
+installation's device ID in the records it sends. Only this page drops `X-Frame-Options` and allows framing by
+`*.tago.io` and `*.tago.run` (`Content-Security-Policy: frame-ancestors`).
+
+Who may manage a pool is decided like the TagoIO access policy "Business manager": the page sends the TagoIO token
+TagoIO gives the widget to `POST /api/panel/session` with the device ID. The service asks TagoIO whose token it is
+(`GET /run/<TAGO_RUN_URL>/info` for a run user, `GET /account` for the account itself), reads the run user's
+`group_id` tags with its own token, and only starts a session for a pool among them; the account itself manages
+every pool. The session is signed with `DASHBOARD_SECRET_TOKEN`, lasts an hour and is bound to the pool; the TagoIO
+token is neither stored nor logged. Every other panel API (`/api/panel/{device_id}/…`: overview, live stream,
+history and its CSV, RFID cards, rates, installation power, load balancing mode, operator details, station reset)
+needs `Authorization: Bearer <session>`. The changes go through the same actions as the TagoIO analyses
+(`internal/poolactions`), so the CSMS gets the same events. The history is read from the bucket
+(`charging_session_data`), which goes back further than this service's database. `TAGO_RUN_URL` defaults to
+`neos.tago.run`.
+
 ### TagoIO account
 
 The TagoIO account can be read without its token: the service reads it with its own token and never answers with a

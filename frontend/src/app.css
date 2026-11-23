@@ -51,6 +51,10 @@
 	--color-on-band-flat: #e65100;
 	--color-band-peak: #ffebee;
 	--color-on-band-peak: #b71c1c;
+	/* Tariff bands of the management panel (chart bars and the hours diagram) */
+	--color-band-off-peak-strong: #2f9e6a;
+	--color-band-flat-strong: #e0a224;
+	--color-band-peak-strong: #d4513f;
 	/* endregion */
 
 	/* region Spacing

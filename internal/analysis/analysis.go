@@ -10,6 +10,7 @@ import (
 
 	"github.com/dgarciacampelo/tagoio-handler/internal/config"
 	"github.com/dgarciacampelo/tagoio-handler/internal/events"
+	"github.com/dgarciacampelo/tagoio-handler/internal/poolactions"
 	"github.com/dgarciacampelo/tagoio-handler/internal/pools"
 	"github.com/dgarciacampelo/tagoio-handler/internal/tagoio"
 	"github.com/dgarciacampelo/tagoio-handler/internal/tagoio/realtime"
@@ -42,7 +43,7 @@ type Publisher interface {
 type Service struct {
 	pools     PoolResolver
 	bucket    Bucket
-	configs   PoolConfigs
+	actions   *poolactions.Service // The changes to a pool, shared with the embedded management panel
 	publisher Publisher
 	log       *slog.Logger
 	logScopes bool // Log the full scope of every trigger (dry run: to capture the payloads)
@@ -50,7 +51,10 @@ type Service struct {
 
 // New creates the analysis service.
 func New(resolver PoolResolver, bucket Bucket, configs PoolConfigs, publisher Publisher, log *slog.Logger, logScopes bool) *Service {
-	return &Service{pools: resolver, bucket: bucket, configs: configs, publisher: publisher, log: log, logScopes: logScopes}
+	return &Service{
+		pools: resolver, bucket: bucket, actions: poolactions.New(bucket, configs, publisher, log),
+		publisher: publisher, log: log, logScopes: logScopes,
+	}
 }
 
 // handlerFunc handles the scope of one trigger.

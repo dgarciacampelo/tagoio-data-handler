@@ -6,11 +6,12 @@ package analysis
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/dgarciacampelo/tagoio-handler/internal/events"
+	"github.com/dgarciacampelo/tagoio-handler/internal/poolactions"
 	"github.com/dgarciacampelo/tagoio-handler/internal/pools"
 	"github.com/dgarciacampelo/tagoio-handler/internal/tagoio"
 )
@@ -56,11 +57,8 @@ func (s *Service) changeMaxGridPower(ctx context.Context, sc scope) {
 		s.log.Error("Analysis: invalid max grid power", "pool_code", poolCode, "error", err)
 		return
 	}
-	s.publisher.Publish(events.MaxGridPower{
-		Header:        events.NewHeader(events.TypeChangeMaxGridPower, poolCode),
-		MaxPowerWatts: watts,
-	})
-	s.configs.Update(poolCode, func(c *pools.Config) { c.MaxPower = watts })
+	// The dashboard form stores the value itself
+	_ = s.actions.SetMaxPower(ctx, poolCode, watts, false)
 }
 
 // endregion
@@ -91,37 +89,20 @@ func (s *Service) manageRFID(ctx context.Context, sc scope) {
 		s.bucket.Feedback(poolCode, feedbackRFID, false)
 		return
 	}
-	cardID, group := strings.ToLower(card), strings.ToUpper(card)
-
 	switch {
 	case len(sc.records) == 1:
 		var linkedCPs []string
 		if r := sc.record(fieldCardID); r != nil {
 			linkedCPs = pools.SplitList(tagoio.ValueString(r.Metadata["cps"]))
 		}
-		s.publisher.Publish(events.RFIDManagement{
-			Header: events.NewHeader(events.TypeManageRFID, poolCode),
-			CardID: cardID, Action: events.RFIDDelete, LinkedCPs: nonNil(linkedCPs),
-		})
-		_, err := s.bucket.Delete(ctx, poolCode, "card_id", group, 0)
+		err := s.actions.DeleteCard(ctx, poolCode, card, linkedCPs)
 		s.report(poolCode, feedbackRFID, "deleting RFID card", err)
 
 	case sc.str(fieldCardOp) == "create":
-		alias := strings.ToUpper(strings.TrimSpace(sc.str(fieldCardAlias)))
-		if alias == "" {
-			alias = group
-		}
-		email := strings.TrimSpace(sc.str(fieldCardEmail))
-		rawCPs := sc.str(fieldCardCPs)
-
-		s.publisher.Publish(events.RFIDManagement{
-			Header: events.NewHeader(events.TypeManageRFID, poolCode),
-			CardID: cardID, Action: events.RFIDCreate, LinkedCPs: pools.SplitList(rawCPs),
-			Alias: &alias, Email: optional(email),
+		err := s.actions.SaveCard(ctx, poolCode, poolactions.Card{
+			ID: card, Alias: sc.str(fieldCardAlias), Email: sc.str(fieldCardEmail),
+			LinkedCPs: pools.SplitList(sc.str(fieldCardCPs)),
 		})
-		record := tagoio.DataInput{Variable: "card_id", Value: cardID, Group: group,
-			Metadata: map[string]any{"alias": alias, "email": email, "cps": rawCPs}}
-		err := s.bucket.Replace(ctx, poolCode, "card_id", group, record)
 		s.report(poolCode, feedbackRFID, "storing RFID card", err)
 
 	default:
@@ -149,30 +130,11 @@ func (s *Service) changeCPOInfo(ctx context.Context, sc scope) {
 	if !ok {
 		return
 	}
-	event := events.CPOInfo{
-		Header:   events.NewHeader(events.TypeChangeCPOInfo, poolCode),
-		Name:     strings.TrimSpace(sc.str(fieldCPOName)),
-		FiscalID: cleanFiscalID(sc.str(fieldCPOFiscalID)),
-		Address:  strings.TrimSpace(sc.str(fieldCPOAddress)),
-		Phone:    strings.TrimSpace(sc.str(fieldCPOPhone)),
-		Email:    strings.TrimSpace(sc.str(fieldCPOEmail)),
-		Web:      strings.TrimSpace(sc.str(fieldCPOWeb)),
-	}
-	s.publisher.Publish(event)
-	s.configs.Update(poolCode, func(c *pools.Config) {
-		c.CPOName, c.CPOFiscalID, c.CPOAddress = event.Name, event.FiscalID, event.Address
-		c.CPOPhone, c.CPOEmail, c.CPOWeb = event.Phone, event.Email, event.Web
-	})
-}
-
-// cleanFiscalID removes the spaces and dots of a tax ID ("B-74.454 166" -> "B-74454166").
-func cleanFiscalID(id string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsSpace(r) || r == '.' {
-			return -1
-		}
-		return r
-	}, id)
+	// Not stored in the bucket: the dashboard form keeps its own values
+	_, _ = s.actions.SetCPOInfo(ctx, poolCode, poolactions.CPOInfo{
+		Name: sc.str(fieldCPOName), FiscalID: sc.str(fieldCPOFiscalID), Address: sc.str(fieldCPOAddress),
+		Phone: sc.str(fieldCPOPhone), Email: sc.str(fieldCPOEmail), Web: sc.str(fieldCPOWeb),
+	}, false)
 }
 
 // endregion
@@ -207,29 +169,12 @@ func (s *Service) changeRateList(ctx context.Context, sc scope) {
 		}
 		rates[i] = value
 	}
-	offPeak, flat, peak, vat := rates[0], rates[1], rates[2], rates[3]
 	withholding, err := tagoio.ValueFloat(sc.value(fieldWithholding))
 	if err != nil {
 		withholding = defaultWithholding
 	}
-	vatFraction := pools.VATFraction(vat)
-
-	s.publisher.Publish(events.RateList{
-		Header:      events.NewHeader(events.TypeChangeRateList, poolCode),
-		RateOffPeak: offPeak, RateFlat: flat, RatePeak: peak,
-		VAT: pools.VATPercentage(vat), WithholdingAmount: withholding,
-	})
-
-	ratesRecord := tagoio.DataInput{Variable: "rate_costs", Value: "0", Group: "1",
-		Metadata: map[string]any{"valle": offPeak, "llanas": flat, "punta": peak, "IVA": vatFraction}}
-	withholdingRecord := tagoio.DataInput{Variable: "withholding_amount", Value: withholding, Group: "1"}
-	err = s.bucket.Replace(ctx, poolCode, "rate_costs", "", ratesRecord)
-	if err == nil {
-		err = s.bucket.Replace(ctx, poolCode, "withholding_amount", "", withholdingRecord)
-	}
-
-	s.configs.Update(poolCode, func(c *pools.Config) {
-		c.RateOffPeak, c.RateFlat, c.RatePeak, c.VAT, c.PreauthAmount = offPeak, flat, peak, vatFraction, withholding
+	err = s.actions.SetRates(ctx, poolCode, poolactions.Rates{
+		OffPeak: rates[0], Flat: rates[1], Peak: rates[2], VAT: rates[3], Withholding: withholding,
 	})
 	s.report(poolCode, feedbackRate, "storing rates", err)
 }
@@ -239,26 +184,6 @@ func (s *Service) changeRateList(ctx context.Context, sc scope) {
 // region Load balancing
 
 var fieldBalancingMode = field{position: 0}
-
-// balancingModes maps the codes of the CSMS load balancing modes to the labels the dashboard shows and stores.
-var balancingModes = []struct{ code, label string }{
-	{"NONE", "Ninguno"},
-	{"STATICNORMAL", "Estático normal"},
-	{"DYNAMICNORMAL", "Dinámico normal"},
-	{"DYNAMICBOOST", "Dinámico boost"},
-}
-
-// balancingModeLabel returns the dashboard label of a load balancing mode given by its label or its code, in any
-// case, as the CSMS reads it; false for an empty or unknown mode.
-func balancingModeLabel(mode string) (string, bool) {
-	mode = strings.TrimSpace(mode)
-	for _, m := range balancingModes {
-		if strings.EqualFold(mode, m.code) || strings.EqualFold(mode, m.label) {
-			return m.label, true
-		}
-	}
-	return "", false
-}
 
 // changeLoadBalancingMode selects the load balancing mode: the CSMS gets the event first, then the
 // load_balancing_mode record of the pool's bucket is replaced, since the dashboard input doesn't store it, and the
@@ -270,19 +195,11 @@ func (s *Service) changeLoadBalancingMode(ctx context.Context, sc scope) {
 		return
 	}
 	mode := sc.str(fieldBalancingMode)
-	s.publisher.Publish(events.LoadBalancing{
-		Header:       events.NewHeader(events.TypeChangeLoadBalancingMode, poolCode),
-		SelectedMode: mode,
-	})
-
-	label, known := balancingModeLabel(mode)
-	if !known {
+	label, err := s.actions.SetLoadBalancingMode(ctx, poolCode, mode)
+	switch {
+	case errors.Is(err, poolactions.ErrUnknownMode):
 		s.log.Warn("Analysis: unknown load balancing mode not stored", "pool_code", poolCode, "mode", mode)
-		return
-	}
-	s.configs.Update(poolCode, func(c *pools.Config) { c.LoadBalancingMode = label })
-	record := tagoio.DataInput{Variable: "load_balancing_mode", Value: label, Group: "1"}
-	if err := s.bucket.Replace(ctx, poolCode, "load_balancing_mode", "", record); err != nil {
+	case err != nil:
 		s.log.Error("Analysis: storing load balancing mode failed", "pool_code", poolCode, "mode", label, "error", err)
 	}
 }
@@ -489,19 +406,4 @@ func (s *Service) report(poolCode int, feedbackVariable, action string, err erro
 		s.log.Error("Analysis: "+action+" failed", "pool_code", poolCode, "error", err)
 	}
 	s.bucket.Feedback(poolCode, feedbackVariable, err == nil)
-}
-
-// optional returns nil for an empty string, so the event carries null.
-func optional(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
-}
-
-func nonNil(items []string) []string {
-	if items == nil {
-		return []string{}
-	}
-	return items
 }
