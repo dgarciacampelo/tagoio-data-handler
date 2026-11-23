@@ -12,6 +12,7 @@ const (
 	ErrorCodeInvalidRequest     ErrorCode = "invalid_request"
 	ErrorCodeInvalidCredentials ErrorCode = "invalid_credentials"
 	ErrorCodeUnauthenticated    ErrorCode = "unauthenticated"
+	ErrorCodeForbidden          ErrorCode = "forbidden"
 	ErrorCodeNotFound           ErrorCode = "not_found"
 	ErrorCodeConflict           ErrorCode = "conflict"
 	ErrorCodeRateLimited        ErrorCode = "rate_limited"
@@ -23,7 +24,7 @@ const (
 //
 //tygo:ignore
 var ErrorCodes = []ErrorCode{
-	ErrorCodeInvalidRequest, ErrorCodeInvalidCredentials, ErrorCodeUnauthenticated, ErrorCodeNotFound,
+	ErrorCodeInvalidRequest, ErrorCodeInvalidCredentials, ErrorCodeUnauthenticated, ErrorCodeForbidden, ErrorCodeNotFound,
 	ErrorCodeConflict, ErrorCodeRateLimited, ErrorCodeServiceUnavailable, ErrorCodeInternalError,
 }
 

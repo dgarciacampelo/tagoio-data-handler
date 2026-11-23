@@ -17,6 +17,8 @@ import (
 	"github.com/dgarciacampelo/tagoio-handler/internal/events"
 	"github.com/dgarciacampelo/tagoio-handler/internal/inspect"
 	"github.com/dgarciacampelo/tagoio-handler/internal/maintenance"
+	"github.com/dgarciacampelo/tagoio-handler/internal/panelauth"
+	"github.com/dgarciacampelo/tagoio-handler/internal/poolactions"
 	"github.com/dgarciacampelo/tagoio-handler/internal/pools"
 	"github.com/dgarciacampelo/tagoio-handler/internal/provisioning"
 	"github.com/dgarciacampelo/tagoio-handler/internal/store"
@@ -39,6 +41,11 @@ type Deps struct {
 	Inspect      *inspect.Service
 	UI           *webui.Renderer
 
+	// The embedded management panel of the CPOs
+	Actions   *poolactions.Service // Changes to a pool, shared with the TagoIO analyses
+	PanelAuth *panelauth.Service   // Who may manage which pool, and the panel sessions
+	PanelData PanelData            // The pools' buckets (the bucket service)
+
 	// Jobs is the context of the background jobs the handlers start; it ends at shutdown.
 	Jobs context.Context
 }
@@ -52,6 +59,10 @@ type App struct {
 	chargeLimit *windowLimiter
 	pollLimit   *windowLimiter
 	snapshotMu  sync.Mutex // Held while a database snapshot is made and sent: one at a time
+
+	panelSessionLimit *windowLimiter
+	history           historyCache // Parsed session history of each pool, for the panel
+	resets            resetGuard   // Last reset of each station from the panel
 }
 
 // New creates the handlers.
@@ -62,5 +73,9 @@ func New(deps Deps) *App {
 		loginLimit:  newWindowLimiter(10, 15*time.Minute),
 		chargeLimit: newWindowLimiter(10, time.Minute),
 		pollLimit:   newWindowLimiter(120, time.Minute), // A page polls every 5 s: 12 per minute and connector
+
+		panelSessionLimit: newWindowLimiter(30, time.Minute),
+		history:           historyCache{entries: map[int]cachedHistory{}},
+		resets:            resetGuard{last: map[string]time.Time{}},
 	}
 }

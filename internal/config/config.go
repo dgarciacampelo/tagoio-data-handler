@@ -81,6 +81,7 @@ type Config struct {
 	TagoSSEURL       string              // TagoIO realtime SSE endpoint
 	TagoAccountToken string              // Account-Token header for account-level calls
 	TagoDevicePrefix string              // Device name prefix of the charging pools, e.g. MASTER-
+	TagoRunURL       string              // TagoIO Run of the dashboards (TAGO_RUN_URL), whose users open the management panel
 	AnalysisTokens   map[Analysis]string // Analysis tokens, one realtime connection each
 
 	TelegramBotToken      string
@@ -132,6 +133,7 @@ func Load() (*Config, error) {
 		TagoSSEURL:       cmp.Or(os.Getenv("TAGO_SSE_URL"), "https://sse.tago.io/events"),
 		TagoAccountToken: r.required("TAGO_ACCOUNT_TOKEN"),
 		TagoDevicePrefix: r.required("TAGO_DEVICE_PREFIX"),
+		TagoRunURL:       cmp.Or(os.Getenv("TAGO_RUN_URL"), "neos.tago.run"),
 		AnalysisTokens:   make(map[Analysis]string, len(analysisTokenVars)),
 
 		TelegramBotToken:      r.required("TELEGRAM_BOT_TOKEN"),

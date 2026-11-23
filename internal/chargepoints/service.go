@@ -39,6 +39,7 @@ type stationKey struct {
 // connector is the live state of a connector.
 type connector struct {
 	status         Status
+	since          time.Time // When the status last changed (zero: before the last restart)
 	quarantined    bool
 	quarantineEnd  time.Time
 	lastUpdate     time.Time
@@ -58,22 +59,32 @@ type Service struct {
 	log    *slog.Logger
 	now    func() time.Time
 
-	mu         sync.RWMutex
-	connectors map[ConnectorKey]*connector
-	sessions   map[ConnectorKey]SessionUpdate // Sessions in progress
-	translated map[stationKey]map[int]string  // Dashboard status text of each connector of a station
+	mu          sync.RWMutex
+	connectors  map[ConnectorKey]*connector
+	sessions    map[ConnectorKey]SessionUpdate // Sessions in progress
+	translated  map[stationKey]map[int]string  // Dashboard status text of each connector of a station
+	connections map[stationKey]connection      // Connection state of each station, as last reported
+	versions    map[int]uint64                 // Per pool, bumped on every change (the management panel's stream)
 
 	pushes chan push
+}
+
+// connection is the connection state of a station and since when.
+type connection struct {
+	state string // ConnectionOnline, ConnectionBooting or ConnectionOffline
+	since time.Time
 }
 
 // New creates the service; call Load, then Run.
 func New(s *store.Store, b Bucket, log *slog.Logger) *Service {
 	return &Service{
 		store: s, bucket: b, log: log, now: time.Now,
-		connectors: map[ConnectorKey]*connector{},
-		sessions:   map[ConnectorKey]SessionUpdate{},
-		translated: map[stationKey]map[int]string{},
-		pushes:     make(chan push, pushQueueSize),
+		connectors:  map[ConnectorKey]*connector{},
+		sessions:    map[ConnectorKey]SessionUpdate{},
+		translated:  map[stationKey]map[int]string{},
+		connections: map[stationKey]connection{},
+		versions:    map[int]uint64{},
+		pushes:      make(chan push, pushQueueSize),
 	}
 }
 
@@ -93,6 +104,8 @@ func (s *Service) Load(ctx context.Context) error {
 		key := ConnectorKey{PoolCode: row.PoolCode, StationName: row.StationName, ConnectorID: row.ConnectorID}
 		s.connectors[key] = &connector{status: status}
 		s.translatedOf(key)[key.ConnectorID] = translateStatus(string(status), ConnectionOnline)
+		// As the dashboards show them after a restart: online until the station reports again
+		s.connections[stationKey{key.PoolCode, key.StationName}] = connection{state: ConnectionOnline}
 	}
 	s.log.Info("Charge points: statuses restored", "connectors", len(statuses))
 	return nil
@@ -184,8 +197,18 @@ func (s *Service) UpdateStatus(ctx context.Context, u StatusUpdate) (ConnectorSt
 	if c.quarantined && !newQuarantine {
 		c.omittedUpdates++
 	}
+	if c.status != status || c.lastUpdate.IsZero() {
+		c.since = s.now()
+	}
 	c.status = status
 	c.lastUpdate = s.now()
+	if u.ConnectionStatus != "" {
+		sk := stationKey{key.PoolCode, key.StationName}
+		if conn := s.connections[sk]; conn.state != u.ConnectionStatus {
+			s.connections[sk] = connection{state: u.ConnectionStatus, since: s.now()}
+		}
+	}
+	s.versions[key.PoolCode]++
 
 	// The quarantine holds back the dashboard writes, except the one that starts it (it shows the fault).
 	if !c.quarantined || newQuarantine {
@@ -287,6 +310,7 @@ func (s *Service) UpdateSession(ctx context.Context, u SessionUpdate) error {
 	if u.Ended() {
 		s.mu.Lock()
 		delete(s.sessions, key)
+		s.versions[key.PoolCode]++
 		s.mu.Unlock()
 
 		inserted, err := s.store.InsertSession(ctx, sessionRecord(u))
@@ -303,6 +327,7 @@ func (s *Service) UpdateSession(ctx context.Context, u SessionUpdate) error {
 		}
 		s.mu.Lock()
 		s.sessions[key] = u
+		s.versions[key.PoolCode]++
 		s.mu.Unlock()
 	}
 
@@ -344,6 +369,7 @@ func (s *Service) BackfillSession(ctx context.Context, u SessionUpdate) (bool, e
 	current := !inSession || active.TransactionID == u.TransactionID
 	if current {
 		delete(s.sessions, key)
+		s.versions[key.PoolCode]++
 	}
 	s.mu.Unlock()
 
@@ -567,9 +593,12 @@ func (s *Service) DeleteStation(ctx context.Context, poolCode int, stationName s
 	for key := range s.sessions {
 		if key.PoolCode == poolCode && key.StationName == stationName {
 			delete(s.sessions, key)
+			s.versions[key.PoolCode]++
 		}
 	}
 	delete(s.translated, stationKey{poolCode, stationName})
+	delete(s.connections, stationKey{poolCode, stationName})
+	s.versions[poolCode]++
 	return existed, nil
 }
 

@@ -9,6 +9,7 @@ const messages: Record<ErrorCode, () => string> = {
 	invalid_request: m.error_invalid_request,
 	invalid_credentials: m.error_invalid_credentials,
 	unauthenticated: m.error_unauthenticated,
+	forbidden: m.error_forbidden,
 	not_found: m.error_not_found,
 	conflict: m.error_conflict,
 	rate_limited: m.error_rate_limited,

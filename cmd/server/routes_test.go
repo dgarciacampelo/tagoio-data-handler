@@ -104,6 +104,22 @@ var (
 		{"GET", "/emsp-dashboard/sessions/4321"},
 		{"GET", "/emsp-dashboard/sessions/990001/ST1/1/4321"},
 	}
+	// panelRoutes need a panel session (Authorization: Bearer), started with a TagoIO token (handlers/panel.go)
+	panelRoutes = []route{
+		{"GET", "/api/panel/637f4de7e7223300208aa890/overview"},
+		{"GET", "/api/panel/637f4de7e7223300208aa890/stream"},
+		{"GET", "/api/panel/637f4de7e7223300208aa890/history"},
+		{"GET", "/api/panel/637f4de7e7223300208aa890/history.csv"},
+		{"GET", "/api/panel/637f4de7e7223300208aa890/cards"},
+		{"POST", "/api/panel/637f4de7e7223300208aa890/cards"},
+		{"PUT", "/api/panel/637f4de7e7223300208aa890/cards/04A1B2"},
+		{"DELETE", "/api/panel/637f4de7e7223300208aa890/cards/04A1B2"},
+		{"PUT", "/api/panel/637f4de7e7223300208aa890/rates"},
+		{"PUT", "/api/panel/637f4de7e7223300208aa890/max-power"},
+		{"PUT", "/api/panel/637f4de7e7223300208aa890/load-balancing-mode"},
+		{"PUT", "/api/panel/637f4de7e7223300208aa890/cpo"},
+		{"POST", "/api/panel/637f4de7e7223300208aa890/stations/ST1/reset"},
+	}
 	publicRoutes = []route{
 		{"GET", "/healthz"},
 		{"GET", "/api/station/261001/ST1"},
@@ -112,7 +128,9 @@ var (
 		{"GET", "/login"},
 		{"POST", "/api/login"},
 		{"POST", "/api/logout"},
-		{"GET", "/261001/ST1"}, // Station page (fallback route), opened from the QR codes
+		{"GET", "/261001/ST1"},         // Station page (fallback route), opened from the QR codes
+		{"GET", "/panel"},              // Management panel page; its APIs need a panel session
+		{"POST", "/api/panel/session"}, // Starts that session with a TagoIO token
 	}
 )
 
@@ -185,10 +203,46 @@ func TestPublicRoutesNeedNoCredentials(t *testing.T) {
 	}
 }
 
+func TestPanelAPIsNeedAPanelSession(t *testing.T) {
+	h := testRoutes(t)
+	for _, rt := range panelRoutes {
+		t.Run(rt.method+" "+rt.path, func(t *testing.T) {
+			for name, auth := range map[string]func(*http.Request){
+				"nothing":            func(*http.Request) {},
+				"the admin password": func(r *http.Request) { r.SetBasicAuth("admin", "admin-secret") },
+				"the service":        func(r *http.Request) { r.SetBasicAuth("svc", "svc-secret") },
+			} {
+				r := httptest.NewRequest(rt.method, rt.path, strings.NewReader("{}"))
+				auth(r)
+				if rec := serve(h, r); rec.Code != http.StatusUnauthorized {
+					t.Errorf("with %s: %d", name, rec.Code)
+				}
+			}
+		})
+	}
+}
+
+func TestOnlyThePanelPageMayBeFramedByTagoIO(t *testing.T) {
+	h := testRoutes(t)
+	rec := serve(h, httptest.NewRequest(http.MethodGet, "/panel", nil))
+	if got := rec.Header().Get("X-Frame-Options"); got != "" {
+		t.Errorf("X-Frame-Options = %q; want none", got)
+	}
+	if got := rec.Header().Get("Content-Security-Policy"); got != "frame-ancestors https://*.tago.io https://*.tago.run" {
+		t.Errorf("Content-Security-Policy = %q", got)
+	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Errorf("X-Content-Type-Options = %q", got)
+	}
+}
+
 func TestEveryAnswerCarriesTheSecurityHeaders(t *testing.T) {
 	h := testRoutes(t)
-	all := append(append(append(append([]route{}, serviceRoutes...), adminAPIRoutes...), adminPages...), publicRoutes...)
+	all := append(append(append(append(append([]route{}, serviceRoutes...), adminAPIRoutes...), adminPages...), publicRoutes...), panelRoutes...)
 	for _, rt := range all {
+		if rt.path == "/panel" {
+			continue // Framed by TagoIO: TestOnlyThePanelPageMayBeFramedByTagoIO
+		}
 		rec := serve(h, httptest.NewRequest(rt.method, rt.path, nil))
 		for header, want := range map[string]string{
 			"X-Content-Type-Options": "nosniff",
