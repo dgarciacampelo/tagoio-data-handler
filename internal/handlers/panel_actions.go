@@ -86,21 +86,34 @@ func (a *App) PanelCardsAPI(w http.ResponseWriter, r *http.Request) {
 
 // panelCards reads the pool's cards, one per card ID (the newest record), sorted by alias.
 func (a *App) panelCards(ctx context.Context, poolCode int) ([]dto.PanelCard, error) {
+	cards, _, err := a.panelCardRecords(ctx, poolCode)
+	return cards, err
+}
+
+// panelCardRecords reads the pool's cards, and the groups each card's records are stored under, by card ID in
+// upper case: older records were grouped by the ID as typed, and some cards were stored more than once.
+func (a *App) panelCardRecords(ctx context.Context, poolCode int) ([]dto.PanelCard, map[string][]string, error) {
 	records, err := a.PanelData.List(ctx, poolCode, poolactions.CardVariable, cardReadQty)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	seen := map[string]bool{}
+	groups := map[string][]string{}
 	cards := []dto.PanelCard{}
 	for _, r := range records {
 		id := strings.ToUpper(strings.TrimSpace(tagoio.ValueString(r.Value)))
 		if id == "" {
 			id = strings.ToUpper(r.Group)
 		}
-		if id == "" || seen[id] {
+		if id == "" {
 			continue
 		}
-		seen[id] = true
+		_, seen := groups[id]
+		if !slices.Contains(groups[id], r.Group) {
+			groups[id] = append(groups[id], r.Group)
+		}
+		if seen {
+			continue
+		}
 		cards = append(cards, dto.PanelCard{
 			ID:             id,
 			Alias:          strings.TrimSpace(tagoio.ValueString(r.Metadata["alias"])),
@@ -111,7 +124,7 @@ func (a *App) panelCards(ctx context.Context, poolCode int) ([]dto.PanelCard, er
 	slices.SortFunc(cards, func(x, y dto.PanelCard) int {
 		return strings.Compare(strings.ToLower(x.Alias+x.ID), strings.ToLower(y.Alias+y.ID))
 	})
-	return cards, nil
+	return cards, groups, nil
 }
 
 // PanelCreateCardAPI creates a card (POST /api/panel/{device_id}/cards).
@@ -145,13 +158,14 @@ func (a *App) saveCard(w http.ResponseWriter, r *http.Request, pathID string) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), panelTimeout)
 	defer cancel()
-	existing, err := a.panelCards(ctx, caller.poolCode)
+	existing, groups, err := a.panelCardRecords(ctx, caller.poolCode)
 	if err != nil {
 		a.Log.Error("Panel: reading the cards failed", "pool_code", caller.poolCode, "error", err)
 		writeAPIError(w, http.StatusServiceUnavailable, dto.ErrorCodeServiceUnavailable, "Cards not available")
 		return
 	}
 	exists := slices.ContainsFunc(existing, func(c dto.PanelCard) bool { return strings.EqualFold(c.ID, card.ID) })
+	card.StoredGroups = groups[strings.ToUpper(card.ID)]
 	switch {
 	case pathID == "" && exists:
 		writeAPIError(w, http.StatusConflict, dto.ErrorCodeConflict, "The card already exists")
@@ -207,7 +221,7 @@ func (a *App) PanelDeleteCardAPI(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(r.PathValue("card_id"))
 	ctx, cancel := context.WithTimeout(r.Context(), panelTimeout)
 	defer cancel()
-	cards, err := a.panelCards(ctx, caller.poolCode)
+	cards, groups, err := a.panelCardRecords(ctx, caller.poolCode)
 	if err != nil {
 		a.Log.Error("Panel: reading the cards failed", "pool_code", caller.poolCode, "error", err)
 		writeAPIError(w, http.StatusServiceUnavailable, dto.ErrorCodeServiceUnavailable, "Cards not available")
@@ -218,7 +232,8 @@ func (a *App) PanelDeleteCardAPI(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusNotFound, dto.ErrorCodeNotFound, "Unknown card")
 		return
 	}
-	if err := a.Actions.DeleteCard(ctx, caller.poolCode, cards[index].ID, cards[index].LinkedStations); err != nil {
+	card := cards[index]
+	if err := a.Actions.DeleteCard(ctx, caller.poolCode, card.ID, card.LinkedStations, groups[card.ID]...); err != nil {
 		a.panelActionFailed(w, caller, "deleting a card", err)
 		return
 	}

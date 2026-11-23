@@ -400,7 +400,7 @@ func TestPanelHistory(t *testing.T) {
 		"alias": "OFFICE", "energy": "4,25", "cost": "1.5"})
 	add(3, map[string]any{"start_date": "01/11/2026", "time_band": "08:00 - 09:00", "display_id": "ST1 [2]",
 		"card_alias": "VAN", "energy": 7.0, "cost": 2.0, "stop_motive": "CAR"})
-	session := h.session(t, "cpo-220001", labDevice)
+	session := h.session(t, "admin", labDevice) // The account sees the whole history (TestPanelHistoryWindow)
 	base := "/api/panel/" + labDevice + "/history"
 
 	page := decodeBody[dto.PanelHistoryPage](t, h.do(http.MethodGet, base, session, ""))
@@ -438,6 +438,69 @@ func TestPanelHistory(t *testing.T) {
 	}
 	if !strings.Contains(w.Header().Get("Content-Disposition"), "recargas_220001_") {
 		t.Errorf("Content-Disposition = %q", w.Header().Get("Content-Disposition"))
+	}
+}
+
+func TestPanelHistoryWindow(t *testing.T) {
+	h := newPanelHarness(t)
+	madrid, _ := time.LoadLocation("Europe/Madrid")
+	now := time.Now().In(madrid)
+	for tx, daysAgo := range map[int]int{1: 10, 2: HistoryWindowDays - 1, 3: HistoryWindowDays + 5, 4: 400} {
+		h.tago.AddRecord(labToken, tagoio.DataRecord{Variable: chargepoints.HistoryVariable, Value: json.Number(strconv.Itoa(tx)),
+			Group: strconv.Itoa(tx), Metadata: map[string]any{"start_date": now.AddDate(0, 0, -daysAgo).Format("02/01/2006"),
+				"time_band": "00:05 - 01:00", "display_id": "ST1 [1]", "card_alias": "VAN", "energy": 1.0, "cost": 1.0}})
+	}
+	count := func(token, query string) int {
+		session := h.session(t, token, labDevice)
+		return decodeBody[dto.PanelHistoryPage](t, h.do(http.MethodGet, "/api/panel/"+labDevice+"/history"+query, session, "")).Total
+	}
+	if got := count("cpo-220001", ""); got != 2 {
+		t.Errorf("CPO, no filter: %d sessions; want the 2 of the last %d days", got, HistoryWindowDays)
+	}
+	if got := count("cpo-220001", "?from=2000-01-01"); got != 2 {
+		t.Errorf("CPO asking for older sessions: %d; want still 2", got)
+	}
+	if got := count("admin", ""); got != 4 {
+		t.Errorf("admin: %d sessions; want all 4", got)
+	}
+	session := h.session(t, "cpo-220001", labDevice)
+	csv := h.do(http.MethodGet, "/api/panel/"+labDevice+"/history.csv?from=2000-01-01", session, "").Body.String()
+	if lines := len(strings.Split(strings.TrimSpace(csv), "\n")) - 1; lines != 2 {
+		t.Errorf("CPO CSV: %d sessions; want 2", lines)
+	}
+}
+
+func TestPanelCardsStoredUnderOtherSpellings(t *testing.T) {
+	h := newPanelHarness(t)
+	// As the Python service stored them: grouped by the ID as typed, several times
+	for range 3 {
+		h.tago.AddRecord(labToken, tagoio.DataRecord{Variable: "card_id", Value: "payter", Group: "payter",
+			Metadata: map[string]any{"alias": "PAYTER", "email": "", "cps": "ST1"}})
+	}
+	session := h.session(t, "cpo-220001", labDevice)
+	cards := "/api/panel/" + labDevice + "/cards"
+
+	if list := decodeBody[[]dto.PanelCard](t, h.do(http.MethodGet, cards, session, "")); len(list) != 1 || list[0].ID != "PAYTER" {
+		t.Fatalf("cards = %+v; want PAYTER once", list)
+	}
+	if w := h.do(http.MethodPut, cards+"/PAYTER", session, `{"alias":"payter","linked_stations":["ST1","ST2"]}`); w.Code != http.StatusNoContent {
+		t.Fatalf("update: %d %s", w.Code, w.Body)
+	}
+	h.event(t)
+	if records := h.tago.Records(labToken, "card_id"); len(records) != 1 || records[0].Group != "PAYTER" {
+		t.Errorf("after the update: %+v; want one record, grouped PAYTER", records)
+	}
+
+	h.tago.AddRecord(labToken, tagoio.DataRecord{Variable: "card_id", Value: "payter", Group: "payter"})
+	if w := h.do(http.MethodDelete, cards+"/PAYTER", session, ""); w.Code != http.StatusNoContent {
+		t.Fatalf("delete: %d %s", w.Code, w.Body)
+	}
+	h.event(t)
+	if records := h.tago.Records(labToken, "card_id"); len(records) != 0 {
+		t.Errorf("after the delete: %+v; want none", records)
+	}
+	if list := decodeBody[[]dto.PanelCard](t, h.do(http.MethodGet, cards, session, "")); len(list) != 0 {
+		t.Errorf("cards after the delete = %+v", list)
 	}
 }
 

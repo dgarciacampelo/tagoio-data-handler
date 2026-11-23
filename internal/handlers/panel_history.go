@@ -26,6 +26,10 @@ const (
 	historyCacheTTL    = 2 * time.Minute // A pool's history is read from TagoIO at most this often
 	historyPageSize    = 25
 	historyMaxPageSize = 200
+
+	// HistoryWindowDays is how far back a CPO sees its sessions in the panel (today included): about three months.
+	// An older history is exported by Velo Energy on request; the account itself (admin) sees it all.
+	HistoryWindowDays = 90
 )
 
 // historyEntry is a finished session with its start parsed.
@@ -220,6 +224,28 @@ func parseHistoryQuery(r *http.Request, loc *time.Location) (historyQuery, error
 	return q, nil
 }
 
+// limitTo keeps the query within [start, …): an earlier or open start becomes start.
+func (q *historyQuery) limitTo(start time.Time) {
+	if q.from.IsZero() || q.from.Before(start) {
+		q.from = start
+	}
+}
+
+// historyWindowStart is the first day a CPO sees: the local midnight HistoryWindowDays-1 days before now.
+func historyWindowStart(now time.Time, loc *time.Location) time.Time {
+	day := now.In(loc).AddDate(0, 0, -(HistoryWindowDays - 1))
+	return time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, loc)
+}
+
+// panelHistoryQuery reads the history query of a request, limited to the window of the caller.
+func (a *App) panelHistoryQuery(r *http.Request, caller panelCaller) (historyQuery, error) {
+	query, err := parseHistoryQuery(r, a.location())
+	if err == nil && !caller.claims.Admin {
+		query.limitTo(historyWindowStart(time.Now(), a.location()))
+	}
+	return query, err
+}
+
 // apply returns the entries the query's filter selects, in its order.
 func (q historyQuery) apply(entries []historyEntry) []historyEntry {
 	selected := make([]historyEntry, 0, len(entries))
@@ -262,13 +288,14 @@ func (q historyQuery) apply(entries []historyEntry) []historyEntry {
 	return selected
 }
 
-// PanelHistoryAPI returns a page of the finished sessions (GET /api/panel/{device_id}/history).
+// PanelHistoryAPI returns a page of the finished sessions (GET /api/panel/{device_id}/history), within the last
+// HistoryWindowDays days for a CPO.
 func (a *App) PanelHistoryAPI(w http.ResponseWriter, r *http.Request) {
 	caller, ok := a.panelAuth(w, r)
 	if !ok {
 		return
 	}
-	query, err := parseHistoryQuery(r, a.location())
+	query, err := a.panelHistoryQuery(r, caller)
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, dto.ErrorCodeInvalidRequest, err.Error())
 		return
@@ -306,7 +333,7 @@ func (a *App) PanelHistoryCSVAPI(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	query, err := parseHistoryQuery(r, a.location())
+	query, err := a.panelHistoryQuery(r, caller)
 	if err != nil {
 		writeAPIError(w, http.StatusBadRequest, dto.ErrorCodeInvalidRequest, err.Error())
 		return
