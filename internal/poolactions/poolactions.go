@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -52,17 +53,20 @@ var ErrUnknownMode = errors.New("poolactions: unknown load balancing mode")
 // region RFID cards
 
 // CardVariable is the bucket variable of the RFID cards: one record per card, grouped by the card ID in upper case.
+// Older records were grouped by the ID as typed (e.g. "payter"), and TagoIO matches groups case-sensitively, so the
+// groups a card's records really have are passed along to replace or delete them all.
 const CardVariable = "card_id"
 
 // Card is an RFID card of a pool.
 type Card struct {
-	ID        string   // As the reader sends it; stored in lower case
-	Alias     string   // Upper case; the ID when empty
-	Email     string   // Optional: where the session summaries go
-	LinkedCPs []string // Stations where the card may charge
+	ID           string   // As the reader sends it; stored in lower case
+	Alias        string   // Upper case; the ID when empty
+	Email        string   // Optional: where the session summaries go
+	LinkedCPs    []string // Stations where the card may charge
+	StoredGroups []string // Groups of the card's records in the bucket, when known (older spellings are removed)
 }
 
-// SaveCard creates a card or replaces it: the CSMS upserts it, and the card's bucket record is replaced.
+// SaveCard creates a card or replaces it: the CSMS upserts it, and the card's bucket records are replaced by one.
 func (s *Service) SaveCard(ctx context.Context, poolCode int, card Card) error {
 	id := strings.TrimSpace(card.ID)
 	if id == "" {
@@ -81,6 +85,11 @@ func (s *Service) SaveCard(ctx context.Context, poolCode int, card Card) error {
 		CardID: cardID, Action: events.RFIDCreate, LinkedCPs: linked,
 		Alias: &alias, Email: optional(email),
 	})
+	for _, stale := range otherGroups(group, card.StoredGroups) {
+		if _, err := s.bucket.Delete(ctx, poolCode, CardVariable, stale, 0); err != nil {
+			return fmt.Errorf("poolactions: deleting the older records of card %s: %w", group, err)
+		}
+	}
 	record := tagoio.DataInput{Variable: CardVariable, Value: cardID, Group: group,
 		Metadata: map[string]any{"alias": alias, "email": email, "cps": strings.Join(linked, ", ")}}
 	if err := s.bucket.Replace(ctx, poolCode, CardVariable, group, record); err != nil {
@@ -89,8 +98,9 @@ func (s *Service) SaveCard(ctx context.Context, poolCode int, card Card) error {
 	return nil
 }
 
-// DeleteCard removes a card: the CSMS deletes it, and its bucket record is deleted.
-func (s *Service) DeleteCard(ctx context.Context, poolCode int, id string, linkedCPs []string) error {
+// DeleteCard removes a card: the CSMS deletes it, and its bucket records are deleted, under the upper-case group
+// and under each of storedGroups.
+func (s *Service) DeleteCard(ctx context.Context, poolCode int, id string, linkedCPs []string, storedGroups ...string) error {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return errors.New("poolactions: card without ID")
@@ -99,10 +109,24 @@ func (s *Service) DeleteCard(ctx context.Context, poolCode int, id string, linke
 		Header: events.NewHeader(events.TypeManageRFID, poolCode),
 		CardID: strings.ToLower(id), Action: events.RFIDDelete, LinkedCPs: nonNil(linkedCPs),
 	})
-	if _, err := s.bucket.Delete(ctx, poolCode, CardVariable, strings.ToUpper(id), 0); err != nil {
-		return fmt.Errorf("poolactions: deleting card %s: %w", strings.ToUpper(id), err)
+	group := strings.ToUpper(id)
+	for _, g := range append([]string{group}, otherGroups(group, storedGroups)...) {
+		if _, err := s.bucket.Delete(ctx, poolCode, CardVariable, g, 0); err != nil {
+			return fmt.Errorf("poolactions: deleting card %s: %w", group, err)
+		}
 	}
 	return nil
+}
+
+// otherGroups returns the distinct non-empty groups that are not group.
+func otherGroups(group string, groups []string) []string {
+	var others []string
+	for _, g := range groups {
+		if g != "" && g != group && !slices.Contains(others, g) {
+			others = append(others, g)
+		}
+	}
+	return others
 }
 
 // endregion

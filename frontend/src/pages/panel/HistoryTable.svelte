@@ -17,12 +17,13 @@ text, paged, with the totals of the filter (which replace the former expense cal
 
 	let { client, notify }: Props = $props();
 
-	type Period = '7d' | '30d' | 'year' | 'all';
+	// The server shows a CPO at most the last 90 days (HistoryWindowDays); an older history is exported on request.
+	type Period = 7 | 30 | 60 | 90;
 	const periods: { id: Period; label: () => string }[] = [
-		{ id: '7d', label: m.panel_history_7d },
-		{ id: '30d', label: m.panel_history_30d },
-		{ id: 'year', label: m.panel_history_year },
-		{ id: 'all', label: m.panel_history_all }
+		{ id: 7, label: m.panel_history_7d },
+		{ id: 30, label: m.panel_history_30d },
+		{ id: 60, label: m.panel_history_60d },
+		{ id: 90, label: m.panel_history_90d }
 	];
 	const columns: { id: PanelHistorySort; label: () => string; numeric: boolean }[] = [
 		{ id: 'date', label: m.panel_history_col_date, numeric: false },
@@ -33,7 +34,7 @@ text, paged, with the totals of the filter (which replace the former expense cal
 		{ id: 'cost', label: m.panel_history_col_cost, numeric: true }
 	];
 
-	let period = $state<Period>('30d');
+	let period = $state<Period>(30);
 	let text = $state('');
 	let sort = $state<PanelHistorySort>('date');
 	let descending = $state(true);
@@ -46,14 +47,9 @@ text, paged, with the totals of the filter (which replace the former expense cal
 	/** The query string of the current filter (without the page). */
 	function filter(): URLSearchParams {
 		const params = new URLSearchParams({ sort, dir: descending ? 'desc' : 'asc' });
-		const today = new Date();
-		if (period === '7d' || period === '30d') {
-			const from = new Date(today);
-			from.setDate(from.getDate() - (period === '7d' ? 6 : 29));
-			params.set('from', isoDate(from));
-		} else if (period === 'year') {
-			params.set('from', `${today.getFullYear()}-01-01`);
-		}
+		const from = new Date();
+		from.setDate(from.getDate() - (period - 1)); // Today included
+		params.set('from', isoDate(from));
 		if (text.trim()) params.set('q', text.trim());
 		return params;
 	}
@@ -100,7 +96,10 @@ text, paged, with the totals of the filter (which replace the former expense cal
 </script>
 
 <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-4 space-y-3">
-	<h2 class="text-title-md font-semibold">{m.panel_history_title()}</h2>
+	<div class="space-y-1">
+		<h2 class="text-title-md font-semibold">{m.panel_history_title()}</h2>
+		<p class="text-xs text-on-surface-variant">{m.panel_history_window_note()}</p>
+	</div>
 	<div class="flex flex-wrap items-center gap-2">
 		<div class="flex gap-1" role="group" aria-label={m.panel_history_title()}>
 			{#each periods as p (p.id)}

@@ -91,11 +91,12 @@ func (s *Service) manageRFID(ctx context.Context, sc scope) {
 	}
 	switch {
 	case len(sc.records) == 1:
-		var linkedCPs []string
+		var linkedCPs, groups []string
 		if r := sc.record(fieldCardID); r != nil {
 			linkedCPs = pools.SplitList(tagoio.ValueString(r.Metadata["cps"]))
+			groups = []string{r.Group} // Older records keep the ID as typed
 		}
-		err := s.actions.DeleteCard(ctx, poolCode, card, linkedCPs)
+		err := s.actions.DeleteCard(ctx, poolCode, card, linkedCPs, groups...)
 		s.report(poolCode, feedbackRFID, "deleting RFID card", err)
 
 	case sc.str(fieldCardOp) == "create":

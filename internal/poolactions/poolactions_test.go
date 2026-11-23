@@ -92,6 +92,26 @@ func TestDeleteCard(t *testing.T) {
 	}
 }
 
+func TestCardsStoredUnderOtherGroupsAreRemoved(t *testing.T) {
+	s, b, _, _ := newService()
+	if err := s.DeleteCard(context.Background(), pool, "payter", nil, "payter", "PAYTER", "Payter", ""); err != nil {
+		t.Fatal(err)
+	}
+	var groups []string
+	for _, c := range b.calls {
+		groups = append(groups, c.group)
+	}
+	if !reflect.DeepEqual(groups, []string{"PAYTER", "payter", "Payter"}) {
+		t.Errorf("deleted groups = %v; want PAYTER, payter, Payter", groups)
+	}
+
+	s, b, _, _ = newService()
+	_ = s.SaveCard(context.Background(), pool, Card{ID: "payter", LinkedCPs: []string{"ST1"}, StoredGroups: []string{"payter", "PAYTER"}})
+	if len(b.calls) != 2 || b.calls[0].op != "delete" || b.calls[0].group != "payter" || b.calls[1].group != "PAYTER" {
+		t.Errorf("save calls = %+v; want the delete of group payter, then the replace of PAYTER", b.calls)
+	}
+}
+
 func TestSetRatesTakesTheVATAsFractionOrPercentage(t *testing.T) {
 	for _, vat := range []float64{0.21, 21} {
 		s, b, c, p := newService()

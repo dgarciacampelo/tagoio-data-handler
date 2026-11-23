@@ -120,7 +120,7 @@ place, without a dialog), the state of each station with its RESET button, and t
 	{#if stations.length === 0}
 		<p class="text-on-surface-variant">{m.panel_stations_empty()}</p>
 	{:else}
-		<div class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]">
+		<div class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]">
 			{#each stations as station (station.name)}
 				<article
 					class="rounded-lg border border-outline-variant p-3 space-y-3 {station.connection === 'Offline'
@@ -137,9 +137,9 @@ place, without a dialog), the state of each station with its RESET button, and t
 						{#each station.connectors as connector (connector.id)}
 							{@const style = statusStyle(connector.status)}
 							<li class="flex items-center gap-2 text-sm">
-								<span class="w-14 text-on-surface-variant">{m.panel_connector({ id: connector.id })}</span>
-								<span class="rounded px-2 py-0.5 text-xs font-semibold text-black {style.background}">{style.label()}</span>
-								<span class="ml-auto text-xs text-on-surface-variant">{sinceText(connector.since, now)}</span>
+								<span class="w-14 shrink-0 text-on-surface-variant">{m.panel_connector({ id: connector.id })}</span>
+								<span class="shrink-0 whitespace-nowrap rounded px-2 py-0.5 text-xs font-semibold text-black {style.background}">{style.label()}</span>
+								<span class="ml-auto whitespace-nowrap text-xs text-on-surface-variant">{sinceText(connector.since, now)}</span>
 							</li>
 						{/each}
 					</ul>
